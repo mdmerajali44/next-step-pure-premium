@@ -32,7 +32,8 @@ export const api = {
   // --- PRODUCTS ---
   getProducts: async (fallback: Product[]): Promise<Product[]> => {
     try {
-      return await apiRequest<Product[]>("/api/products");
+      const list = await apiRequest<Product[]>("/api/products");
+      return Array.isArray(list) ? list : fallback;
     } catch (e) {
       console.warn("API getProducts failed, falling back to local:", e);
       const saved = localStorage.getItem("ml_products");
@@ -76,7 +77,8 @@ export const api = {
   // --- CATEGORIES ---
   getCategories: async (fallback: Category[]): Promise<Category[]> => {
     try {
-      return await apiRequest<Category[]>("/api/categories");
+      const list = await apiRequest<Category[]>("/api/categories");
+      return Array.isArray(list) ? list : fallback;
     } catch (e) {
       console.warn("API getCategories failed, falling back to local:", e);
       const saved = localStorage.getItem("ml_categories");
@@ -120,7 +122,8 @@ export const api = {
   // --- ORDERS ---
   getOrders: async (fallback: Order[]): Promise<Order[]> => {
     try {
-      return await apiRequest<Order[]>("/api/orders");
+      const list = await apiRequest<Order[]>("/api/orders");
+      return Array.isArray(list) ? list : fallback;
     } catch (e) {
       console.warn("API getOrders failed, falling back to local:", e);
       const saved = localStorage.getItem("ml_orders");
@@ -178,7 +181,8 @@ export const api = {
   },
   getUsers: async (fallback: User[]): Promise<User[]> => {
     try {
-      return await apiRequest<User[]>("/api/auth/users");
+      const list = await apiRequest<User[]>("/api/auth/users");
+      return Array.isArray(list) ? list : fallback;
     } catch (e) {
       console.warn("API getUsers failed, falling back to local:", e);
       const saved = localStorage.getItem("ml_users");
@@ -211,7 +215,8 @@ export const api = {
   // --- WITHDRAW REQUESTS ---
   getWithdrawRequests: async (): Promise<WithdrawRequest[]> => {
     try {
-      return await apiRequest<WithdrawRequest[]>("/api/withdraws");
+      const list = await apiRequest<WithdrawRequest[]>("/api/withdraws");
+      return Array.isArray(list) ? list : [];
     } catch (e) {
       console.warn("API getWithdrawRequests failed, falling back to local:", e);
       const saved = localStorage.getItem("ml_withdraw_requests");
@@ -244,7 +249,8 @@ export const api = {
   // --- CUSTOM PRODUCT REQUESTS ---
   getProductRequests: async (): Promise<ProductRequest[]> => {
     try {
-      return await apiRequest<ProductRequest[]>("/api/product-requests");
+      const list = await apiRequest<ProductRequest[]>("/api/product-requests");
+      return Array.isArray(list) ? list : [];
     } catch (e) {
       console.warn("API getProductRequests failed, falling back to local:", e);
       const saved = localStorage.getItem("ml_product_requests");
@@ -278,7 +284,7 @@ export const api = {
   getSiteConfig: async (fallback: SiteConfig): Promise<SiteConfig> => {
     try {
       const config = await apiRequest<SiteConfig | null>("/api/siteconfig");
-      return config || fallback;
+      return config ? { ...fallback, ...config } : fallback;
     } catch (e) {
       console.warn("API getSiteConfig failed, falling back to local:", e);
       const saved = localStorage.getItem("mango_lover_site_config");

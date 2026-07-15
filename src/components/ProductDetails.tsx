@@ -353,104 +353,125 @@ const getDetailedContent = (product: Product) => {
 };
 
 const getProductImages = (product: Product): string[] => {
-  if (product.images && product.images.length > 1) {
-    return product.images;
+  const list: string[] = [];
+  
+  // 1. Add the main image if it exists
+  if (product.image && typeof product.image === 'string' && product.image.trim() !== '') {
+    list.push(product.image.trim());
   }
   
-  // Return tailored beautiful organic food images based on category or ID so every product has multiple premium preview options
-  const defaultImages: Record<string, string[]> = {
-    'p1': [
-      '/src/assets/images/juice_powder_1782456192648.jpg',
-      'https://images.unsplash.com/photo-1541432901042-2d8bd64b4a9b?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p2': [
-      '/src/assets/images/akher_gur_1782456206623.jpg',
-      'https://images.unsplash.com/photo-1608686207856-001b95cf60ca?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p3': [
-      '/src/assets/images/amsotto_achar_1782456219512.jpg',
-      'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p4': [
-      '/src/assets/images/gawa_ghee_1782456236375.jpg',
-      'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1631451095765-2c91616fc9e6?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p5': [
-      '/src/assets/images/mustard_oil_1782456250479.jpg',
-      'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p6': [
-      '/src/assets/images/laccha_semai_1782456263350.jpg',
-      'https://images.unsplash.com/photo-1612966608997-30d411b48230?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p6_alt': [
-      'https://images.unsplash.com/photo-1612966608997-30d411b48230?auto=format&fit=crop&w=600&q=80',
-      '/src/assets/images/laccha_semai_1782456263350.jpg',
-      'https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p7': [
-      'https://images.unsplash.com/photo-1608686207856-001b95cf60ca?auto=format&fit=crop&w=600&q=80',
-      '/src/assets/images/akher_gur_1782456206623.jpg',
-      'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p8': [
-      'https://images.unsplash.com/photo-1511117461117-573522c1b4ec?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p9': [
-      'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1511117461117-573522c1b4ec?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&w=600&q=80'
-    ],
-    'h1': [
-      '/src/assets/images/kalojira_honey_1782465866977.jpg',
-      'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=600&q=80'
-    ],
-    'h2': [
-      '/src/assets/images/lychee_honey_1782465883260.jpg',
-      'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=600&q=80'
-    ],
-    'h3': [
-      '/src/assets/images/mustard_honey_1782465897931.jpg',
-      'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=600&q=80'
-    ],
-    'h4': [
-      '/src/assets/images/sundarban_honey_1782465914163.jpg',
-      'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=600&q=80'
-    ],
-    'm1': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
-    'm2': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
-    'm3': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
-    'm4': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
-    'm5': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
-    'm6': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
-    'd1': ['https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80']
-  };
-
-  const list = defaultImages[product.id];
-  if (list && list.length > 0) {
-    if (product.image && product.image !== list[0]) {
-      return [product.image, ...list.slice(1)];
+  // 2. Add other images from product.images array if they exist
+  if (product.images && Array.isArray(product.images)) {
+    product.images.forEach(img => {
+      if (img && typeof img === 'string' && img.trim() !== '') {
+        const trimmed = img.trim();
+        if (!list.includes(trimmed)) {
+          list.push(trimmed);
+        }
+      }
+    });
+  }
+  
+  // 3. If we have at least one valid image, we can return the list
+  if (list.length > 0) {
+    // If it's a seeded product, we can also append its other default images if they exist and are not already included
+    const defaultImages: Record<string, string[]> = {
+      'p1': [
+        '/src/assets/images/juice_powder_1782456192648.jpg',
+        'https://images.unsplash.com/photo-1541432901042-2d8bd64b4a9b?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=600&q=80'
+      ],
+      'p2': [
+        '/src/assets/images/akher_gur_1782456206623.jpg',
+        'https://images.unsplash.com/photo-1608686207856-001b95cf60ca?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=600&q=80'
+      ],
+      'p3': [
+        '/src/assets/images/amsotto_achar_1782456219512.jpg',
+        'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&w=600&q=80'
+      ],
+      'p4': [
+        '/src/assets/images/gawa_ghee_1782456236375.jpg',
+        'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1631451095765-2c91616fc9e6?auto=format&fit=crop&w=600&q=80'
+      ],
+      'p5': [
+        '/src/assets/images/mustard_oil_1782456250479.jpg',
+        'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=600&q=80'
+      ],
+      'p6': [
+        '/src/assets/images/laccha_semai_1782456263350.jpg',
+        'https://images.unsplash.com/photo-1612966608997-30d411b48230?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?auto=format&fit=crop&w=600&q=80'
+      ],
+      'p6_alt': [
+        'https://images.unsplash.com/photo-1612966608997-30d411b48230?auto=format&fit=crop&w=600&q=80',
+        '/src/assets/images/laccha_semai_1782456263350.jpg',
+        'https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?auto=format&fit=crop&w=600&q=80'
+      ],
+      'p7': [
+        'https://images.unsplash.com/photo-1608686207856-001b95cf60ca?auto=format&fit=crop&w=600&q=80',
+        '/src/assets/images/akher_gur_1782456206623.jpg',
+        'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=600&q=80'
+      ],
+      'p8': [
+        'https://images.unsplash.com/photo-1511117461117-573522c1b4ec?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=600&q=80'
+      ],
+      'p9': [
+        'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1511117461117-573522c1b4ec?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&w=600&q=80'
+      ],
+      'h1': [
+        '/src/assets/images/kalojira_honey_1782465866977.jpg',
+        'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=600&q=80'
+      ],
+      'h2': [
+        '/src/assets/images/lychee_honey_1782465883260.jpg',
+        'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=600&q=80'
+      ],
+      'h3': [
+        '/src/assets/images/mustard_honey_1782465897931.jpg',
+        'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=600&q=80'
+      ],
+      'h4': [
+        '/src/assets/images/sundarban_honey_1782465914163.jpg',
+        'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=600&q=80'
+      ],
+      'm1': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
+      'm2': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
+      'm3': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
+      'm4': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
+      'm5': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
+      'm6': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
+      'd1': ['https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80']
+    };
+    
+    const defaults = defaultImages[product.id];
+    if (defaults && Array.isArray(defaults)) {
+      defaults.forEach(defImg => {
+        if (!list.includes(defImg)) {
+          list.push(defImg);
+        }
+      });
     }
+    
     return list;
   }
-
+  
+  // 4. Ultimate fallback if absolutely no image is present
   return [
-    product.image,
     'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=600&q=80',
     'https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&w=600&q=80'
-  ].filter(Boolean);
+  ];
 };
 
 export default function ProductDetails({
