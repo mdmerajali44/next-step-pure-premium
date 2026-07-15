@@ -1617,7 +1617,7 @@ export default function AdminDashboard({
       reorderLevel: editReorderLevel,
       status: editStatus,
       badge: editBadge,
-      addedBy: 'Owner',
+      addedBy: editingProduct.sellerId ? (editingProduct.addedBy || 'Seller') : 'Owner',
       image: primaryImg,
       images: finalImages,
       tagline: editTagline || undefined,
@@ -2679,9 +2679,16 @@ export default function AdminDashboard({
                                         <div className="flex justify-between items-start gap-1.5">
                                           <div className="min-w-0 flex-1">
                                             <h4 className="font-bold text-gray-950 text-xs md:text-sm truncate animate-none" title={p.name}>{p.name}</h4>
-                                            <span className="text-[9px] md:text-[10px] bg-slate-50 text-slate-600 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">
-                                              {p.category}
-                                            </span>
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                              <span className="text-[9px] md:text-[10px] bg-slate-50 text-slate-600 px-1.5 py-0.5 rounded font-bold inline-block">
+                                                {p.category}
+                                              </span>
+                                              {p.sellerId && (
+                                                <span className="text-[9px] md:text-[10px] bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded font-black inline-block">
+                                                  উদ্যোক্তা: {p.sellerName || 'Seller'}
+                                                </span>
+                                              )}
+                                            </div>
                                           </div>
                                           <div className="text-right flex-shrink-0">
                                             <span className="font-extrabold text-emerald-800 text-xs md:text-sm">৳{p.price}</span>
@@ -7760,6 +7767,13 @@ export default function AdminDashboard({
                                   >
                                     বিস্তারিত দেখুন
                                   </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEdit(p)}
+                                    className="bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] font-extrabold px-2 py-1 rounded transition-colors cursor-pointer"
+                                  >
+                                    এডিট করুন
+                                  </button>
                                   {p.sellerProductStatus !== 'approved' && (
                                     <button
                                       type="button"
@@ -9575,6 +9589,16 @@ export default function AdminDashboard({
                   )}
                 </span>
                 <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleOpenEdit(viewingSellerProduct);
+                      setViewingSellerProduct(null);
+                    }}
+                    className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 font-extrabold rounded-xl transition-colors cursor-pointer"
+                  >
+                    এডিট করুন
+                  </button>
                   <button
                     type="button"
                     onClick={() => setViewingSellerProduct(null)}

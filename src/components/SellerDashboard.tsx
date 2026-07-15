@@ -591,13 +591,11 @@ export default function SellerDashboard({
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isLogo: boolean) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (isLogo) {
-          setShopLogo(reader.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+      if (isLogo) {
+        compressAndSetImage(file, (base64) => {
+          setShopLogo(base64);
+        });
+      }
     }
   };
 
