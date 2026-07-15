@@ -920,6 +920,7 @@ export default function AdminDashboard({
   const [sellerSubTab, setSellerSubTab] = useState<'applications' | 'products' | 'withdraws' | 'settings'>('applications');
   const [sellerAppTab, setSellerAppTab] = useState<'pending' | 'active'>('pending');
   const [viewingSellerProduct, setViewingSellerProduct] = useState<Product | null>(null);
+  const [viewingSellerIdForProducts, setViewingSellerIdForProducts] = useState<string | null>(null);
   const [userViewMode, setUserViewMode] = useState<'list' | 'grid'>('list');
   const [otpLoginEnabled, setOtpLoginEnabled] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
@@ -7636,6 +7637,7 @@ export default function AdminDashboard({
                               <th className="p-3">পেমেন্ট মেথড</th>
                               <th className="p-3">ঠিকানা</th>
                               <th className="p-3">অবস্থা</th>
+                              <th className="p-3 text-center">পণ্য তালিকা</th>
                               <th className="p-3 text-right">অ্যাকশন</th>
                             </tr>
                           </thead>
@@ -7662,42 +7664,55 @@ export default function AdminDashboard({
                                 </td>
                                 <td className="p-3 max-w-[150px] truncate" title={u.address}>{u.address || 'ঠিকানা নেই'}</td>
                                 <td className="p-3">
-                                  {u.sellerStatus === 'approved' ? (
-                                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">অনুমোদিত (চলমান)</span>
-                                  ) : u.sellerStatus === 'rejected' ? (
-                                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-red-100 text-red-800">নামঞ্জুরকৃত</span>
-                                  ) : (
-                                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 animate-pulse">অনুমোদন অপেক্ষমাণ</span>
-                                  )}
+                                  <select
+                                    value={u.sellerStatus || 'pending'}
+                                    onChange={(e) => {
+                                      const val = e.target.value as 'approved' | 'rejected' | 'pending';
+                                      const updated: User = { ...u, sellerStatus: val };
+                                      onUpdateUser(updated);
+                                      if (val === 'approved') {
+                                        notify(`"${u.shopName || u.name}" এর বিক্রেতা অ্যাকাউন্ট অনুমোদন করা হয়েছে!`, 'success');
+                                      } else if (val === 'rejected') {
+                                        notify(`"${u.shopName || u.name}" এর বিক্রেতা অ্যাকাউন্ট নামঞ্জুর করা হয়েছে।`, 'error');
+                                      } else {
+                                        notify(`"${u.shopName || u.name}" এর বিক্রেতা অ্যাকাউন্ট অপেক্ষমাণ করা হয়েছে।`, 'info');
+                                      }
+                                    }}
+                                    className={`text-[10px] font-extrabold px-2 py-1 rounded-full border cursor-pointer outline-none focus:ring-1 ${
+                                      u.sellerStatus === 'approved'
+                                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800 focus:ring-emerald-500'
+                                        : u.sellerStatus === 'rejected'
+                                        ? 'bg-red-50 border-red-200 text-red-800 focus:ring-red-500'
+                                        : 'bg-amber-50 border-amber-200 text-amber-800 focus:ring-amber-500'
+                                    }`}
+                                  >
+                                    <option value="pending">অপেক্ষমাণ (Pending)</option>
+                                    <option value="approved">অনুমোদিত (Approved)</option>
+                                    <option value="rejected">নামঞ্জুরকৃত (Rejected)</option>
+                                  </select>
+                                </td>
+                                <td className="p-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => setViewingSellerIdForProducts(u.id)}
+                                    className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2.5 py-1 rounded-lg border border-emerald-200 transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-2xs hover:shadow-xs"
+                                  >
+                                    <Package className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>
+                                      {products.filter(p => p.sellerId === u.id).length} টি পণ্য (দেখুন)
+                                    </span>
+                                  </button>
                                 </td>
                                 <td className="p-3 text-right">
                                   <div className="flex justify-end gap-1.5">
-                                    {u.sellerStatus !== 'approved' && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const updated: User = { ...u, sellerStatus: 'approved' };
-                                          onUpdateUser(updated);
-                                          notify(`"${u.shopName}" এর বিক্রেতা অ্যাকাউন্ট অনুমোদন করা হয়েছে!`, 'success');
-                                        }}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-extrabold px-2 py-1 rounded transition-colors cursor-pointer"
-                                      >
-                                        অনুমোদন দিন
-                                      </button>
-                                    )}
-                                    {u.sellerStatus !== 'rejected' && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const updated: User = { ...u, sellerStatus: 'rejected' };
-                                          onUpdateUser(updated);
-                                          notify(`"${u.shopName}" এর বিক্রেতা অ্যাকাউন্ট নামঞ্জুর করা হয়েছে।`, 'error');
-                                        }}
-                                        className="bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-extrabold px-2 py-1 rounded transition-colors cursor-pointer"
-                                      >
-                                        বাতিল করুন
-                                      </button>
-                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => setUserToDelete(u)}
+                                      className="bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-extrabold px-2 py-1 rounded transition-colors cursor-pointer inline-flex items-center gap-1"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                      <span>মুছে ফেলুন</span>
+                                    </button>
                                   </div>
                                 </td>
                               </tr>
@@ -9464,6 +9479,182 @@ export default function AdminDashboard({
                 className="flex-1 py-2 text-xs font-black text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors cursor-pointer shadow-sm"
               >
                 হ্যাঁ, ডিলিট করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Entrepreneur's Product List Modal */}
+      {viewingSellerIdForProducts && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl border border-stone-100 flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-5 border-b border-stone-100 flex items-center justify-between bg-stone-50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-[#006437]/10 text-[#006437] flex items-center justify-center">
+                  <Package className="w-5.5 h-5.5" />
+                </div>
+                <div className="text-left">
+                  <h3 className="font-extrabold text-gray-900 text-sm md:text-base">
+                    {(() => {
+                      const sellerUser = users?.find(usr => usr.id === viewingSellerIdForProducts);
+                      return sellerUser?.shopName || 'উদ্যোক্তা';
+                    })()}-এর পণ্য তালিকা
+                  </h3>
+                  <p className="text-[10px] text-gray-500 font-bold mt-0.5">
+                    মালিক: {(() => {
+                      const sellerUser = users?.find(usr => usr.id === viewingSellerIdForProducts);
+                      return sellerUser?.name || 'অজানা';
+                    })()} | মোট পণ্য: {products?.filter(prod => prod.sellerId === viewingSellerIdForProducts).length || 0} টি
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingSellerIdForProducts(null)}
+                className="w-8 h-8 rounded-full bg-white hover:bg-stone-150 border border-stone-200 text-slate-500 font-black flex items-center justify-center cursor-pointer transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Product List Content */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              {(() => {
+                const sellerProducts = products?.filter(prod => prod.sellerId === viewingSellerIdForProducts) || [];
+                if (sellerProducts.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-gray-400 space-y-2">
+                      <Package className="w-12 h-12 mx-auto text-gray-300 stroke-1" />
+                      <p className="text-xs font-bold">এই উদ্যোক্তার কোনো পণ্য পাওয়া যায়নি।</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="overflow-x-auto rounded-xl border border-stone-150">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-stone-50/75 border-b border-stone-150 text-stone-500 font-black">
+                          <th className="p-3">ছবি ও নাম</th>
+                          <th className="p-3">ক্যাটাগরি</th>
+                          <th className="p-3">মূল্য ও স্টক</th>
+                          <th className="p-3">অবস্থা</th>
+                          <th className="p-3 text-right">অ্যাকশন</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100 font-bold text-slate-700">
+                        {sellerProducts.map(p => (
+                          <tr key={p.id} className="hover:bg-stone-50/30">
+                            {/* Image & Name */}
+                            <td className="p-3 flex items-center gap-2.5">
+                              <div className="w-11 h-11 rounded-lg border bg-stone-50 overflow-hidden flex items-center justify-center shrink-0">
+                                {p.image ? (
+                                  <img src={p.image} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <ImageIcon className="w-5 h-5 text-stone-300" />
+                                )}
+                              </div>
+                              <div className="min-w-0 text-left">
+                                <span className="block font-black text-slate-800 truncate max-w-[200px]" title={p.name}>{p.name}</span>
+                                <span className="block text-[9px] text-slate-400 font-mono mt-0.5">SKU: {p.sku || 'নাই'}</span>
+                              </div>
+                            </td>
+
+                            {/* Category */}
+                            <td className="p-3 text-left">
+                              <span className="text-[10px] font-black bg-stone-100 text-slate-600 px-2 py-0.5 rounded">
+                                {p.category}
+                              </span>
+                            </td>
+
+                            {/* Price & Stock */}
+                            <td className="p-3 space-y-0.5 text-left">
+                              <div className="text-emerald-800 font-black text-[11px]">৳{p.price} / {p.unit || 'পিস'}</div>
+                              <div className="text-[10px] text-gray-500 font-bold">
+                                স্টক: <span className={p.stock <= (p.reorderLevel ?? 5) ? 'text-red-600 animate-pulse' : 'text-slate-700'}>{p.stock} {p.unit || 'পিস'}</span>
+                              </div>
+                            </td>
+
+                            {/* Status / State */}
+                            <td className="p-3 text-left">
+                              <select
+                                value={p.sellerProductStatus || 'pending'}
+                                onChange={(e) => {
+                                  const newStatus = e.target.value as 'approved' | 'rejected' | 'pending';
+                                  const activeVal = newStatus === 'approved' ? 'Active' : 'Inactive';
+                                  const updated: Product = { 
+                                    ...p, 
+                                    sellerProductStatus: newStatus, 
+                                    status: activeVal 
+                                  };
+                                  onEditProduct(updated);
+                                  if (newStatus === 'approved') {
+                                    notify(`"${p.name}" পণ্যটি সফলভাবে অনুমোদন করা হয়েছে!`, 'success');
+                                  } else if (newStatus === 'rejected') {
+                                    notify(`"${p.name}" পণ্যটি বাতিল করা হয়েছে।`, 'error');
+                                  } else {
+                                    notify(`"${p.name}" পণ্যটি অপেক্ষমাণ তালিকায় রাখা হয়েছে।`, 'info');
+                                  }
+                                }}
+                                className={`text-[10px] font-extrabold px-2 py-1 rounded-full border cursor-pointer outline-none focus:ring-1 ${
+                                  p.sellerProductStatus === 'approved'
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800 focus:ring-emerald-500'
+                                    : p.sellerProductStatus === 'rejected'
+                                    ? 'bg-red-50 border-red-200 text-red-800 focus:ring-red-500'
+                                    : 'bg-amber-50 border-amber-200 text-amber-800 focus:ring-amber-500'
+                                }`}
+                              >
+                                <option value="pending">অপেক্ষমাণ (Pending)</option>
+                                <option value="approved">অনুমোদিত (Approved)</option>
+                                <option value="rejected">বাতিলকৃত (Rejected)</option>
+                              </select>
+                            </td>
+
+                            {/* Action Buttons */}
+                            <td className="p-3 text-right">
+                              <div className="flex justify-end gap-1.5">
+                                {/* Edit Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleOpenEdit(p);
+                                  }}
+                                  className="bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] font-extrabold px-2 py-1 rounded transition-colors cursor-pointer"
+                                >
+                                  এডিট
+                                </button>
+
+                                {/* Delete Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setProductToDelete(p);
+                                  }}
+                                  className="bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-extrabold px-2 py-1 rounded transition-colors cursor-pointer"
+                                >
+                                  ডিলিট
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-stone-100 bg-stone-50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setViewingSellerIdForProducts(null)}
+                className="px-5 py-2 text-xs font-extrabold text-gray-700 bg-white hover:bg-stone-100 border border-stone-200 rounded-xl transition-colors cursor-pointer"
+              >
+                বন্ধ করুন
               </button>
             </div>
           </div>
