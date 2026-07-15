@@ -414,6 +414,14 @@ export default function App() {
     return DEFAULT_SITE_CONFIG;
   });
 
+  const [isConfigLoaded, setIsConfigLoaded] = useState(false);
+
+  // --- Promo Offer Modal State ---
+  const [showPromoModal, setShowPromoModal] = useState<boolean>(() => {
+    const shown = sessionStorage.getItem('promo_modal_shown');
+    return !shown;
+  });
+
   // --- Load Fresh Data from MongoDB Atlas on mount ---
   useEffect(() => {
     let active = true;
@@ -437,8 +445,12 @@ export default function App() {
         setUsers(freshUsers);
         setWithdrawRequests(freshWithdraws);
         setProductRequests(freshProductRequests);
+        setIsConfigLoaded(true);
       } catch (err) {
         console.error("Failed to fetch fresh data from MongoDB:", err);
+        if (active) {
+          setIsConfigLoaded(true);
+        }
       }
     };
     fetchFreshData();
@@ -450,6 +462,13 @@ export default function App() {
   const handleUpdateSiteConfig = async (newConfig: SiteConfig) => {
     setSiteConfig(newConfig);
     localStorage.setItem('mango_lover_site_config', JSON.stringify(newConfig));
+    
+    // Automatically show promo modal when admin updates the promo settings so they can see/test it instantly
+    if (newConfig.promoActive && newConfig.promoImage) {
+      setShowPromoModal(true);
+      sessionStorage.removeItem('promo_modal_shown');
+    }
+
     try {
       await api.updateSiteConfig(newConfig);
     } catch (e) {
@@ -1017,19 +1036,7 @@ export default function App() {
     }
   }, [isAdminMode]);
 
-  // --- Promo Offer Modal State ---
-  const [showPromoModal, setShowPromoModal] = useState<boolean>(() => {
-    const shown = sessionStorage.getItem('promo_modal_shown');
-    return !shown;
-  });
 
-  // Automatically show promo modal when admin updates the promo settings so they can see/test it instantly
-  useEffect(() => {
-    if (siteConfig.promoActive && siteConfig.promoImage) {
-      setShowPromoModal(true);
-      sessionStorage.removeItem('promo_modal_shown');
-    }
-  }, [siteConfig.promoActive, siteConfig.promoImage]);
 
   // --- Toast Notification State ---
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -4322,7 +4329,7 @@ export default function App() {
 
       {/* 🎁 Promo Offer Modal (shown on load) */}
       <AnimatePresence>
-        {showPromoModal && siteConfig.promoActive && siteConfig.promoImage && (
+        {isConfigLoaded && showPromoModal && siteConfig.promoActive && siteConfig.promoImage && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
