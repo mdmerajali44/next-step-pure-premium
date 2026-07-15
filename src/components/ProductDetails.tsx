@@ -438,11 +438,19 @@ const getProductImages = (product: Product): string[] => {
     'd1': ['https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80']
   };
 
-  return defaultImages[product.id] || [
+  const list = defaultImages[product.id];
+  if (list && list.length > 0) {
+    if (product.image && product.image !== list[0]) {
+      return [product.image, ...list.slice(1)];
+    }
+    return list;
+  }
+
+  return [
     product.image,
     'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=600&q=80',
     'https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&w=600&q=80'
-  ];
+  ].filter(Boolean);
 };
 
 export default function ProductDetails({

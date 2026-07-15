@@ -417,10 +417,7 @@ export default function App() {
   const [isConfigLoaded, setIsConfigLoaded] = useState(false);
 
   // --- Promo Offer Modal State ---
-  const [showPromoModal, setShowPromoModal] = useState<boolean>(() => {
-    const shown = sessionStorage.getItem('promo_modal_shown');
-    return !shown;
-  });
+  const [showPromoModal, setShowPromoModal] = useState<boolean>(true);
 
   // --- Load Fresh Data from MongoDB Atlas on mount ---
   useEffect(() => {
@@ -466,7 +463,6 @@ export default function App() {
     // Automatically show promo modal when admin updates the promo settings so they can see/test it instantly
     if (newConfig.promoActive && newConfig.promoImage) {
       setShowPromoModal(true);
-      sessionStorage.removeItem('promo_modal_shown');
     }
 
     try {
@@ -4347,7 +4343,6 @@ export default function App() {
               <button
                 onClick={() => {
                   setShowPromoModal(false);
-                  sessionStorage.setItem('promo_modal_shown', 'true');
                 }}
                 className="absolute -top-3 -right-3 md:-top-4 md:-right-4 z-50 p-2 rounded-full bg-black/80 hover:bg-black text-white transition-all hover:scale-110 shadow-lg cursor-pointer flex items-center justify-center border border-white/20"
                 title="বন্ধ করুন"
@@ -4361,7 +4356,6 @@ export default function App() {
                   href={siteConfig.promoLink}
                   onClick={() => {
                     setShowPromoModal(false);
-                    sessionStorage.setItem('promo_modal_shown', 'true');
                   }}
                   className="block w-full relative overflow-hidden group rounded-2xl shadow-2xl border border-white/10"
                 >
