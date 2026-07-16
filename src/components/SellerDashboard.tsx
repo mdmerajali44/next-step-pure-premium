@@ -22,29 +22,76 @@ const compressAndSetImage = (file: File, callback: (base64: string) => void) => 
       let width = img.width;
       let height = img.height;
       
-      const MAX_SIZE = 800;
+      // We want to preserve reasonable resolution (e.g. max 1000px)
+      // but dynamically scale down and adjust JPEG quality to get under 100 KB.
+      let maxDimension = 1000;
       if (width > height) {
-        if (width > MAX_SIZE) {
-          height = Math.round((height * MAX_SIZE) / width);
-          width = MAX_SIZE;
+        if (width > maxDimension) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
         }
       } else {
-        if (height > MAX_SIZE) {
-          width = Math.round((width * MAX_SIZE) / height);
-          height = MAX_SIZE;
+        if (height > maxDimension) {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
         }
       }
       
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(img, 0, 0, width, height);
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-        callback(compressedBase64);
-      } else {
+      if (!ctx) {
         callback(event.target?.result as string);
+        return;
       }
+      
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      // Let's do a loop to find the best quality/size trade-off
+      let quality = 0.8;
+      let resultBase64 = canvas.toDataURL('image/jpeg', quality);
+      
+      // Under 100 KB means binary size < 100,000 bytes.
+      // Base64 string length * 0.75 is approx binary size in bytes.
+      // So base64 length must be < 133,333.
+      const TARGET_BASE64_LENGTH = 133000; 
+      
+      // If still too large, let's try reducing quality first
+      if (resultBase64.length > TARGET_BASE64_LENGTH) {
+        quality = 0.6;
+        resultBase64 = canvas.toDataURL('image/jpeg', quality);
+      }
+      
+      if (resultBase64.length > TARGET_BASE64_LENGTH) {
+        quality = 0.4;
+        resultBase64 = canvas.toDataURL('image/jpeg', quality);
+      }
+
+      if (resultBase64.length > TARGET_BASE64_LENGTH) {
+        quality = 0.2;
+        resultBase64 = canvas.toDataURL('image/jpeg', quality);
+      }
+      
+      // If even quality 0.2 is too big, let's resize the canvas to be smaller (e.g., 600px max)
+      if (resultBase64.length > TARGET_BASE64_LENGTH) {
+        const scale = 0.6; // Scale down
+        const smallCanvas = document.createElement('canvas');
+        smallCanvas.width = Math.round(width * scale);
+        smallCanvas.height = Math.round(height * scale);
+        const smallCtx = smallCanvas.getContext('2d');
+        if (smallCtx) {
+          smallCtx.drawImage(img, 0, 0, smallCanvas.width, smallCanvas.height);
+          // Try quality 0.5 on smaller image
+          resultBase64 = smallCanvas.toDataURL('image/jpeg', 0.5);
+          
+          if (resultBase64.length > TARGET_BASE64_LENGTH) {
+            // Last fallback: quality 0.2 on smaller image
+            resultBase64 = smallCanvas.toDataURL('image/jpeg', 0.2);
+          }
+        }
+      }
+      
+      callback(resultBase64);
     };
   };
   reader.onerror = (err) => {
