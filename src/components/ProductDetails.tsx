@@ -536,12 +536,17 @@ export default function ProductDetails({
     setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
+  // Filter visible reviews (hide hidden ones for public customers)
   const sizes = getProductSizes(product.id, product);
+  const visibleReviews = reviews.filter((r) => !r.isHidden);
   const sku = getProductSKU(product.id, product.name, product);
   const details = getDetailedContent(product);
 
-  const discountedPct = product.originalPrice
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+  const currentOrigPrice = (selectedSize && product.sizePrices?.[selectedSize]) ? product.sizePrices[selectedSize].originalPrice : product.originalPrice;
+  const currentActivePrice = (selectedSize && product.sizePrices?.[selectedSize]) ? product.sizePrices[selectedSize].price : product.price;
+
+  const discountedPct = (currentOrigPrice && Number(currentOrigPrice) > Number(currentActivePrice))
+    ? Math.round(((currentOrigPrice - currentActivePrice) / currentOrigPrice) * 100)
     : 0;
 
   // Retrieve matching category products first, then other products, excluding current active product
@@ -833,11 +838,11 @@ export default function ProductDetails({
           {/* Pricing Row */}
           <div className="flex items-baseline gap-3">
             <span className="text-2xl md:text-3xl font-black text-orange-600">
-              {(selectedSize && product.sizePrices?.[selectedSize]) ? product.sizePrices[selectedSize].price : product.price}৳
+              {currentActivePrice}৳
             </span>
-            {((selectedSize && product.sizePrices?.[selectedSize]) ? product.sizePrices[selectedSize].originalPrice : product.originalPrice) !== undefined && (
+            {currentOrigPrice && Number(currentOrigPrice) > Number(currentActivePrice) && (
               <span className="text-sm md:text-base text-red-500 line-through font-semibold">
-                {(selectedSize && product.sizePrices?.[selectedSize]) ? product.sizePrices[selectedSize].originalPrice : product.originalPrice}৳
+                {currentOrigPrice}৳
               </span>
             )}
           </div>
@@ -1074,16 +1079,16 @@ export default function ProductDetails({
               <div className="md:col-span-5 bg-gray-50 border border-gray-100/70 p-6 rounded-2xl flex flex-col items-center text-center">
                 <span className="text-sm font-extrabold text-gray-500">গড় কাস্টমার রেটিং</span>
                 <span className="text-5xl md:text-6xl font-black text-slate-800 tracking-tight mt-2 mb-1">
-                  {reviews.length > 0 
-                    ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
+                  {visibleReviews.length > 0 
+                    ? (visibleReviews.reduce((acc, r) => acc + r.rating, 0) / visibleReviews.length).toFixed(1)
                     : '5.0'}
                 </span>
                 
                 {/* Gold Stars row */}
                 <div className="flex items-center gap-1 text-amber-500 mb-2">
                   {Array.from({ length: 5 }).map((_, i) => {
-                    const avg = reviews.length > 0 
-                      ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length)
+                    const avg = visibleReviews.length > 0 
+                      ? (visibleReviews.reduce((acc, r) => acc + r.rating, 0) / visibleReviews.length)
                       : 5;
                     return (
                       <Star 
@@ -1095,14 +1100,14 @@ export default function ProductDetails({
                 </div>
                 
                 <span className="text-xs font-bold text-gray-400 mb-6">
-                  {reviews.length}টি ভেরিফাইড কাস্টমার রিভিউ এর ভিত্তিতে
+                  {visibleReviews.length}টি ভেরিফাইড কাস্টমার রিভিউ এর ভিত্তিতে
                 </span>
 
                 {/* Rating breakdown bars */}
                 <div className="w-full space-y-2.5 border-t border-gray-200/50 pt-6">
                   {[5, 4, 3, 2, 1].map((stars) => {
-                    const count = reviews.filter((r) => r.rating === stars).length;
-                    const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
+                    const count = visibleReviews.filter((r) => r.rating === stars).length;
+                    const percentage = visibleReviews.length > 0 ? (count / visibleReviews.length) * 100 : 0;
                     return (
                       <div key={stars} className="flex items-center gap-3">
                         <span className="text-xs font-bold text-gray-500 w-10 text-right">{stars} স্টার</span>
@@ -1125,7 +1130,7 @@ export default function ProductDetails({
               <div className="md:col-span-7 space-y-6">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                   <h4 className="font-extrabold text-base text-slate-800">
-                    কাস্টমার রিভিউ সমূহ ({reviews.length})
+                    কাস্টমার রিভিউ সমূহ ({visibleReviews.length})
                   </h4>
                   <button
                     onClick={() => setShowReviewForm(!showReviewForm)}
@@ -1272,14 +1277,14 @@ export default function ProductDetails({
                       </div>
                     )}
 
-                    {reviews.length === 0 ? (
+                    {visibleReviews.length === 0 ? (
                       <div className="text-center py-12 bg-gray-50/50 rounded-2xl border border-gray-100 space-y-2">
                         <span className="text-3xl">💬</span>
                         <p className="text-xs text-gray-400 font-bold">এই পণ্যে এখনও কোনো রিভিউ দেওয়া হয়নি। প্রথম রিভিউটি লিখুন!</p>
                       </div>
                     ) : (
                       <div className="space-y-4 max-h-[480px] overflow-y-auto pr-2 no-scrollbar">
-                        {reviews.map((rev) => (
+                        {visibleReviews.map((rev) => (
                           <div 
                             key={rev.id} 
                             className="bg-white border border-gray-100 rounded-2xl p-4 md:p-5 text-left space-y-2 hover:border-amber-100/60 transition-colors shadow-3xs"

@@ -37,6 +37,19 @@ export interface Product {
   sellerProductStatus?: 'pending' | 'approved' | 'rejected';
 }
 
+export interface Review {
+  id: string;
+  productId?: string;
+  productName?: string;
+  name: string;
+  rating: number;
+  comment: string;
+  date: string;
+  isVerified?: boolean;
+  phone?: string;
+  isHidden?: boolean;
+}
+
 export interface CartItem {
   product: Product;
   quantity: number;

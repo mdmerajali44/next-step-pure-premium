@@ -10,7 +10,7 @@ import {
   Plus, Edit, Trash2, Check, Copy, X, ShieldAlert, DollarSign, CreditCard,
   Package, ShoppingCart, TrendingUp, Search, Eye, Filter, RefreshCw,
   Image as ImageIcon, Palette, Sliders, Volume2, Upload, MessageSquare, Printer,
-  Users, Key, Shield, ShieldCheck, Mail, Phone, MapPin, UserCheck, Share2, Facebook, Instagram, Youtube, HelpCircle, ChevronDown, Store
+  Users, Key, Shield, ShieldCheck, Mail, Phone, MapPin, UserCheck, Share2, Facebook, Instagram, Youtube, HelpCircle, ChevronDown, Store, Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -19,6 +19,7 @@ import OverviewTab from './admin/OverviewTab';
 import RequestsTab from './admin/RequestsTab';
 import PaymentsTab from './admin/PaymentsTab';
 import MarketingTab from './admin/MarketingTab';
+import ReviewsTab from './admin/ReviewsTab';
 
 const PRESET_IMAGES = [
   { name: 'আখের জুস পাউডার', path: '/src/assets/images/juice_powder_1782456192648.jpg' },
@@ -151,7 +152,7 @@ interface AdminDashboardProps {
   loggedInUser?: User | null;
   withdrawRequests?: WithdrawRequest[];
   onUpdateWithdrawRequest?: (id: string, status: 'pending' | 'completed' | 'rejected') => void;
-  initialTab?: 'overview' | 'products' | 'orders' | 'marketing' | 'chats' | 'payments' | 'requests' | 'users' | 'sellers';
+  initialTab?: 'overview' | 'products' | 'orders' | 'marketing' | 'chats' | 'payments' | 'requests' | 'users' | 'sellers' | 'reviews';
 }
 
 export const AVAILABLE_PERMISSIONS = [
@@ -163,6 +164,7 @@ export const AVAILABLE_PERMISSIONS = [
   { id: 'requests', name: 'গ্রাহক রিকুয়েস্ট', desc: 'স্টক-আউট পণ্য সমূহের জন্য কাস্টমার রিকুয়েস্ট তালিকা ও যোগাযোগের স্ট্যাটাস এক্সেস।' },
   { id: 'users', name: 'ইউজার ও নিরাপত্তা', desc: 'গ্রাহক বা অ্যাডমিনদের তথ্য, পাসওয়ার্ড পরিবর্তন, ব্লক এবং পারমিশন অ্যাসাইনমেন্টের এক্সেস।' },
   { id: 'sellers', name: 'উদ্যোক্তা (Multi-Vendor)', desc: 'উদ্যোক্তাদের আবেদন অনুমোদন, পণ্য অনুমোদন এবং পেমেন্ট উইথড্র রিকোয়েস্ট ব্যবস্থাপনার এক্সেস।' },
+  { id: 'reviews', name: 'রেটিং ও রিভিউ কন্ট্রোল', desc: 'কাস্টমার রিভিউ দেখা, হাইড করা, স্টার রেটিং সংশোধন এবং ডিলিট করার অ্যাডমিন এক্সেস।' },
 ];
 
 const toEnglishWords = (num: number): string => {
@@ -474,15 +476,15 @@ export default function AdminDashboard({
     return siteConfig.allowAdminsToDeleteOrders !== false;
   };
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'marketing' | 'chats' | 'payments' | 'requests' | 'users' | 'sellers'>(() => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'marketing' | 'chats' | 'payments' | 'requests' | 'users' | 'sellers' | 'reviews'>(() => {
     if (!loggedInUser) return 'overview';
-    const tabs = ['overview', 'products', 'orders', 'payments', 'marketing', 'requests', 'users', 'sellers'] as const;
+    const tabs = ['overview', 'products', 'orders', 'payments', 'marketing', 'requests', 'users', 'sellers', 'reviews'] as const;
     for (const t of tabs) {
       let perms = loggedInUser.permissions;
-      if (perms && !perms.includes('sellers')) {
-        perms = [...perms, 'sellers'];
+      if (perms && !perms.includes('reviews')) {
+        perms = [...perms, 'reviews'];
       }
-      const finalPerms = perms || ['overview', 'products', 'orders', 'payments', 'marketing', 'requests', 'users', 'sellers'];
+      const finalPerms = perms || ['overview', 'products', 'orders', 'payments', 'marketing', 'requests', 'users', 'sellers', 'reviews'];
       if (finalPerms.includes(t)) return t;
     }
     return 'overview';
@@ -1655,7 +1657,7 @@ export default function AdminDashboard({
       sku: editSKU || undefined,
       description: editDescription,
       price: Number(editPrice),
-      originalPrice: editOriginalPrice ? Number(editOriginalPrice) : undefined,
+      originalPrice: editOriginalPrice ? Number(editOriginalPrice) : (null as any),
       purchasePrice: editPurchasePrice ? Number(editPurchasePrice) : undefined,
       category: editCategory,
       unit: editUnit,
@@ -1971,6 +1973,22 @@ export default function AdminDashboard({
                    (withdrawRequests?.filter(w => w.status === 'pending').length || 0)}
                 </span>
               )}
+            </button>
+          )}
+          {hasPermission('reviews') && (
+            <button
+              onClick={() => {
+                setActiveTab('reviews');
+                setSelectedOrderDetails(null);
+              }}
+              className={`w-full text-left px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2.5 cursor-pointer ${
+                activeTab === 'reviews'
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Star className="w-4.5 h-4.5 fill-amber-400 text-amber-400" />
+              <span>রেটিং ও রিভিউ কন্ট্রোল</span>
             </button>
           )}
         </div>
@@ -7992,6 +8010,11 @@ export default function AdminDashboard({
                 </div>
               )}
             </div>
+          )}
+
+          {/* TAB: REVIEWS & RATINGS CONTROL */}
+          {hasPermission('reviews') && activeTab === 'reviews' && (
+            <ReviewsTab products={products} notify={notify} />
           )}
 
           {/* PRODUCT REQUEST DETAILS SLIP MODAL OVERLAY */}

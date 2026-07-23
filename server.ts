@@ -180,7 +180,11 @@ async function startServer() {
   app.put("/api/products/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const updatedProduct = await Product.findOneAndUpdate({ id }, req.body, { new: true });
+      const updateData = { ...req.body };
+      if (!updateData.originalPrice) {
+        updateData.originalPrice = null;
+      }
+      const updatedProduct = await Product.findOneAndUpdate({ id }, updateData, { new: true });
       if (!updatedProduct) {
         return res.status(404).json({ error: "পণ্যটি খুঁজে পাওয়া যায়নি।" });
       }

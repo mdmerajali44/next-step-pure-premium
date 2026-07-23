@@ -138,7 +138,7 @@ const getCategoryLabel = (product: Product) => {
 export default function ProductCard({ product, onAddToCart, onSelect, onDirectBuy, onQuickView, onRequestProduct, onViewImage, isCompact = false, sellerName }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
-  const discount = product.originalPrice 
+  const discount = (product.originalPrice && Number(product.originalPrice) > Number(product.price)) 
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
 
@@ -257,16 +257,11 @@ export default function ProductCard({ product, onAddToCart, onSelect, onDirectBu
           {categoriesLabel}
         </p>
 
-        {/* SKU & Rating line */}
-        <div className={`text-[9px] font-mono text-gray-400 font-extrabold tracking-wider uppercase flex items-center justify-center gap-2 ${
+        {/* SKU line */}
+        <div className={`text-[9px] font-mono text-gray-400 font-extrabold tracking-wider uppercase flex items-center justify-center ${
           isCompact ? 'mb-1.5' : 'mb-2'
         }`}>
           <span>SKU: {getProductSKU(product.id, product.name, product)}</span>
-          <span className="text-gray-200">|</span>
-          <div className="flex items-center gap-0.5 text-amber-500">
-            <Star className="w-2.5 h-2.5 fill-current" />
-            <span>{product.rating.toFixed(1)}</span>
-          </div>
         </div>
 
         {/* Pricing Block */}
@@ -276,7 +271,7 @@ export default function ProductCard({ product, onAddToCart, onSelect, onDirectBu
           <span className="text-orange-600 text-base md:text-lg">
             {product.price}৳
           </span>
-          {product.originalPrice && (
+          {product.originalPrice && Number(product.originalPrice) > Number(product.price) && (
             <span className="text-xs text-red-500 line-through font-medium">
               {product.originalPrice}৳
             </span>
