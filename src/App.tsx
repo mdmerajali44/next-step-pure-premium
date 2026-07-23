@@ -417,21 +417,10 @@ export default function App() {
   const [isConfigLoaded, setIsConfigLoaded] = useState(false);
 
   // --- Promo Offer Modal State ---
-  const [showPromoModal, setShowPromoModal] = useState<boolean>(() => {
-    try {
-      return sessionStorage.getItem('mango_lover_promo_closed') !== 'true';
-    } catch {
-      return true;
-    }
-  });
+  const [showPromoModal, setShowPromoModal] = useState<boolean>(true);
 
   const handleClosePromoModal = () => {
     setShowPromoModal(false);
-    try {
-      sessionStorage.setItem('mango_lover_promo_closed', 'true');
-    } catch (e) {
-      console.error("Failed to set promo closed session:", e);
-    }
   };
 
   // --- Load Fresh Data from MongoDB Atlas on mount ---
@@ -451,6 +440,9 @@ export default function App() {
         
         if (!active) return;
         setProducts(freshProducts);
+        if (freshSiteConfig.promoActive && !freshSiteConfig.promoImage) {
+          freshSiteConfig.promoImage = 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80';
+        }
         setSiteConfig(freshSiteConfig);
         setCategories(freshCategories);
         setOrders(freshOrders);
@@ -472,18 +464,14 @@ export default function App() {
   }, []);
 
   const handleUpdateSiteConfig = async (newConfig: SiteConfig) => {
-    setSiteConfig(newConfig);
-    localStorage.setItem('mango_lover_site_config', JSON.stringify(newConfig));
-    
-    // Automatically show promo modal when admin updates the promo settings so they can see/test it instantly
-    if (newConfig.promoActive && newConfig.promoImage) {
-      try {
-        sessionStorage.removeItem('mango_lover_promo_closed');
-      } catch (e) {
-        // ignore
+    if (newConfig.promoActive) {
+      if (!newConfig.promoImage) {
+        newConfig.promoImage = 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80';
       }
       setShowPromoModal(true);
     }
+    setSiteConfig(newConfig);
+    localStorage.setItem('mango_lover_site_config', JSON.stringify(newConfig));
 
     try {
       await api.updateSiteConfig(newConfig);
@@ -4383,7 +4371,7 @@ export default function App() {
 
       {/* 🎁 Promo Offer Modal (shown on load) */}
       <AnimatePresence>
-        {isConfigLoaded && showPromoModal && siteConfig.promoActive && siteConfig.promoImage && (
+        {isConfigLoaded && showPromoModal && siteConfig.promoActive && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -4414,7 +4402,7 @@ export default function App() {
                   className="block w-full relative overflow-hidden group rounded-2xl shadow-2xl border border-white/10"
                 >
                   <img
-                    src={siteConfig.promoImage}
+                    src={siteConfig.promoImage || 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80'}
                     alt="Current Offer"
                     className="w-full h-auto object-contain max-h-[85vh] rounded-2xl transition-transform duration-300 group-hover:scale-[1.015]"
                     referrerPolicy="no-referrer"
@@ -4423,7 +4411,7 @@ export default function App() {
               ) : (
                 <div className="relative w-full overflow-hidden rounded-2xl shadow-2xl border border-white/10 bg-black/20">
                   <img
-                    src={siteConfig.promoImage}
+                    src={siteConfig.promoImage || 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80'}
                     alt="Current Offer"
                     className="w-full h-auto object-contain max-h-[85vh] rounded-2xl"
                     referrerPolicy="no-referrer"

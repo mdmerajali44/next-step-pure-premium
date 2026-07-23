@@ -110,7 +110,7 @@ export default function MarketingTab({
   const [marketingSubTab, setMarketingSubTab] = useState<'brand_banners' | 'ticker_categories' | 'about_page' | 'contact_info' | 'policies' | 'coupons' | 'promo_offer' | 'faq'>('brand_banners');
 
   const [cfgPromoActive, setCfgPromoActive] = useState<boolean>(siteConfig?.promoActive ?? true);
-  const [cfgPromoImage, setCfgPromoImage] = useState<string>(siteConfig?.promoImage || '');
+  const [cfgPromoImage, setCfgPromoImage] = useState<string>(siteConfig?.promoImage || 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80');
   const [cfgPromoLink, setCfgPromoLink] = useState<string>(siteConfig?.promoLink || '');
 
   const [cfgStoreName, setCfgStoreName] = useState(siteConfig?.storeName || 'ম্যাংগো লাভার');
