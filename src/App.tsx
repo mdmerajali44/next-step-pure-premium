@@ -16,6 +16,7 @@ import AuthModal from './components/AuthModal';
 import { ChatWidget } from './components/ChatWidget';
 import SellerDashboard from './components/SellerDashboard';
 import OrderTrackingModal from './components/OrderTrackingModal';
+import DoubleRingLoader from './components/DoubleRingLoader';
 import { 
   Search, ShoppingCart, ShieldAlert, X, Star, CheckCircle, 
   Plus, Minus, ShoppingBag, Clock, HelpCircle, Store, ChevronRight, ChevronLeft,
@@ -415,6 +416,7 @@ export default function App() {
   });
 
   const [isConfigLoaded, setIsConfigLoaded] = useState(false);
+  const [showSlowNetworkLoader, setShowSlowNetworkLoader] = useState(false);
 
   // --- Promo Offer Modal State ---
   const [showPromoModal, setShowPromoModal] = useState<boolean>(() => {
@@ -437,6 +439,14 @@ export default function App() {
   // --- Load Fresh Data from MongoDB Atlas on mount ---
   useEffect(() => {
     let active = true;
+
+    // Show slow network loader ONLY if data fetching takes more than 350ms (slow connection)
+    const slowTimer = setTimeout(() => {
+      if (active && !isConfigLoaded) {
+        setShowSlowNetworkLoader(true);
+      }
+    }, 350);
+
     const fetchFreshData = async () => {
       try {
         const [freshProducts, freshSiteConfig, freshCategories, freshOrders, freshUsers, freshWithdraws, freshProductRequests] = await Promise.all([
@@ -466,11 +476,14 @@ export default function App() {
         if (active) {
           setIsConfigLoaded(true);
         }
+      } finally {
+        clearTimeout(slowTimer);
       }
     };
     fetchFreshData();
     return () => {
       active = false;
+      clearTimeout(slowTimer);
     };
   }, []);
 
@@ -799,18 +812,14 @@ export default function App() {
   };
 
   const startProductLoadingTransition = (product: Product, toPage: 'details' | 'quick') => {
-    setGlobalLoadingProduct(product);
-    setTimeout(() => {
-      setGlobalLoadingProduct(null);
-      if (toPage === 'details') {
-        setViewingDetailsProduct(product);
-        setSelectedProduct(null);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      } else {
-        setSelectedProduct(product);
-        setDetailQuantity(1);
-      }
-    }, 2000);
+    if (toPage === 'details') {
+      setViewingDetailsProduct(product);
+      setSelectedProduct(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      setSelectedProduct(product);
+      setDetailQuantity(1);
+    }
   };
 
   // Reset modal values when selectedProduct changes
@@ -4073,63 +4082,29 @@ export default function App() {
         siteConfig={siteConfig}
       />
 
-      {/* 10. Beautiful Loading Overlay with 2-second timeout */}
+      {/* 10. Beautiful Loading Overlay with Double Ring Loader (Only shown if network is slow >350ms) */}
       <AnimatePresence>
+        {!isConfigLoaded && showSlowNetworkLoader && (
+          <DoubleRingLoader
+            fullScreen
+            text="ম্যাংগো লাভার ডেটা লোড হচ্ছে..."
+            subtext="ধীরগতির ইন্টারনেটের কারণে কিছুটা সময় লাগতে পারে"
+            size="lg"
+          />
+        )}
         {globalLoadingProduct && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center p-4 select-none"
+            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 select-none"
           >
             <div className="text-center space-y-6 max-w-md">
-              {/* Spinning Ring & Image */}
-              <div className="relative flex items-center justify-center mx-auto w-24 h-24">
-                {/* Decorative background glow */}
-                <div className="absolute inset-0 bg-[#006437]/5 rounded-full blur-xl animate-pulse" />
-                
-                {/* Rotating Ring */}
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-                  className="absolute inset-0 rounded-full border-4 border-gray-100 border-t-[#006437] border-r-[#ff9800]"
-                />
-                
-                {/* Product thumbnail bouncing or fading */}
-                <motion.img
-                  initial={{ scale: 0.8, opacity: 0.5 }}
-                  animate={{ scale: [0.8, 1, 0.8], opacity: 1 }}
-                  transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                  src={globalLoadingProduct.image}
-                  alt={globalLoadingProduct.name}
-                  className="w-14 h-14 object-contain mix-blend-multiply rounded-full relative z-10"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-
-              {/* Message */}
-              <div className="space-y-2">
-                <h3 className="font-black text-slate-800 text-lg md:text-xl flex items-center justify-center gap-2">
-                  <Loader2 className="w-5 h-5 text-[#006437] animate-spin" />
-                  <span>পণ্য লোড হচ্ছে... অনুগ্রহ করে অপেক্ষা করুন</span>
-                </h3>
-                <p className="text-xs text-gray-500 font-bold tracking-widest uppercase">
-                  Loading {globalLoadingProduct.name}...
-                </p>
-                <div className="w-32 h-1 bg-gray-100 rounded-full mx-auto overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: "100%" }}
-                    transition={{ duration: 2, ease: "easeInOut" }}
-                    className="h-full bg-gradient-to-r from-[#006437] to-[#ff9800]"
-                  />
-                </div>
-              </div>
-
-              {/* Tagline */}
-              <p className="text-[11px] text-[#006437] font-semibold tracking-wider">
-                ম্যাংগো লাভার — শতভাগ খাঁটি ও নিরাপদ অর্গানিক ফুড
-              </p>
+              <DoubleRingLoader
+                size="lg"
+                text={`পণ্য লোড হচ্ছে...`}
+                subtext={globalLoadingProduct.name}
+              />
             </div>
           </motion.div>
         )}

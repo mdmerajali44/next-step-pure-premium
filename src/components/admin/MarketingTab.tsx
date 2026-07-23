@@ -205,6 +205,9 @@ export default function MarketingTab({
     if (siteConfig) {
       setCfgCoupons(siteConfig.coupons || []);
       setCfgFaqItems(siteConfig.faqItems || []);
+      setCfgPromoActive(siteConfig.promoActive ?? true);
+      if (siteConfig.promoImage) setCfgPromoImage(siteConfig.promoImage);
+      if (siteConfig.promoLink !== undefined) setCfgPromoLink(siteConfig.promoLink);
     }
   }, [siteConfig]);
 
