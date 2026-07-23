@@ -1115,12 +1115,27 @@ export default function SellerDashboard({
                     {orderSearchQuery && (
                       <button
                         onClick={() => setOrderSearchQuery('')}
-                        className="text-[10px] font-extrabold text-stone-400 hover:text-stone-700 bg-stone-100 hover:bg-stone-200 px-2 py-1 rounded-lg transition-all"
+                        className="text-[10px] font-extrabold text-white bg-[#006437] hover:bg-emerald-800 px-2.5 py-1 rounded-lg transition-all cursor-pointer shrink-0"
                       >
-                        মুছে ফেলুন
+                        ফিল্টার মুছুন (✕)
                       </button>
                     )}
                   </div>
+
+                  {orderSearchQuery && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-amber-50 border border-amber-200 px-4 py-2.5 rounded-2xl text-xs font-bold text-amber-900 shadow-2xs">
+                      <div className="flex items-center gap-2">
+                        <Filter className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>সার্চ ফিল্টার চালুকৃত: "<strong className="text-[#006437] font-mono">{orderSearchQuery}</strong>" (মোট {filteredSellerOrders.length}টি অর্ডার পাওয়া গেছে)</span>
+                      </div>
+                      <button
+                        onClick={() => setOrderSearchQuery('')}
+                        className="text-xs font-black text-white bg-[#006437] hover:bg-emerald-800 px-3 py-1.5 rounded-xl transition-all shadow-xs cursor-pointer text-center shrink-0"
+                      >
+                        সকল অর্ডার দেখুন (ফিল্টার মুছুন)
+                      </button>
+                    </div>
+                  )}
 
                   <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-xs">
                     {filteredSellerOrders.length === 0 ? (

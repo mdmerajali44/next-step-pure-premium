@@ -2935,8 +2935,16 @@ export default function AdminDashboard({
                     placeholder="অর্ডার আইডি, গ্রাহকের নাম বা মোবাইল নম্বর দিয়ে খুঁজুন..."
                     value={orderSearch}
                     onChange={(e) => setOrderSearch(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-orange-100 transition-all"
+                    className="w-full pl-9 pr-28 py-2 border border-gray-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-orange-100 transition-all font-bold"
                   />
+                  {orderSearch && (
+                    <button
+                      onClick={() => setOrderSearch('')}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[11px] font-black text-orange-700 hover:text-white bg-orange-100 hover:bg-orange-600 px-2.5 py-1 rounded-lg transition-all cursor-pointer border border-orange-200"
+                    >
+                      ফিল্টার মুছুন (✕)
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -4095,6 +4103,21 @@ export default function AdminDashboard({
                       </div>
                     </form>
                   </div>
+                </div>
+              )}
+
+              {orderSearch && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-amber-50 border border-amber-200 px-4 py-2.5 rounded-2xl text-xs font-bold text-amber-900 shadow-2xs mb-3">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>সার্চ ফিল্টার চালুকৃত: "<strong className="text-orange-600 font-mono">{orderSearch}</strong>" (মোট {filteredOrders.length}টি মেমো/অর্ডার পাওয়া গেছে)</span>
+                  </div>
+                  <button
+                    onClick={() => setOrderSearch('')}
+                    className="text-xs font-black text-white bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded-xl transition-all shadow-xs cursor-pointer text-center shrink-0"
+                  >
+                    সকল অর্ডার ও মেমো দেখুন (ফিল্টার মুছুন)
+                  </button>
                 </div>
               )}
 

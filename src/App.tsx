@@ -1018,16 +1018,12 @@ export default function App() {
       setIsAdminMode(true);
       setIsSellerDashboardOpen(false);
       setAdminInitialTab(noti.targetTab as any);
-      if (noti.searchQuery) {
-        setAdminInitialSearch(noti.searchQuery);
-      }
+      setAdminInitialSearch(noti.searchQuery || '');
     } else if (noti.targetDashboard === 'seller') {
       setIsSellerDashboardOpen(true);
       setIsAdminMode(false);
       setSellerInitialTab(noti.targetTab as any);
-      if (noti.searchQuery) {
-        setSellerInitialSearch(noti.searchQuery);
-      }
+      setSellerInitialSearch(noti.searchQuery || '');
     }
     setIsNotificationsOpen(false);
   };
@@ -1037,6 +1033,7 @@ export default function App() {
     const handleHashChange = () => {
       if (window.location.hash === '#admin') {
         if (loggedInUser?.role === 'admin') {
+          setAdminInitialSearch('');
           setIsAdminMode(true);
         } else {
           setIsAdminMode(false);
@@ -1565,7 +1562,10 @@ export default function App() {
           onAddUser={handleAddUser}
           onUpdateUser={handleUpdateUser}
           onDeleteUser={handleDeleteUser}
-          onClose={() => setIsAdminMode(false)}
+          onClose={() => {
+            setIsAdminMode(false);
+            setAdminInitialSearch('');
+          }}
           onUpdateProductRequestStatus={handleUpdateProductRequestStatus}
           onDeleteProductRequest={handleDeleteProductRequest}
           onNotify={showNotification}
@@ -1590,7 +1590,10 @@ export default function App() {
           onAddProduct={handleAddProduct}
           onEditProduct={handleEditProduct}
           onDeleteProduct={handleDeleteProduct}
-          onClose={() => setIsSellerDashboardOpen(false)}
+          onClose={() => {
+            setIsSellerDashboardOpen(false);
+            setSellerInitialSearch('');
+          }}
           onAddWithdrawRequest={handleAddWithdrawRequest}
           onNotify={showNotification}
           categories={categories}
@@ -2016,6 +2019,7 @@ export default function App() {
                           <button
                             onMouseDown={(e) => {
                               e.preventDefault(); // Prevents button blur closing the menu before click runs
+                              setAdminInitialSearch('');
                               setIsAdminMode(true);
                               setIsUserMenuOpen(false);
                             }}
@@ -2032,6 +2036,7 @@ export default function App() {
                             <button
                               onMouseDown={(e) => {
                                 e.preventDefault();
+                                setSellerInitialSearch('');
                                 setIsSellerDashboardOpen(true);
                                 setIsUserMenuOpen(false);
                               }}
