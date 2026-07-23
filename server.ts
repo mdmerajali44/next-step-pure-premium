@@ -411,10 +411,6 @@ async function startServer() {
   app.get("/api/siteconfig", async (req, res) => {
     try {
       const config = await SiteConfig.findOne();
-      if (config && config.promoActive && config.promoImage?.includes('unsplash.com')) {
-        config.promoActive = false;
-        await SiteConfig.findOneAndUpdate({}, { promoActive: false });
-      }
       res.json(config);
     } catch (err) {
       res.status(500).json({ error: "সাইট কনফিগারেশন লোড করতে ব্যর্থ হয়েছে।" });
@@ -857,6 +853,11 @@ CRITICAL PRODUCT PRESENTATION & RESPONSE RULES:
     }
   });
 
+
+  // Serve local asset folders statically
+  app.use("/src/assets", express.static(path.join(process.cwd(), "src/assets")));
+  app.use("/assets", express.static(path.join(process.cwd(), "src/assets")));
+  app.use("/public", express.static(path.join(process.cwd(), "public")));
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

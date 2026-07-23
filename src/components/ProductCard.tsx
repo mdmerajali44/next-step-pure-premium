@@ -206,6 +206,12 @@ export default function ProductCard({ product, onAddToCart, onSelect, onDirectBu
             secondImage ? 'group-hover:opacity-0' : ''
           }`}
           referrerPolicy="no-referrer"
+          onError={(e) => {
+            const target = e.currentTarget;
+            if (!target.src.includes('unsplash.com')) {
+              target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
+            }
+          }}
         />
         {secondImage && (
           <img 
@@ -213,6 +219,12 @@ export default function ProductCard({ product, onAddToCart, onSelect, onDirectBu
             alt={`${product.name} - View 2`}
             className="absolute inset-0 w-full h-full object-cover mx-auto scale-100 group-hover:scale-105 opacity-0 group-hover:opacity-100 transition-all duration-500"
             referrerPolicy="no-referrer"
+            onError={(e) => {
+              const target = e.currentTarget;
+              if (!target.src.includes('unsplash.com')) {
+                target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
+              }
+            }}
           />
         )}
       </div>
