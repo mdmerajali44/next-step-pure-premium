@@ -417,10 +417,21 @@ export default function App() {
   const [isConfigLoaded, setIsConfigLoaded] = useState(false);
 
   // --- Promo Offer Modal State ---
-  const [showPromoModal, setShowPromoModal] = useState<boolean>(true);
+  const [showPromoModal, setShowPromoModal] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('mango_lover_promo_closed') !== 'true';
+    } catch {
+      return true;
+    }
+  });
 
   const handleClosePromoModal = () => {
     setShowPromoModal(false);
+    try {
+      sessionStorage.setItem('mango_lover_promo_closed', 'true');
+    } catch (e) {
+      console.error("Failed to set promo closed session:", e);
+    }
   };
 
   // --- Load Fresh Data from MongoDB Atlas on mount ---
@@ -468,7 +479,15 @@ export default function App() {
       if (!newConfig.promoImage) {
         newConfig.promoImage = 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80';
       }
+      try {
+        sessionStorage.removeItem('mango_lover_promo_closed');
+      } catch (e) {}
       setShowPromoModal(true);
+    } else {
+      setShowPromoModal(false);
+      try {
+        sessionStorage.setItem('mango_lover_promo_closed', 'true');
+      } catch (e) {}
     }
     setSiteConfig(newConfig);
     localStorage.setItem('mango_lover_site_config', JSON.stringify(newConfig));

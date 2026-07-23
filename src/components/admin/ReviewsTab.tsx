@@ -214,6 +214,45 @@ export default function ReviewsTab({ products, notify, filterProductId }: Review
     return matchesSearch && matchesProduct && matchesRating && matchesStatus;
   });
 
+  // Group filtered reviews by productId
+  const productGroupMap = new Map<string, EnrichedReview[]>();
+  filteredReviews.forEach((rev) => {
+    if (!productGroupMap.has(rev.productId)) {
+      productGroupMap.set(rev.productId, []);
+    }
+    productGroupMap.get(rev.productId)!.push(rev);
+  });
+
+  interface ProductGroupData {
+    productId: string;
+    productName: string;
+    productImage: string;
+    reviews: EnrichedReview[];
+    avgRating: string;
+    visibleCount: number;
+    hiddenCount: number;
+  }
+
+  const productGroups: ProductGroupData[] = [];
+  productGroupMap.forEach((reviews, productId) => {
+    const prod = products.find((p) => p.id === productId);
+    const productName = prod?.name || reviews[0]?.productName || 'অজানা পণ্য';
+    const productImage = prod?.image || reviews[0]?.productImage || '';
+    const avg = (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1);
+    const vis = reviews.filter((r) => !r.isHidden).length;
+    const hid = reviews.filter((r) => r.isHidden).length;
+
+    productGroups.push({
+      productId,
+      productName,
+      productImage,
+      reviews,
+      avgRating: avg,
+      visibleCount: vis,
+      hiddenCount: hid
+    });
+  });
+
   const totalCount = allReviews.length;
   const visibleCount = allReviews.filter((r) => !r.isHidden).length;
   const hiddenCount = allReviews.filter((r) => r.isHidden).length;
@@ -329,127 +368,163 @@ export default function ReviewsTab({ products, notify, filterProductId }: Review
         </div>
       </div>
 
-      {/* Reviews Cards List */}
-      {filteredReviews.length === 0 ? (
+      {/* Reviews Cards List Grouped by Product */}
+      {productGroups.length === 0 ? (
         <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-12 text-center text-gray-400 space-y-2">
           <MessageSquare className="w-10 h-10 mx-auto text-gray-300" />
           <p className="font-extrabold text-sm text-gray-500">কোনো কাস্টমার রিভিউ পাওয়া যায়নি</p>
           <p className="text-xs">ফিল্টার পরিবর্তন করে চেক করুন অথবা নতুন রিভিউ যোগ করুন।</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filteredReviews.map((rev) => (
+        <div className="space-y-6">
+          {productGroups.map((group) => (
             <div
-              key={`${rev.productId}-${rev.id}`}
-              className={`bg-white border rounded-2xl p-4 md:p-5 transition-all shadow-3xs flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                rev.isHidden 
-                  ? 'border-red-200 bg-red-50/20 opacity-80' 
-                  : 'border-gray-100 hover:border-amber-200'
-              }`}
+              key={group.productId}
+              className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm"
             >
-              {/* Product Thumbnail & Review Content */}
-              <div className="flex items-start gap-4 flex-1">
-                {/* Product Image */}
-                <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex-shrink-0">
-                  <img 
-                    src={rev.productImage} 
-                    alt={rev.productName} 
-                    className="w-full h-full object-cover" 
-                  />
-                </div>
-
-                <div className="space-y-1.5 flex-1 text-left">
-                  {/* Product Title & Date */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-black text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">
-                      {rev.productName}
-                    </span>
-                    <span className="text-[10px] font-extrabold text-gray-400">
-                      {rev.date}
-                    </span>
-                    {rev.isHidden ? (
-                      <span className="text-[10px] font-black text-red-600 bg-red-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <EyeOff className="w-2.5 h-2.5" />
-                        হাইডকৃত (Hidden)
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-100">
-                        <Eye className="w-2.5 h-2.5" />
-                        প্রকাশিত (Visible)
-                      </span>
-                    )}
+              {/* Product Card Header */}
+              <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 p-4 md:p-5 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-amber-500/20">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden border-2 border-amber-400/30 bg-black/40 shrink-0">
+                    <img
+                      src={group.productImage}
+                      alt={group.productName}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-
-                  {/* Customer Info & Stars */}
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h4 className="font-extrabold text-slate-800 text-sm flex items-center gap-1.5">
-                      <span>{rev.name}</span>
-                      {rev.phone && (
-                        <span className="text-xs text-gray-500 font-mono">({rev.phone})</span>
-                      )}
-                    </h4>
-
-                    {/* Star Rating */}
-                    <div className="flex items-center gap-0.5 text-amber-500">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-3.5 h-3.5 ${i < rev.rating ? 'fill-current text-amber-400' : 'text-gray-200'}`}
-                        />
-                      ))}
-                      <span className="text-xs font-black text-slate-700 ml-1">({rev.rating}/5)</span>
+                  <div>
+                    <h3 className="text-base md:text-lg font-black text-amber-300">{group.productName}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center text-amber-400">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-3.5 h-3.5 ${i < Math.round(Number(group.avgRating)) ? 'fill-current' : 'text-slate-600'}`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-xs font-black text-amber-200">({group.avgRating}/5)</span>
+                      <span className="text-xs text-slate-300 font-extrabold">• মোট {group.reviews.length}টি রিভিউ</span>
                     </div>
                   </div>
+                </div>
 
-                  {/* Review Text */}
-                  <p className="text-xs md:text-sm text-slate-600 font-medium leading-relaxed bg-gray-50/70 p-3 rounded-xl border border-gray-100">
-                    "{rev.comment}"
-                  </p>
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <span className="text-xs font-extrabold text-emerald-400 bg-emerald-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30">
+                    {group.visibleCount}টি প্রকাশিত
+                  </span>
+                  {group.hiddenCount > 0 && (
+                    <span className="text-xs font-extrabold text-red-400 bg-red-950/80 px-2.5 py-1 rounded-lg border border-red-500/30">
+                      {group.hiddenCount}টি লুকায়িত
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 md:flex-col md:items-end justify-end border-t md:border-t-0 pt-3 md:pt-0 border-gray-100 flex-shrink-0">
-                {/* Hide / Show Toggle Button */}
-                <button
-                  onClick={() => handleToggleHide(rev)}
-                  className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
-                    rev.isHidden
-                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-3xs'
-                      : 'bg-amber-100 hover:bg-amber-200 text-amber-800'
-                  }`}
-                  title={rev.isHidden ? 'ওয়েবসাইটে প্রকাশ করুন' : 'ওয়েবসাইটে হাইড করুন'}
-                >
-                  {rev.isHidden ? (
-                    <>
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>প্রকাশ করুন</span>
-                    </>
-                  ) : (
-                    <>
-                      <EyeOff className="w-3.5 h-3.5" />
-                      <span>হাইড করুন</span>
-                    </>
-                  )}
-                </button>
+              {/* Product Reviews List - max height showing up to 5 review items with scrollbar */}
+              <div className="p-4 md:p-5 bg-gray-50/50 space-y-3 max-h-[520px] overflow-y-auto">
+                {group.reviews.map((rev) => (
+                  <div
+                    key={`${rev.productId}-${rev.id}`}
+                    className={`bg-white border rounded-xl p-3.5 md:p-4 transition-all shadow-3xs flex flex-col md:flex-row md:items-center justify-between gap-3.5 ${
+                      rev.isHidden 
+                        ? 'border-red-200 bg-red-50/20 opacity-80' 
+                        : 'border-gray-100 hover:border-amber-200'
+                    }`}
+                  >
+                    {/* Review Content */}
+                    <div className="space-y-1.5 flex-1 text-left">
+                      {/* Customer Name, Date, Rating */}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-1">
+                            <span>{rev.name}</span>
+                            {rev.phone && (
+                              <span className="text-xs text-gray-500 font-mono">({rev.phone})</span>
+                            )}
+                          </h4>
+                          <span className="text-[10px] font-extrabold text-gray-400">
+                            • {rev.date}
+                          </span>
+                        </div>
 
-                {/* Edit Button */}
-                <button
-                  onClick={() => handleOpenEdit(rev)}
-                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-slate-700 font-extrabold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>সম্পাদনা</span>
-                </button>
+                        <div className="flex items-center gap-2">
+                          {/* Rating Stars */}
+                          <div className="flex items-center gap-0.5 text-amber-500">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-3.5 h-3.5 ${i < rev.rating ? 'fill-current text-amber-400' : 'text-gray-200'}`}
+                              />
+                            ))}
+                            <span className="text-xs font-black text-slate-700 ml-1">({rev.rating}/5)</span>
+                          </div>
 
-                {/* Delete Button */}
-                <button
-                  onClick={() => setDeletingReview(rev)}
-                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-extrabold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>ডিলিট</span>
-                </button>
+                          {rev.isHidden ? (
+                            <span className="text-[10px] font-black text-red-600 bg-red-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <EyeOff className="w-2.5 h-2.5" />
+                              হাইডকৃত
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-100">
+                              <Eye className="w-2.5 h-2.5" />
+                              প্রকাশিত
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Review Comment */}
+                      <p className="text-xs md:text-sm text-slate-700 font-medium leading-relaxed bg-gray-50/80 p-3 rounded-xl border border-gray-100">
+                        "{rev.comment}"
+                      </p>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2 justify-end pt-2 md:pt-0 border-t md:border-t-0 border-gray-100 shrink-0">
+                      {/* Hide / Show Toggle Button */}
+                      <button
+                        onClick={() => handleToggleHide(rev)}
+                        className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                          rev.isHidden
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-3xs'
+                            : 'bg-amber-100 hover:bg-amber-200 text-amber-800'
+                        }`}
+                        title={rev.isHidden ? 'ওয়েবসাইটে প্রকাশ করুন' : 'ওয়েবসাইটে হাইড করুন'}
+                      >
+                        {rev.isHidden ? (
+                          <>
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>প্রকাশ করুন</span>
+                          </>
+                        ) : (
+                          <>
+                            <EyeOff className="w-3.5 h-3.5" />
+                            <span>হাইড করুন</span>
+                          </>
+                        )}
+                      </button>
+
+                      {/* Edit Button */}
+                      <button
+                        onClick={() => handleOpenEdit(rev)}
+                        className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-slate-700 font-extrabold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>সম্পাদনা</span>
+                      </button>
+
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => setDeletingReview(rev)}
+                        className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-extrabold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>ডিলিট</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
