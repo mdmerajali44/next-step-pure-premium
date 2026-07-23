@@ -133,6 +133,7 @@ interface SellerDashboardProps {
   categories: Category[];
   onUpdateUser: (updatedUser: User) => void;
   initialTab?: 'overview' | 'products' | 'orders' | 'payouts' | 'settings';
+  initialSearchQuery?: string;
 }
 
 export default function SellerDashboard({
@@ -150,6 +151,7 @@ export default function SellerDashboard({
   categories,
   onUpdateUser,
   initialTab,
+  initialSearchQuery,
 }: SellerDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'payouts' | 'settings'>('overview');
   const cfgCategoryNames = siteConfig?.categoryNames || {};
@@ -188,11 +190,16 @@ export default function SellerDashboard({
     localStorage.setItem(`read_notifications_${loggedInUser.id}`, JSON.stringify(updated));
   };
 
+  const [orderSearchQuery, setOrderSearchQuery] = useState(initialSearchQuery || '');
+
   useEffect(() => {
     if (initialTab) {
       setActiveTab(initialTab);
     }
-  }, [initialTab]);
+    if (initialSearchQuery !== undefined) {
+      setOrderSearchQuery(initialSearchQuery);
+    }
+  }, [initialTab, initialSearchQuery]);
 
   // Seller products
   const sellerProducts = products.filter(p => p.sellerId === loggedInUser.id);
@@ -204,6 +211,16 @@ export default function SellerDashboard({
   const sellerOrders = orders.filter(order => 
     order.items.some(item => item.sellerId === loggedInUser.id || sellerProducts.some(sp => sp.id === item.productId))
   );
+
+  const filteredSellerOrders = sellerOrders.filter(order => {
+    if (!orderSearchQuery.trim()) return true;
+    const q = orderSearchQuery.toLowerCase();
+    return (
+      order.id.toLowerCase().includes(q) ||
+      order.customerName.toLowerCase().includes(q) ||
+      order.customerPhone.includes(q)
+    );
+  });
 
   // Calculate earnings
   const getSellerOrderEarnings = (order: Order) => {
@@ -1085,10 +1102,30 @@ export default function SellerDashboard({
                     </motion.div>
                   )}
 
+                  {/* Order Search Filter Bar */}
+                  <div className="flex items-center gap-2 bg-white p-2.5 rounded-2xl border border-stone-200 shadow-2xs">
+                    <Search className="w-4 h-4 text-stone-400 shrink-0 ml-1" />
+                    <input
+                      type="text"
+                      placeholder="অর্ডার আইডি (যেমন ML-704561), গ্রাহকের নাম বা ফোন দিয়ে খুঁজুন..."
+                      value={orderSearchQuery}
+                      onChange={(e) => setOrderSearchQuery(e.target.value)}
+                      className="w-full text-xs font-bold text-slate-800 placeholder:text-stone-400 bg-transparent outline-none"
+                    />
+                    {orderSearchQuery && (
+                      <button
+                        onClick={() => setOrderSearchQuery('')}
+                        className="text-[10px] font-extrabold text-stone-400 hover:text-stone-700 bg-stone-100 hover:bg-stone-200 px-2 py-1 rounded-lg transition-all"
+                      >
+                        মুছে ফেলুন
+                      </button>
+                    )}
+                  </div>
+
                   <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-xs">
-                    {sellerOrders.length === 0 ? (
+                    {filteredSellerOrders.length === 0 ? (
                       <div className="text-center py-12 text-stone-400 font-bold text-xs">
-                        আপনার কোনো পণ্যের জন্য এখনো অর্ডার পাওয়া যায়নি।
+                        {orderSearchQuery ? 'এই সার্চে কোনো অর্ডার পাওয়া যায়নি।' : 'আপনার কোনো পণ্যের জন্য এখনো অর্ডার পাওয়া যায়নি।'}
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
@@ -1103,7 +1140,7 @@ export default function SellerDashboard({
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-stone-150 font-bold text-slate-700">
-                            {sellerOrders.map(order => {
+                            {filteredSellerOrders.map(order => {
                               const sellerItems = order.items.filter(item => sellerProducts.some(sp => sp.id === item.productId));
                               const sellerTotal = sellerItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 

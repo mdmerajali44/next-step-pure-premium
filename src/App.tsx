@@ -417,7 +417,22 @@ export default function App() {
   const [isConfigLoaded, setIsConfigLoaded] = useState(false);
 
   // --- Promo Offer Modal State ---
-  const [showPromoModal, setShowPromoModal] = useState<boolean>(true);
+  const [showPromoModal, setShowPromoModal] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('mango_lover_promo_closed') !== 'true';
+    } catch {
+      return true;
+    }
+  });
+
+  const handleClosePromoModal = () => {
+    setShowPromoModal(false);
+    try {
+      sessionStorage.setItem('mango_lover_promo_closed', 'true');
+    } catch (e) {
+      console.error("Failed to set promo closed session:", e);
+    }
+  };
 
   // --- Load Fresh Data from MongoDB Atlas on mount ---
   useEffect(() => {
@@ -462,6 +477,11 @@ export default function App() {
     
     // Automatically show promo modal when admin updates the promo settings so they can see/test it instantly
     if (newConfig.promoActive && newConfig.promoImage) {
+      try {
+        sessionStorage.removeItem('mango_lover_promo_closed');
+      } catch (e) {
+        // ignore
+      }
       setShowPromoModal(true);
     }
 
@@ -802,6 +822,8 @@ export default function App() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [adminInitialTab, setAdminInitialTab] = useState<'overview' | 'products' | 'orders' | 'marketing' | 'chats' | 'payments' | 'requests' | 'users' | 'sellers'>('overview');
   const [sellerInitialTab, setSellerInitialTab] = useState<'overview' | 'products' | 'orders' | 'payouts' | 'settings'>('overview');
+  const [adminInitialSearch, setAdminInitialSearch] = useState<string>('');
+  const [sellerInitialSearch, setSellerInitialSearch] = useState<string>('');
 
   const [readNotifications, setReadNotifications] = useState<string[]>(() => {
     try {
@@ -848,6 +870,7 @@ export default function App() {
     isRead: boolean;
     targetTab: string;
     targetDashboard: 'admin' | 'seller';
+    searchQuery?: string;
   }
 
   const notifications = React.useMemo<AppNotification[]>(() => {
@@ -861,12 +884,13 @@ export default function App() {
         list.push({
           id: `admin-order-${order.id}-${order.createdAt}`,
           type: 'order',
-          title: 'নতুন অর্ডার এসেছে! 📦',
-          message: `ওয়েবসাইটে ১টি নতুন অর্ডার করা হয়েছে (অর্ডার আইডি: ${order.id})। ক্রেতা: ${order.customerName}। মোট মূল্য: ${order.totalAmount}৳।`,
+          title: 'নতুন অর্ডার',
+          message: `আইডি: ${order.id} • ক্রেতা: ${order.customerName} • ৳${order.totalAmount}`,
           date: safeParseDate(order.createdAt),
           isRead: readNotifications.includes(`admin-order-${order.id}-${order.createdAt}`),
           targetDashboard: 'admin',
-          targetTab: 'orders'
+          targetTab: 'orders',
+          searchQuery: order.id
         });
       });
 
@@ -875,12 +899,13 @@ export default function App() {
         list.push({
           id: `admin-seller-pending-${user.id}`,
           type: 'seller_signup_new',
-          title: 'নতুন উদ্যোক্তা আবেদন! 💼',
-          message: `উদ্যোক্তা "${user.shopName || user.name}" ড্যাশবোর্ডে যোগদানের জন্য আবেদন করেছেন। অনুগ্রহ করে রিভিউ করে অনুমোদন দিন।`,
+          title: 'নতুন উদ্যোক্তা আবেদন',
+          message: `উদ্যোক্তা: ${user.shopName || user.name} • ফোন: ${user.phone}`,
           date: safeParseDate(user.createdAt || Date.now() - 86400000),
           isRead: readNotifications.includes(`admin-seller-pending-${user.id}`),
           targetDashboard: 'admin',
-          targetTab: 'sellers'
+          targetTab: 'sellers',
+          searchQuery: user.shopName || user.name
         });
       });
 
@@ -889,12 +914,13 @@ export default function App() {
         list.push({
           id: `admin-withdraw-pending-${withdraw.id}-${withdraw.createdAt}`,
           type: 'payout_pending',
-          title: 'নতুন উইথড্র রিকোয়েস্ট! 💰',
-          message: `উদ্যোক্তা "${withdraw.shopName}" ${withdraw.amount}৳ উইথড্র করার আবেদন করেছেন। মাধ্যম: ${withdraw.method.toUpperCase()}।`,
+          title: 'নতুন উইথড্র রিকোয়েস্ট',
+          message: `উদ্যোক্তা: ${withdraw.shopName} • ৳${withdraw.amount} (${withdraw.method.toUpperCase()})`,
           date: safeParseDate(withdraw.createdAt),
           isRead: readNotifications.includes(`admin-withdraw-pending-${withdraw.id}-${withdraw.createdAt}`),
           targetDashboard: 'admin',
-          targetTab: 'payments'
+          targetTab: 'payments',
+          searchQuery: withdraw.shopName
         });
       });
     }
@@ -912,12 +938,13 @@ export default function App() {
         list.push({
           id: `seller-order-${order.id}-${order.createdAt}`,
           type: 'order',
-          title: 'নতুন অর্ডার এসেছে! 🎉',
-          message: `আপনার পণ্যের জন্য ১টি নতুন অর্ডার এসেছে (অর্ডার নং: ${order.id})। গ্রাহক: ${order.customerName}। অনুগ্রহ করে মেমো ও লেবেল প্রিন্ট করে পার্সেল রেডি করুন।`,
+          title: 'নতুন অর্ডার',
+          message: `আইডি: ${order.id} • ক্রেতা: ${order.customerName} • ৳${order.totalAmount}`,
           date: safeParseDate(order.createdAt),
           isRead: readNotifications.includes(`seller-order-${order.id}-${order.createdAt}`),
           targetDashboard: 'seller',
-          targetTab: 'orders'
+          targetTab: 'orders',
+          searchQuery: order.id
         });
       });
 
@@ -927,23 +954,25 @@ export default function App() {
           list.push({
             id: `seller-prod-active-${product.id}`,
             type: 'product_active',
-            title: 'পণ্য লাইভ হয়েছে! ✅',
-            message: `আপনার পণ্য "${product.name}" এডমিন কর্তৃক রিভিউ শেষে লাইভ করা হয়েছে। ক্রেতারা এখন এটি কিনতে পারবেন।`,
+            title: 'পণ্য লাইভ হয়েছে',
+            message: `পণ্য: ${product.name} (একটিভ)`,
             date: new Date(),
             isRead: readNotifications.includes(`seller-prod-active-${product.id}`),
             targetDashboard: 'seller',
-            targetTab: 'products'
+            targetTab: 'products',
+            searchQuery: product.name
           });
         } else if (product.status === 'Inactive' || product.status === 'Rejected') {
           list.push({
             id: `seller-prod-inactive-${product.id}`,
             type: 'product_inactive',
-            title: 'পণ্য ইনঅ্যাক্টিভ করা হয়েছে! ❌',
-            message: `আপনার পণ্য "${product.name}" এডমিন কর্তৃক সাময়িকভাবে বাতিল বা ইনঅ্যাক্টিভ করা হয়েছে। বিস্তারিত জানতে অনুগ্রহ করে এডমিনের সাথে যোগাযোগ করুন।`,
+            title: 'পণ্য ইনঅ্যাক্টিভ করা হয়েছে',
+            message: `পণ্য: ${product.name} (ইনঅ্যাক্টিভ)`,
             date: new Date(),
             isRead: readNotifications.includes(`seller-prod-inactive-${product.id}`),
             targetDashboard: 'seller',
-            targetTab: 'products'
+            targetTab: 'products',
+            searchQuery: product.name
           });
         }
       });
@@ -954,8 +983,8 @@ export default function App() {
           list.push({
             id: `seller-withdraw-appr-${withdraw.id}-${withdraw.createdAt}`,
             type: 'payout_approved',
-            title: 'টাকার আবেদন সফল! 💰',
-            message: `আপনার উইথড্র আবেদন (পরিমাণ: ${withdraw.amount}৳, মাধ্যম: ${withdraw.method.toUpperCase()}) সফলভাবে সম্পন্ন হয়েছে এবং টাকা পাঠানো হয়েছে।`,
+            title: 'উইথড্র সম্পন্ন',
+            message: `পরিমাণ: ৳${withdraw.amount} (${withdraw.method.toUpperCase()}) - সাকসেস`,
             date: safeParseDate(withdraw.createdAt),
             isRead: readNotifications.includes(`seller-withdraw-appr-${withdraw.id}-${withdraw.createdAt}`),
             targetDashboard: 'seller',
@@ -965,8 +994,8 @@ export default function App() {
           list.push({
             id: `seller-withdraw-pend-${withdraw.id}-${withdraw.createdAt}`,
             type: 'payout_pending',
-            title: 'টাকার আবেদন প্রক্রিয়াধীন ⏳',
-            message: `আপনার ${withdraw.amount}৳-র উইথড্র আবেদনটি ড্যাশবোর্ডে গৃহীত হয়েছে এবং বর্তমানে প্রক্রিয়াধীন রয়েছে।`,
+            title: 'উইথড্র পেন্ডিং',
+            message: `পরিমাণ: ৳${withdraw.amount} (${withdraw.method.toUpperCase()}) - পেন্ডিং`,
             date: safeParseDate(withdraw.createdAt),
             isRead: readNotifications.includes(`seller-withdraw-pend-${withdraw.id}-${withdraw.createdAt}`),
             targetDashboard: 'seller',
@@ -989,10 +1018,16 @@ export default function App() {
       setIsAdminMode(true);
       setIsSellerDashboardOpen(false);
       setAdminInitialTab(noti.targetTab as any);
+      if (noti.searchQuery) {
+        setAdminInitialSearch(noti.searchQuery);
+      }
     } else if (noti.targetDashboard === 'seller') {
       setIsSellerDashboardOpen(true);
       setIsAdminMode(false);
       setSellerInitialTab(noti.targetTab as any);
+      if (noti.searchQuery) {
+        setSellerInitialSearch(noti.searchQuery);
+      }
     }
     setIsNotificationsOpen(false);
   };
@@ -1543,6 +1578,7 @@ export default function App() {
           withdrawRequests={withdrawRequests}
           onUpdateWithdrawRequest={handleUpdateWithdrawRequest}
           initialTab={adminInitialTab}
+          initialSearchQuery={adminInitialSearch}
         />
       ) : isSellerDashboardOpen && loggedInUser?.role === 'seller' && siteConfig.sellerSystemActive !== false ? (
         <SellerDashboard
@@ -1560,6 +1596,7 @@ export default function App() {
           categories={categories}
           onUpdateUser={handleUpdateUser}
           initialTab={sellerInitialTab}
+          initialSearchQuery={sellerInitialSearch}
         />
       ) : (
         <>
@@ -4357,9 +4394,7 @@ export default function App() {
             >
               {/* Close Button at top-right (absolute) */}
               <button
-                onClick={() => {
-                  setShowPromoModal(false);
-                }}
+                onClick={handleClosePromoModal}
                 className="absolute -top-3 -right-3 md:-top-4 md:-right-4 z-50 p-2 rounded-full bg-black/80 hover:bg-black text-white transition-all hover:scale-110 shadow-lg cursor-pointer flex items-center justify-center border border-white/20"
                 title="বন্ধ করুন"
               >
@@ -4370,9 +4405,7 @@ export default function App() {
               {siteConfig.promoLink ? (
                 <a
                   href={siteConfig.promoLink}
-                  onClick={() => {
-                    setShowPromoModal(false);
-                  }}
+                  onClick={handleClosePromoModal}
                   className="block w-full relative overflow-hidden group rounded-2xl shadow-2xl border border-white/10"
                 >
                   <img

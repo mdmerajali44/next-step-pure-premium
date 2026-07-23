@@ -153,6 +153,7 @@ interface AdminDashboardProps {
   withdrawRequests?: WithdrawRequest[];
   onUpdateWithdrawRequest?: (id: string, status: 'pending' | 'completed' | 'rejected') => void;
   initialTab?: 'overview' | 'products' | 'orders' | 'marketing' | 'chats' | 'payments' | 'requests' | 'users' | 'sellers' | 'reviews';
+  initialSearchQuery?: string;
 }
 
 export const AVAILABLE_PERMISSIONS = [
@@ -450,6 +451,7 @@ export default function AdminDashboard({
   withdrawRequests = [],
   onUpdateWithdrawRequest,
   initialTab,
+  initialSearchQuery,
 }: AdminDashboardProps) {
   const hasPermission = (permissionId: string): boolean => {
     if (!loggedInUser) return true;
@@ -494,7 +496,11 @@ export default function AdminDashboard({
     if (initialTab && hasPermission(initialTab)) {
       setActiveTab(initialTab);
     }
-  }, [initialTab]);
+    if (initialSearchQuery !== undefined) {
+      setOrderSearch(initialSearchQuery);
+      setSellerSearch(initialSearchQuery);
+    }
+  }, [initialTab, initialSearchQuery]);
   
   // --- Search and Size Selection states for Editing Orders ---
   const [productToAddSearchQuery, setProductToAddSearchQuery] = useState('');
