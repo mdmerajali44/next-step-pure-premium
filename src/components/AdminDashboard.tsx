@@ -492,13 +492,18 @@ export default function AdminDashboard({
     return 'overview';
   });
 
+  const [orderSearch, setOrderSearch] = useState(initialSearchQuery || '');
+  const [userSearch, setUserSearch] = useState(initialSearchQuery || '');
+  const [paymentSearch, setPaymentSearch] = useState(initialSearchQuery || '');
+
   useEffect(() => {
     if (initialTab && hasPermission(initialTab)) {
       setActiveTab(initialTab);
     }
     if (initialSearchQuery !== undefined) {
       setOrderSearch(initialSearchQuery);
-      setSellerSearch(initialSearchQuery);
+      setUserSearch(initialSearchQuery);
+      setPaymentSearch(initialSearchQuery);
     }
   }, [initialTab, initialSearchQuery]);
   
@@ -989,7 +994,6 @@ export default function AdminDashboard({
   const [adminNewPass, setAdminNewPass] = useState('');
   const [adminConfirmPass, setAdminConfirmPass] = useState('');
 
-  const [userSearch, setUserSearch] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'user' | 'admin'>('all');
   const [userStatusFilter, setUserStatusFilter] = useState<'all' | 'active' | 'blocked'>('all');
   const [adminEditingUser, setAdminEditingUser] = useState<User | null>(null);
@@ -1224,7 +1228,6 @@ export default function AdminDashboard({
 
 
   // Search and filter states
-  const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
 
@@ -1394,7 +1397,6 @@ export default function AdminDashboard({
   };
 
   // Payments tab states
-  const [paymentSearch, setPaymentSearch] = useState('');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
   const [selectedPaymentOrder, setSelectedPaymentOrder] = useState<Order | null>(null);
