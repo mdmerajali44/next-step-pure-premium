@@ -1817,12 +1817,17 @@ export default function App() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 z-50 text-left overflow-hidden origin-top-right"
+                        className="absolute right-0 mt-2 w-76 sm:w-88 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 z-50 text-left overflow-hidden origin-top-right"
                       >
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-2.5">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-2">
                           <h3 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                            <Bell className="w-4 h-4 text-orange-500" />
+                            <Bell className="w-3.5 h-3.5 text-red-500" />
                             <span>নোটিফিকেশন বার</span>
+                            {unreadCount > 0 && (
+                              <span className="text-[9px] bg-red-100 text-red-600 font-extrabold px-1.5 py-0.2 rounded-full border border-red-200">
+                                {unreadCount}টি নতুন
+                              </span>
+                            )}
                           </h3>
                           {unreadCount > 0 && (
                             <button
@@ -1834,31 +1839,31 @@ export default function App() {
                           )}
                         </div>
 
-                        <div className="max-h-80 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+                        <div className="max-h-80 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
                           {notifications.length === 0 ? (
-                            <div className="text-center py-8 text-stone-400 font-bold text-[11px]">
+                            <div className="text-center py-6 text-stone-400 font-bold text-[11px]">
                               কোনো নোটিফিকেশন নেই।
                             </div>
                           ) : (
                             notifications.map(noti => {
                               let iconBg = 'bg-orange-50 text-orange-600';
-                              let iconEl = <Bell className="w-4 h-4" />;
+                              let iconEl = <Bell className="w-3.5 h-3.5" />;
                               
                               if (noti.type === 'order') {
                                 iconBg = 'bg-emerald-50 text-emerald-600';
-                                iconEl = <ShoppingBag className="w-4 h-4" />;
+                                iconEl = <ShoppingBag className="w-3.5 h-3.5" />;
                               } else if (noti.type === 'seller_signup_new') {
                                 iconBg = 'bg-blue-50 text-blue-600';
-                                iconEl = <Store className="w-4 h-4" />;
+                                iconEl = <Store className="w-3.5 h-3.5" />;
                               } else if (noti.type === 'payout_pending') {
                                 iconBg = 'bg-amber-50 text-amber-600';
-                                iconEl = <Clock className="w-4 h-4" />;
+                                iconEl = <Clock className="w-3.5 h-3.5" />;
                               } else if (noti.type === 'payout_approved' || noti.type === 'product_active') {
                                 iconBg = 'bg-[#e6f4ea] text-[#006437]';
-                                iconEl = <CheckCircle className="w-4 h-4" />;
+                                iconEl = <CheckCircle className="w-3.5 h-3.5" />;
                               } else if (noti.type === 'product_inactive') {
                                 iconBg = 'bg-rose-50 text-rose-600';
-                                iconEl = <AlertCircle className="w-4 h-4" />;
+                                iconEl = <AlertCircle className="w-3.5 h-3.5" />;
                               }
 
                               const relativeTime = getBengaliTimeAgo(noti.date);
@@ -1868,33 +1873,44 @@ export default function App() {
                                 <div
                                   key={noti.id}
                                   onClick={() => handleNotificationClick(noti)}
-                                  className={`p-3 rounded-2xl border text-xs cursor-pointer transition-all duration-200 flex gap-3 ${
+                                  className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all duration-200 flex gap-2.5 ${
                                     noti.isRead
-                                      ? 'bg-stone-50/60 border-stone-100 text-stone-500 hover:bg-stone-100/50'
-                                      : 'bg-orange-50/25 border-orange-100 text-slate-800 hover:bg-orange-50/50'
+                                      ? 'bg-stone-50/50 border-stone-100 text-stone-500 hover:bg-stone-100/60'
+                                      : 'bg-red-50/80 border-red-200/90 text-slate-800 hover:bg-red-100/70 shadow-2xs'
                                   }`}
                                 >
-                                  <div className={`p-2 rounded-xl shrink-0 h-fit ${iconBg}`}>
+                                  <div className={`p-1.5 rounded-lg shrink-0 h-fit w-7 h-7 flex items-center justify-center ${iconBg}`}>
                                     {iconEl}
                                   </div>
                                   <div className="flex-grow min-w-0">
-                                    <div className="flex items-start justify-between gap-2">
-                                      <span className="font-extrabold text-[11px] text-slate-900 leading-snug block truncate pr-1">
+                                    <div className="flex items-center justify-between gap-1.5">
+                                      <span className="font-extrabold text-[10.5px] text-slate-900 leading-tight block truncate pr-1">
                                         {noti.title}
                                       </span>
-                                      <span className="text-[9px] text-[#006437] font-extrabold whitespace-nowrap shrink-0 bg-emerald-50/80 px-1.5 py-0.5 rounded-md">
+                                      <span className={`text-[8.5px] font-extrabold whitespace-nowrap shrink-0 px-1.5 py-0.2 rounded-md ${
+                                        noti.isRead
+                                          ? 'text-[#006437] bg-emerald-50/80'
+                                          : 'text-red-700 bg-red-100/90 border border-red-200/80'
+                                      }`}>
                                         {relativeTime}
                                       </span>
                                     </div>
-                                    <p className="text-[10px] leading-relaxed mt-1 font-semibold text-slate-600">
+                                    <p className={`text-[9.5px] leading-snug mt-0.5 font-semibold ${
+                                      noti.isRead ? 'text-stone-500' : 'text-slate-700'
+                                    }`}>
                                       {noti.message}
                                     </p>
-                                    <div className="flex items-center justify-between mt-2 pt-1 border-t border-dotted border-stone-200">
-                                      <span className="text-[9px] text-gray-400 font-bold block">
+                                    <div className={`flex items-center justify-between mt-1 pt-1 border-t border-dotted ${
+                                      noti.isRead ? 'border-stone-200' : 'border-red-200/80'
+                                    }`}>
+                                      <span className="text-[8.5px] text-gray-400 font-bold block">
                                         {formattedTime}
                                       </span>
                                       {!noti.isRead && (
-                                        <span className="w-1.5 h-1.5 bg-orange-500 rounded-full shrink-0 animate-pulse" />
+                                        <span className="text-[8.5px] font-black text-red-600 bg-red-100/90 px-1.5 py-0.2 rounded-full border border-red-200 flex items-center gap-1">
+                                          <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                                          নতুন
+                                        </span>
                                       )}
                                     </div>
                                   </div>
