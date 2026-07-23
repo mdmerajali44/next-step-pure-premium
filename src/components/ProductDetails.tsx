@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Product, sortProductSizes } from '../types';
+import { Product, Review, sortProductSizes } from '../types';
+import { getSeedReviews, getProductReviewsFromStorage } from '../utils/reviewUtils';
 import { motion } from 'motion/react';
 import { 
   Star, 
@@ -26,119 +27,11 @@ import {
   Store
 } from 'lucide-react';
 
-interface Review {
-  id: string;
-  name: string;
-  rating: number;
-  comment: string;
-  date: string;
-  isVerified?: boolean;
-  phone?: string;
-}
-
 const maskPhone = (phone: string): string => {
   if (!phone) return '';
   const trimmed = phone.trim();
   if (trimmed.length < 6) return trimmed;
   return trimmed.substring(0, 3) + '******' + trimmed.substring(trimmed.length - 2);
-};
-
-const getSeedReviews = (product: Product): Review[] => {
-  const honeyReviews: Review[] = [
-    {
-      id: 'rev-1',
-      name: 'আরিফুর রহমান',
-      rating: 5,
-      comment: 'মধুটির স্বাদ অসাধারণ, একদম খাঁটি সুন্দরবনের মধুর আসল গন্ধ পাওয়া যাচ্ছে। এর আগেরবার অন্য জায়গা থেকে নিয়েছিলাম, কিন্তু আপনাদের কোয়ালিটি অনেক বেশি ভালো লেগেছে। ধন্যবাদ!',
-      date: '০৩ জুলাই, ২০২৬',
-      isVerified: true
-    },
-    {
-      id: 'rev-2',
-      name: 'উম্মে হাবিবা',
-      rating: 5,
-      comment: 'বাচ্চাদের জন্য নিয়েছিলাম, ওরা খুব পছন্দ করেছে। কোনো চিনি বা ভেজাল নেই মনে হচ্ছে। প্যাকিং খুব চমৎকার ছিল, একটুও গড়ায়নি।',
-      date: '২৮ জুন, ২০২৬',
-      isVerified: true
-    },
-    {
-      id: 'rev-3',
-      name: 'মো: জাহিদ হাসান',
-      rating: 4,
-      comment: 'খুবই খাঁটি মধু। সুন্দর ফ্লেভার। রাজশাহী থেকে খুব সুন্দর প্যাকিংয়ে দ্রুত হোম ডেলিভারি পেয়েছি।',
-      date: '২৫ জুন, ২০২৬',
-      isVerified: true
-    }
-  ];
-
-  const gheeReviews: Review[] = [
-    {
-      id: 'rev-1',
-      name: 'আশরাফুল ইসলাম',
-      rating: 5,
-      comment: 'আহা! ঘিয়েস সুবাস আসলেই চমৎকার। ডাল বা পোলাওয়ের সাথে দিয়ে খেলে এর সুবাসে ঘর ভরে যায়। সিরাজগঞ্জের খাঁটি গাওয়া ঘিয়ের খাঁটি স্বাদ পেলাম।',
-      date: '০৪ জুলাই, ২০২৬',
-      isVerified: true
-    },
-    {
-      id: 'rev-2',
-      name: 'সুলতানা পারভীন',
-      rating: 5,
-      comment: 'ঘি এর মান খুবই উন্নত। রঙ এবং টেক্সচার দেখে বোঝাই যায় এটা অরগানিক উপায়ে তৈরি। পুনরায় অর্ডার করব ইনশাল্লাহ।',
-      date: '৩০ জুন, ২০২৬',
-      isVerified: true
-    }
-  ];
-
-  const mangoReviews: Review[] = [
-    {
-      id: 'rev-1',
-      name: 'শাফায়েত হোসেন',
-      rating: 5,
-      comment: 'গাছপাকা ফ্রেশ আম! কোনো প্রকার রাসায়নিক বা ফরমালিন ছাড়া যে আম পাওয়া সম্ভব আপনাদের থেকে না কিনলে বিশ্বাস হতো না। অনেক মিষ্টি আম।',
-      date: '০৫ জুলাই, ২০২৬',
-      isVerified: true
-    },
-    {
-      id: 'rev-2',
-      name: 'তাসনিম আরা',
-      rating: 5,
-      comment: 'কুরিয়ারে আসার পরেও একটা আমও নষ্ট হয়নি। সুন্দর কাঠের বা শক্ত ক্যারেট প্যাকিং ছিল। হিমসাগর আমের দারুণ মিষ্টি স্বাদ!',
-      date: '০২ জুলাই, ২০২৬',
-      isVerified: true
-    }
-  ];
-
-  const defaultReviews: Review[] = [
-    {
-      id: 'rev-1',
-      name: 'ফারহান আহমেদ',
-      rating: 5,
-      comment: 'পণ্যের মান খুবই চমৎকার ও একদম খাঁটি। অর্গানিক জিনিস খুঁজতেছিলাম অনেকদিন ধরে, অবশেষে আপনাদের এখানে সঠিক জিনিস পেলাম।',
-      date: '০২ জুলাই, ২০২৬',
-      isVerified: true
-    },
-    {
-      id: 'rev-2',
-      name: 'সাবিহা ইয়াসমিন',
-      rating: 5,
-      comment: 'খুবই ভালো সার্ভিস। ডেলিভারির সময় পণ্য দেখে নেয়ার সুযোগ থাকায় অর্ডার করতে কোনো ভয় লাগেনি। প্রোডাক্ট ১০০% অরিজিনাল।',
-      date: '২৮ জুন, ২০২৬',
-      isVerified: true
-    }
-  ];
-
-  const catLower = (product.category || '').toLowerCase();
-  if (catLower.includes('মধু') || product.id.startsWith('h') || product.id === 'p1') {
-    return honeyReviews;
-  }
-  if (catLower.includes('তেল') || catLower.includes('ঘি') || product.id === 'p2' || product.id === 'p3') {
-    return gheeReviews;
-  }
-  if (catLower.includes('আম') || product.id === 'p4' || product.id.startsWith('m')) {
-    return mangoReviews;
-  }
-  return defaultReviews;
 };
 
 const getBengaliDateString = () => {
@@ -508,15 +401,8 @@ export default function ProductDetails({
 
   // Load and seed reviews
   useEffect(() => {
-    const key = `mango_lover_reviews_${product.id}`;
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      setReviews(JSON.parse(saved));
-    } else {
-      const seedReviews = getSeedReviews(product);
-      setReviews(seedReviews);
-      localStorage.setItem(key, JSON.stringify(seedReviews));
-    }
+    const loadedReviews = getProductReviewsFromStorage(product);
+    setReviews(loadedReviews);
     setReviewSubmitSuccess(false);
     setNewReviewName('');
     setNewReviewPhone('');

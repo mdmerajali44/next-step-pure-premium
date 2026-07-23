@@ -16,6 +16,7 @@ import {
   Package
 } from 'lucide-react';
 import { Product, Review } from '../../types';
+import { getProductReviewsFromStorage } from '../../utils/reviewUtils';
 
 interface ReviewsTabProps {
   products: Product[];
@@ -28,32 +29,6 @@ interface EnrichedReview extends Review {
   productName: string;
   productImage: string;
 }
-
-// Seed helper for initial product reviews if not yet in localStorage
-const getSeedReviewsForProduct = (product: Product): Review[] => {
-  return [
-    {
-      id: `seed-1-${product.id}`,
-      name: 'আরিফুর রহমান',
-      phone: '01712345678',
-      rating: 5,
-      comment: 'মাশাল্লাহ, খুব চমৎকার কোয়ালিটি! ডেলিভারিও খুব দ্রুত পেয়েছি। ধন্যবাদ ম্যাংগো লাভার টিমকে।',
-      date: '১২ মে, ২০২৪',
-      isVerified: true,
-      isHidden: false
-    },
-    {
-      id: `seed-2-${product.id}`,
-      name: 'ফারজানা আক্তার',
-      phone: '01898765432',
-      rating: 5,
-      comment: 'পণ্যের স্বাদ এবং প্যাকেজিং দুটোই অসাধারণ ছিল। ১০০% প্রিমিয়াম কোয়ালিটি।',
-      date: '১৮ মে, ২০২৪',
-      isVerified: true,
-      isHidden: false
-    }
-  ];
-};
 
 export default function ReviewsTab({ products, notify, filterProductId }: ReviewsTabProps) {
   const [allReviews, setAllReviews] = useState<EnrichedReview[]>([]);
@@ -86,20 +61,7 @@ export default function ReviewsTab({ products, notify, filterProductId }: Review
     const list: EnrichedReview[] = [];
 
     products.forEach((prod) => {
-      const key = `mango_lover_reviews_${prod.id}`;
-      const saved = localStorage.getItem(key);
-      let prodReviews: Review[] = [];
-
-      if (saved) {
-        try {
-          prodReviews = JSON.parse(saved);
-        } catch {
-          prodReviews = [];
-        }
-      } else {
-        prodReviews = getSeedReviewsForProduct(prod);
-        localStorage.setItem(key, JSON.stringify(prodReviews));
-      }
+      const prodReviews = getProductReviewsFromStorage(prod);
 
       prodReviews.forEach((rev) => {
         list.push({
