@@ -8,7 +8,8 @@ interface DoubleRingLoaderProps {
 }
 
 export default function DoubleRingLoader({
-  text = 'Loding...',
+  text = 'ডেটা লোড হচ্ছে...',
+  subtext = '',
   size = 'md',
   fullScreen = false,
 }: DoubleRingLoaderProps) {

@@ -416,7 +416,6 @@ export default function App() {
   });
 
   const [isConfigLoaded, setIsConfigLoaded] = useState(false);
-  const [showSlowNetworkLoader, setShowSlowNetworkLoader] = useState(false);
 
   // --- Promo Offer Modal State ---
   const [showPromoModal, setShowPromoModal] = useState<boolean>(() => {
@@ -439,13 +438,6 @@ export default function App() {
   // --- Load Fresh Data from MongoDB Atlas on mount ---
   useEffect(() => {
     let active = true;
-
-    // Show slow network loader ONLY if data fetching takes more than 350ms (slow connection)
-    const slowTimer = setTimeout(() => {
-      if (active && !isConfigLoaded) {
-        setShowSlowNetworkLoader(true);
-      }
-    }, 350);
 
     const fetchFreshData = async () => {
       try {
@@ -476,14 +468,11 @@ export default function App() {
         if (active) {
           setIsConfigLoaded(true);
         }
-      } finally {
-        clearTimeout(slowTimer);
       }
     };
     fetchFreshData();
     return () => {
       active = false;
-      clearTimeout(slowTimer);
     };
   }, []);
 
@@ -931,7 +920,7 @@ export default function App() {
           id: `admin-withdraw-pending-${withdraw.id}-${withdraw.createdAt}`,
           type: 'payout_pending',
           title: 'নতুন উইথড্র রিকোয়েস্ট',
-          message: `উদ্যোক্তা: ${withdraw.shopName} • ৳${withdraw.amount} (${withdraw.method.toUpperCase()})`,
+          message: `উদ্যোক্তা: ${withdraw.shopName} • ৳${withdraw.amount} (${(withdraw.method || '').toUpperCase()})`,
           date: safeParseDate(withdraw.createdAt),
           isRead: readNotifications.includes(`admin-withdraw-pending-${withdraw.id}-${withdraw.createdAt}`),
           targetDashboard: 'admin',
@@ -945,7 +934,7 @@ export default function App() {
     if (loggedInUser.role === 'seller') {
       const sellerProducts = products.filter(p => p.sellerId === loggedInUser.id);
       const sellerOrders = orders.filter(order =>
-        order.items.some(item => sellerProducts.some(p => p.id === item.productId))
+        order.items?.some(item => sellerProducts.some(p => p.id === item.productId))
       );
       const sellerWithdraws = withdrawRequests.filter(w => w.sellerId === loggedInUser.id);
 
@@ -1000,7 +989,7 @@ export default function App() {
             id: `seller-withdraw-appr-${withdraw.id}-${withdraw.createdAt}`,
             type: 'payout_approved',
             title: 'উইথড্র সম্পন্ন',
-            message: `পরিমাণ: ৳${withdraw.amount} (${withdraw.method.toUpperCase()}) - সাকসেস`,
+            message: `পরিমাণ: ৳${withdraw.amount} (${(withdraw.method || '').toUpperCase()}) - সাকসেস`,
             date: safeParseDate(withdraw.createdAt),
             isRead: readNotifications.includes(`seller-withdraw-appr-${withdraw.id}-${withdraw.createdAt}`),
             targetDashboard: 'seller',
@@ -1011,7 +1000,7 @@ export default function App() {
             id: `seller-withdraw-pend-${withdraw.id}-${withdraw.createdAt}`,
             type: 'payout_pending',
             title: 'উইথড্র পেন্ডিং',
-            message: `পরিমাণ: ৳${withdraw.amount} (${withdraw.method.toUpperCase()}) - পেন্ডিং`,
+            message: `পরিমাণ: ৳${withdraw.amount} (${(withdraw.method || '').toUpperCase()}) - পেন্ডিং`,
             date: safeParseDate(withdraw.createdAt),
             isRead: readNotifications.includes(`seller-withdraw-pend-${withdraw.id}-${withdraw.createdAt}`),
             targetDashboard: 'seller',
@@ -4081,34 +4070,6 @@ export default function App() {
         orders={orders}
         siteConfig={siteConfig}
       />
-
-      {/* 10. Beautiful Loading Overlay with Double Ring Loader (Only shown if network is slow >350ms) */}
-      <AnimatePresence>
-        {!isConfigLoaded && showSlowNetworkLoader && (
-          <DoubleRingLoader
-            fullScreen
-            text="ম্যাংগো লাভার ডেটা লোড হচ্ছে..."
-            subtext="ধীরগতির ইন্টারনেটের কারণে কিছুটা সময় লাগতে পারে"
-            size="lg"
-          />
-        )}
-        {globalLoadingProduct && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 select-none"
-          >
-            <div className="text-center space-y-6 max-w-md">
-              <DoubleRingLoader
-                size="lg"
-                text={`পণ্য লোড হচ্ছে...`}
-                subtext={globalLoadingProduct.name}
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
       
       {/* Product Request Form Modal */}
       <AnimatePresence>
