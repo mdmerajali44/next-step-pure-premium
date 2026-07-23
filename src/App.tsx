@@ -346,7 +346,7 @@ const DEFAULT_SITE_CONFIG: SiteConfig = {
     { code: 'FREE50', type: 'flat', value: 50 }
   ],
   sellerSystemActive: true,
-  promoActive: true,
+  promoActive: false,
   promoImage: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80',
   promoLink: '',
   faqItems: [
@@ -418,13 +418,7 @@ export default function App() {
   const [isConfigLoaded, setIsConfigLoaded] = useState(false);
 
   // --- Promo Offer Modal State ---
-  const [showPromoModal, setShowPromoModal] = useState<boolean>(() => {
-    try {
-      return sessionStorage.getItem('mango_lover_promo_closed') !== 'true';
-    } catch {
-      return true;
-    }
-  });
+  const [showPromoModal, setShowPromoModal] = useState<boolean>(false);
 
   const handleClosePromoModal = () => {
     setShowPromoModal(false);

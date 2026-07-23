@@ -435,7 +435,7 @@ export const DEFAULT_SITE_CONFIG = {
   ],
   sellerSystemActive: true,
   allowAdminsToDeleteOrders: true,
-  promoActive: true,
+  promoActive: false,
   promoImage: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80',
   promoLink: '',
   faqItems: [

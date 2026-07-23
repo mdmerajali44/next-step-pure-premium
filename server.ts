@@ -411,6 +411,10 @@ async function startServer() {
   app.get("/api/siteconfig", async (req, res) => {
     try {
       const config = await SiteConfig.findOne();
+      if (config && config.promoActive && config.promoImage?.includes('unsplash.com')) {
+        config.promoActive = false;
+        await SiteConfig.findOneAndUpdate({}, { promoActive: false });
+      }
       res.json(config);
     } catch (err) {
       res.status(500).json({ error: "সাইট কনফিগারেশন লোড করতে ব্যর্থ হয়েছে।" });
