@@ -2,9 +2,8 @@ import mongoose from "mongoose";
 
 export async function connectDB() {
   const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    console.warn("⚠️ MONGODB_URI is not defined in environment variables.");
-    console.warn("Please add MONGODB_URI to your environment variables on Render or in your .env file.");
+  if (!uri || uri.includes("<username>") || uri.includes("<password>") || uri.includes("cluster.mongodb.net")) {
+    console.log("ℹ️ MONGODB_URI is not defined or using template placeholder. Operating with in-memory database fallback.");
     return false;
   }
   
@@ -17,8 +16,9 @@ export async function connectDB() {
     await mongoose.connect(uri, { serverSelectionTimeoutMS: 3000 });
     console.log("🔌 Connected to MongoDB Atlas successfully!");
     return true;
-  } catch (error) {
-    console.error("❌ MongoDB connection error:", error);
+  } catch (error: any) {
+    console.warn("⚠️ MongoDB connection unavailable. Operating with in-memory fallback:", error?.message || error);
     return false;
   }
 }
+
