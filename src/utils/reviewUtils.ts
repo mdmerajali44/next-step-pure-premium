@@ -1,4 +1,5 @@
 import { Product, Review } from '../types';
+import { safeSetLocalStorage } from './storage';
 
 export const getSeedReviews = (product: Product): Review[] => {
   const pName = (product.name || '').toLowerCase();
@@ -146,7 +147,7 @@ export const getProductReviewsFromStorage = (product: Product): Review[] => {
       // Check if parsed has stale generic seed reviews from earlier version
       if (parsed.length > 0 && parsed.some(r => r.id && r.id.startsWith('seed-'))) {
         const freshSeed = getSeedReviews(product);
-        localStorage.setItem(key, JSON.stringify(freshSeed));
+        safeSetLocalStorage(key, JSON.stringify(freshSeed));
         return freshSeed;
       }
       return parsed;
@@ -155,6 +156,6 @@ export const getProductReviewsFromStorage = (product: Product): Review[] => {
     }
   }
   const seed = getSeedReviews(product);
-  localStorage.setItem(key, JSON.stringify(seed));
+  safeSetLocalStorage(key, JSON.stringify(seed));
   return seed;
 };

@@ -21,7 +21,7 @@ export const AdminChatManager: React.FC = () => {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -144,12 +144,7 @@ export const AdminChatManager: React.FC = () => {
 
         {/* Sessions scroll container */}
         <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-          {isLoading && sessions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 text-gray-400 gap-2">
-              <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
-              <span className="text-xs font-semibold">মেসেজ লোড হচ্ছে...</span>
-            </div>
-          ) : sessions.length === 0 ? (
+          {sessions.length === 0 ? (
             <div className="text-center py-12 px-4 text-gray-400 flex flex-col items-center gap-2">
               <MessageSquare className="w-8 h-8 text-gray-300 stroke-[1.5]" />
               <p className="text-xs font-bold">কোনো চ্যাট সেশন পাওয়া যায়নি।</p>
@@ -303,14 +298,8 @@ export const AdminChatManager: React.FC = () => {
                 disabled={!replyText.trim() || isSending}
                 className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-3 rounded-xl transition-all cursor-pointer font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-95 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
               >
-                {isSending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    <span>উত্তর পাঠান</span>
-                  </>
-                )}
+                <Send className="w-4 h-4" />
+                <span>উত্তর পাঠান</span>
               </button>
             </form>
           </>

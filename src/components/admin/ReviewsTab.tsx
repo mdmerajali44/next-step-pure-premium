@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Product, Review } from '../../types';
 import { getProductReviewsFromStorage } from '../../utils/reviewUtils';
+import { safeSetLocalStorage } from '../../utils/storage';
 
 interface ReviewsTabProps {
   products: Product[];
@@ -89,7 +90,7 @@ export default function ReviewsTab({ products, notify, filterProductId }: Review
   // Save product reviews back to localStorage
   const updateProductReviewsInStorage = (productId: string, updatedReviews: Review[]) => {
     const key = `mango_lover_reviews_${productId}`;
-    localStorage.setItem(key, JSON.stringify(updatedReviews));
+    safeSetLocalStorage(key, JSON.stringify(updatedReviews));
     loadAllReviews();
   };
 

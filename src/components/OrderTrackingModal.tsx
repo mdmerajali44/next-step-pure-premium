@@ -610,7 +610,7 @@ export default function OrderTrackingModal({ isOpen, onClose, orders, siteConfig
                     {/* Interactive Animated Stepper Line Timeline */}
                     <div className="space-y-4">
                       <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                        <Clock className="w-4 h-4 text-orange-500 animate-spin-slow" />
+                        <Clock className="w-4 h-4 text-orange-500" />
                         <span>লাইভ ডেলিভারি প্রগ্রেস ট্র্যাকিং:</span>
                       </h4>
 

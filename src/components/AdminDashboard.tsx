@@ -13,6 +13,7 @@ import {
   Users, Key, Shield, ShieldCheck, Mail, Phone, MapPin, UserCheck, Share2, Facebook, Instagram, Youtube, HelpCircle, ChevronDown, Store, Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { compressImageFile as compressAndSetImage } from '../utils/storage';
 
 // Modularized Tab Components
 import OverviewTab from './admin/OverviewTab';
@@ -37,94 +38,6 @@ const PRESET_IMAGES = [
   { name: 'আমবাগান চাষী', path: '/src/assets/images/mango_farmer_orchard_1782453455911.jpg' },
   { name: 'ম্যাংগো লাভার লোগো', path: '/src/assets/images/mango_lover_logo_1782453485561.jpg' },
 ];
-
-const compressAndSetImage = (file: File, callback: (base64: string) => void) => {
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    const img = new Image();
-    img.src = event.target?.result as string;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let width = img.width;
-      let height = img.height;
-      
-      // We want to preserve reasonable resolution (e.g. max 1000px)
-      // but dynamically scale down and adjust JPEG quality to get under 100 KB.
-      let maxDimension = 1000;
-      if (width > height) {
-        if (width > maxDimension) {
-          height = Math.round((height * maxDimension) / width);
-          width = maxDimension;
-        }
-      } else {
-        if (height > maxDimension) {
-          width = Math.round((width * maxDimension) / height);
-          height = maxDimension;
-        }
-      }
-      
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        callback(event.target?.result as string);
-        return;
-      }
-      
-      ctx.drawImage(img, 0, 0, width, height);
-      
-      // Let's do a loop to find the best quality/size trade-off
-      let quality = 0.8;
-      let resultBase64 = canvas.toDataURL('image/jpeg', quality);
-      
-      // Under 100 KB means binary size < 100,000 bytes.
-      // Base64 string length * 0.75 is approx binary size in bytes.
-      // So base64 length must be < 133,333.
-      const TARGET_BASE64_LENGTH = 133000; 
-      
-      // If still too large, let's try reducing quality first
-      if (resultBase64.length > TARGET_BASE64_LENGTH) {
-        quality = 0.6;
-        resultBase64 = canvas.toDataURL('image/jpeg', quality);
-      }
-      
-      if (resultBase64.length > TARGET_BASE64_LENGTH) {
-        quality = 0.4;
-        resultBase64 = canvas.toDataURL('image/jpeg', quality);
-      }
-
-      if (resultBase64.length > TARGET_BASE64_LENGTH) {
-        quality = 0.2;
-        resultBase64 = canvas.toDataURL('image/jpeg', quality);
-      }
-      
-      // If even quality 0.2 is too big, let's resize the canvas to be smaller (e.g., 600px max)
-      if (resultBase64.length > TARGET_BASE64_LENGTH) {
-        const scale = 0.6; // Scale down
-        const smallCanvas = document.createElement('canvas');
-        smallCanvas.width = Math.round(width * scale);
-        smallCanvas.height = Math.round(height * scale);
-        const smallCtx = smallCanvas.getContext('2d');
-        if (smallCtx) {
-          smallCtx.drawImage(img, 0, 0, smallCanvas.width, smallCanvas.height);
-          // Try quality 0.5 on smaller image
-          resultBase64 = smallCanvas.toDataURL('image/jpeg', 0.5);
-          
-          if (resultBase64.length > TARGET_BASE64_LENGTH) {
-            // Last fallback: quality 0.2 on smaller image
-            resultBase64 = smallCanvas.toDataURL('image/jpeg', 0.2);
-          }
-        }
-      }
-      
-      callback(resultBase64);
-    };
-  };
-  reader.onerror = (err) => {
-    console.error("Error reading file:", err);
-  };
-  reader.readAsDataURL(file);
-};
 
 interface AdminDashboardProps {
   products: Product[];
@@ -6081,7 +5994,7 @@ export default function AdminDashboard({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-3">
                   <div className="bg-rose-100 text-rose-600 p-2.5 rounded-xl">
-                    <RefreshCw className="w-5 h-5 animate-spin" style={{ animationDuration: '4s' }} />
+                    <RefreshCw className="w-5 h-5 text-rose-600" />
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 font-medium">অপেক্ষমাণ রিকুয়েস্ট</p>

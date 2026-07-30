@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Product, CartItem, Order, OrderStatus, SiteConfig, ProductRequest, getEmbedMapUrl, User, Category, matchesSearchWithNumerals, sortProductSizes, WithdrawRequest } from './types';
 import { CATEGORIES, INITIAL_PRODUCTS } from './data';
 import { api } from './api';
+import { safeSetLocalStorage } from './utils/storage';
 import ProductCard from './components/ProductCard';
 import CartDrawer from './components/CartDrawer';
 import CheckoutModal from './components/CheckoutModal';
@@ -486,7 +487,7 @@ export default function App() {
       } catch (e) {}
     }
     setSiteConfig(newConfig);
-    localStorage.setItem('mango_lover_site_config', JSON.stringify(newConfig));
+    safeSetLocalStorage('mango_lover_site_config', JSON.stringify(newConfig));
 
     try {
       await api.updateSiteConfig(newConfig);
@@ -502,7 +503,7 @@ export default function App() {
 
   const handleUpdateCategories = async (updatedCategories: Category[]) => {
     setCategories(updatedCategories);
-    localStorage.setItem('ml_categories', JSON.stringify(updatedCategories));
+    safeSetLocalStorage('ml_categories', JSON.stringify(updatedCategories));
     
     // Upsert categories to MongoDB Atlas
     for (const cat of updatedCategories) {
@@ -589,12 +590,12 @@ export default function App() {
 
   // Sync users & loggedInUser to localStorage
   useEffect(() => {
-    localStorage.setItem('ml_users', JSON.stringify(users));
+    safeSetLocalStorage('ml_users', JSON.stringify(users));
   }, [users]);
 
   useEffect(() => {
     if (loggedInUser) {
-      localStorage.setItem('ml_logged_in_user', JSON.stringify(loggedInUser));
+      safeSetLocalStorage('ml_logged_in_user', JSON.stringify(loggedInUser));
     } else {
       localStorage.removeItem('ml_logged_in_user');
     }
@@ -685,7 +686,7 @@ export default function App() {
 
   // Sync to localStorage
   useEffect(() => {
-    localStorage.setItem('ml_product_requests', JSON.stringify(productRequests));
+    safeSetLocalStorage('ml_product_requests', JSON.stringify(productRequests));
   }, [productRequests]);
 
   const handleOpenRequestModal = (product: Product) => {
@@ -850,14 +851,14 @@ export default function App() {
     if (!loggedInUser) return;
     const updated = [...readNotifications, id];
     setReadNotifications(updated);
-    localStorage.setItem(`read_notifications_v3_${loggedInUser.id}`, JSON.stringify(updated));
+    safeSetLocalStorage(`read_notifications_v3_${loggedInUser.id}`, JSON.stringify(updated));
   };
 
   const markAllAsRead = (ids: string[]) => {
     if (!loggedInUser) return;
     const updated = Array.from(new Set([...readNotifications, ...ids]));
     setReadNotifications(updated);
-    localStorage.setItem(`read_notifications_v3_${loggedInUser.id}`, JSON.stringify(updated));
+    safeSetLocalStorage(`read_notifications_v3_${loggedInUser.id}`, JSON.stringify(updated));
   };
 
   interface AppNotification {
@@ -1086,19 +1087,19 @@ export default function App() {
 
   // Save to localStorage whenever state changes
   useEffect(() => {
-    localStorage.setItem('ml_products', JSON.stringify(products));
+    safeSetLocalStorage('ml_products', JSON.stringify(products));
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem('ml_orders', JSON.stringify(orders));
+    safeSetLocalStorage('ml_orders', JSON.stringify(orders));
   }, [orders]);
 
   useEffect(() => {
-    localStorage.setItem('ml_cart', JSON.stringify(cart));
+    safeSetLocalStorage('ml_cart', JSON.stringify(cart));
   }, [cart]);
 
   useEffect(() => {
-    localStorage.setItem('ml_withdraw_requests', JSON.stringify(withdrawRequests));
+    safeSetLocalStorage('ml_withdraw_requests', JSON.stringify(withdrawRequests));
   }, [withdrawRequests]);
 
   // --- Cart Operations ---
@@ -1283,7 +1284,7 @@ export default function App() {
   const handleUpdateOrderStatus = async (orderId: string, status: OrderStatus) => {
     setOrders((prev) => {
       const updated = prev.map((order) => (order.id === orderId ? { ...order, status } : order));
-      localStorage.setItem('ml_orders', JSON.stringify(updated));
+      safeSetLocalStorage('ml_orders', JSON.stringify(updated));
       return updated;
     });
     try {
@@ -1296,7 +1297,7 @@ export default function App() {
   const handleUpdateOrder = async (updatedOrder: Order) => {
     setOrders((prev) => {
       const updated = prev.map((order) => (order.id === updatedOrder.id ? updatedOrder : order));
-      localStorage.setItem('ml_orders', JSON.stringify(updated));
+      safeSetLocalStorage('ml_orders', JSON.stringify(updated));
       return updated;
     });
     try {
@@ -1310,7 +1311,7 @@ export default function App() {
     setOrders((prev) => {
       if (prev.some(o => o.id === newOrder.id)) return prev;
       const updated = [newOrder, ...prev];
-      localStorage.setItem('ml_orders', JSON.stringify(updated));
+      safeSetLocalStorage('ml_orders', JSON.stringify(updated));
       return updated;
     });
     try {
@@ -1326,7 +1327,7 @@ export default function App() {
       if (success) {
         setOrders((prev) => {
           const updated = prev.filter((order) => order.id !== orderId);
-          localStorage.setItem('ml_orders', JSON.stringify(updated));
+          safeSetLocalStorage('ml_orders', JSON.stringify(updated));
           return updated;
         });
         showNotification('অর্ডারটি সফলভাবে ডিলিট করা হয়েছে।', 'success');
@@ -1611,20 +1612,8 @@ export default function App() {
             className="flex items-center gap-2 md:gap-3 cursor-pointer select-none shrink-0"
           >
             <div className="relative w-11 h-11 md:w-14 md:h-14 flex items-center justify-center">
-              {/* Spinning decorative outline ring (clockwise) */}
-              <motion.div 
-                animate={{ rotate: 360 }}
-                transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
-                className="absolute inset-0 rounded-full border-2 border-dashed border-orange-500 opacity-80"
-              />
-              {/* Secondary opposite spinning ring for extra luxury depth (counter-clockwise) */}
-              <motion.div 
-                animate={{ rotate: -360 }}
-                transition={{ repeat: Infinity, duration: 15, ease: "linear" }}
-                className="absolute inset-1 rounded-full border border-dotted border-emerald-500 opacity-60"
-              />
               {/* Store Logo Circle Container */}
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border-2 border-white shadow-md z-10">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden border-2 border-orange-500 shadow-md z-10">
                 <img 
                   src={siteConfig.storeLogo} 
                   alt={`${siteConfig.storeName} Logo`} 
@@ -3421,17 +3410,11 @@ export default function App() {
             <div className="space-y-4 md:pr-4 flex flex-col items-start">
               <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
                 <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
-                  {/* Spinning decorative outline ring (clockwise) */}
-                  <motion.div 
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
-                    className="absolute inset-0 rounded-full border border-dashed border-orange-500 opacity-80"
-                  />
                   {/* Store Logo Circle Container */}
                   <img 
                     src={siteConfig.storeLogo} 
                     alt="Logo" 
-                    className="w-7 h-7 object-cover rounded-full border border-white shadow-xs z-10" 
+                    className="w-7 h-7 object-cover rounded-full border border-orange-500 shadow-xs z-10" 
                     referrerPolicy="no-referrer" 
                   />
                 </div>
@@ -3764,24 +3747,30 @@ export default function App() {
           </div>
 
           {/* Bottom Copyright & Rights Bar */}
-          <div className="border-t border-emerald-950/40 mt-4 pt-4 flex flex-row flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs font-semibold text-gray-400 text-center">
+          <div className="border-t border-emerald-950/40 mt-8 pt-6 flex flex-col items-center justify-center text-center gap-1.5 text-xs font-semibold text-gray-400">
             <div>
-              @ 2026 <span className="text-white font-extrabold">MangoLover</span>, All Right Reserved
+              © 2026 <span className="text-white font-extrabold">MangoLover</span>. All rights reserved.
             </div>
-            <span className="text-emerald-800/60 font-normal">|</span>
-            <div className="flex items-center justify-center gap-1">
-              <span>Developed by</span>
-              <span className="text-red-500 animate-pulse">❤️</span>
-              <a 
-                href="https://www.facebook.com/mehedihasan.sakib.1656" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-white font-extrabold hover:text-orange-400 hover:underline transition-all cursor-pointer"
-                title="MEHEDI HASAN SAKIB Facebook Profile"
+            <div className="text-gray-400 text-xs font-medium tracking-wide">
+              Designe and Developed by
+            </div>
+          </div>
+
+          {/* Giant Stylized Name at Very Bottom (Matching Video Style) */}
+          <div className="pt-4 pb-6 text-center select-none overflow-hidden flex justify-center items-center">
+            <a 
+              href="https://www.facebook.com/mehedihasan.sakib.1656" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="inline-block group cursor-pointer"
+              title="MEHEDI HASAN SAKIB Facebook Profile"
+            >
+              <span 
+                className="block text-2xl xs:text-3xl sm:text-5xl md:text-6xl lg:text-[6.2rem] xl:text-[7rem] font-black uppercase tracking-wider font-sans leading-none animate-datadrop-sweep group-hover:scale-103 transition-transform duration-500"
               >
                 MEHEDI HASAN SAKIB
-              </a>
-            </div>
+              </span>
+            </a>
           </div>
         </div>
       </footer>

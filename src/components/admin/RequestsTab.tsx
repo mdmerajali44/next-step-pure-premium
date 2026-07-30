@@ -40,7 +40,7 @@ export default function RequestsTab({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-3">
           <div className="bg-rose-100 text-rose-600 p-2.5 rounded-xl">
-            <RefreshCw className="w-5 h-5 animate-spin" style={{ animationDuration: '4s' }} />
+            <RefreshCw className="w-5 h-5 text-rose-600" />
           </div>
           <div>
             <p className="text-xs text-gray-400 font-medium">অপেক্ষমাণ রিকুয়েস্ট</p>

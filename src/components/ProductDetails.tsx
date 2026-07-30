@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product, Review, sortProductSizes } from '../types';
 import { getSeedReviews, getProductReviewsFromStorage } from '../utils/reviewUtils';
+import { safeSetLocalStorage } from '../utils/storage';
 import { motion } from 'motion/react';
 import { 
   Star, 
@@ -1043,7 +1044,7 @@ export default function ProductDetails({
                       };
                       const updated = [newReviewObj, ...reviews];
                       setReviews(updated);
-                      localStorage.setItem(`mango_lover_reviews_${product.id}`, JSON.stringify(updated));
+                      safeSetLocalStorage(`mango_lover_reviews_${product.id}`, JSON.stringify(updated));
                       setNewReviewName('');
                       setNewReviewPhone('');
                       setNewReviewComment('');

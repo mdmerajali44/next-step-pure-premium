@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sliders, Palette, Users, MapPin, ShieldAlert, CreditCard, ImageIcon, HelpCircle, Upload, Volume2, Share2, Facebook, Instagram, Youtube, Plus, Trash2 } from 'lucide-react';
 import { Category, Coupon, SiteConfig } from '../../types';
+import { compressImageFile as compressAndSetImage } from '../../utils/storage';
 
 interface MarketingTabProps {
   siteConfig: SiteConfig;
@@ -12,91 +13,6 @@ interface MarketingTabProps {
   selectedImageFromGallery?: { target: string; url: string } | null;
   onClearSelectedImageFromGallery?: () => void;
 }
-
-const compressAndSetImage = (file: File, callback: (base64: string) => void) => {
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    const img = new Image();
-    img.src = event.target?.result as string;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let width = img.width;
-      let height = img.height;
-      
-      // We want to preserve reasonable resolution (e.g. max 1000px)
-      // but dynamically scale down and adjust JPEG quality to get under 100 KB.
-      let maxDimension = 1000;
-      if (width > height) {
-        if (width > maxDimension) {
-          height = Math.round((height * maxDimension) / width);
-          width = maxDimension;
-        }
-      } else {
-        if (height > maxDimension) {
-          width = Math.round((width * maxDimension) / height);
-          height = maxDimension;
-        }
-      }
-      
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        callback(event.target?.result as string);
-        return;
-      }
-      
-      ctx.drawImage(img, 0, 0, width, height);
-      
-      // Let's do a loop to find the best quality/size trade-off
-      let quality = 0.8;
-      let resultBase64 = canvas.toDataURL('image/jpeg', quality);
-      
-      // Under 100 KB means binary size < 100,000 bytes.
-      // Base64 string length * 0.75 is approx binary size in bytes.
-      // So base64 length must be < 133,333.
-      const TARGET_BASE64_LENGTH = 133000; 
-      
-      // If still too large, let's try reducing quality first
-      if (resultBase64.length > TARGET_BASE64_LENGTH) {
-        quality = 0.6;
-        resultBase64 = canvas.toDataURL('image/jpeg', quality);
-      }
-      
-      if (resultBase64.length > TARGET_BASE64_LENGTH) {
-        quality = 0.4;
-        resultBase64 = canvas.toDataURL('image/jpeg', quality);
-      }
-
-      if (resultBase64.length > TARGET_BASE64_LENGTH) {
-        quality = 0.2;
-        resultBase64 = canvas.toDataURL('image/jpeg', quality);
-      }
-      
-      // If even quality 0.2 is too big, let's resize the canvas to be smaller (e.g., 600px max)
-      if (resultBase64.length > TARGET_BASE64_LENGTH) {
-        const scale = 0.6; // Scale down
-        const smallCanvas = document.createElement('canvas');
-        smallCanvas.width = Math.round(width * scale);
-        smallCanvas.height = Math.round(height * scale);
-        const smallCtx = smallCanvas.getContext('2d');
-        if (smallCtx) {
-          smallCtx.drawImage(img, 0, 0, smallCanvas.width, smallCanvas.height);
-          // Try quality 0.5 on smaller image
-          resultBase64 = smallCanvas.toDataURL('image/jpeg', 0.5);
-          
-          if (resultBase64.length > TARGET_BASE64_LENGTH) {
-            // Last fallback: quality 0.2 on smaller image
-            resultBase64 = smallCanvas.toDataURL('image/jpeg', 0.2);
-          }
-        }
-      }
-      
-      callback(resultBase64);
-    };
-  };
-  reader.readAsDataURL(file);
-};
 
 export default function MarketingTab({
   siteConfig,
