@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 export async function connectDB() {
   const uri = process.env.MONGODB_URI;
-  if (!uri || uri.includes("<username>") || uri.includes("<password>") || uri.includes("cluster.mongodb.net")) {
+  if (!uri || uri.includes("<username>") || uri.includes("<password>") || uri.includes("<cluster-url>")) {
     console.log("ℹ️ MONGODB_URI is not defined or using template placeholder. Operating with in-memory database fallback.");
     return false;
   }

@@ -1120,6 +1120,58 @@ export default function AdminDashboard({
     }
   }, [siteConfig?.faqItems]);
 
+  useEffect(() => {
+    if (!siteConfig) return;
+    if (siteConfig.storeName) setCfgStoreName(siteConfig.storeName);
+    if (siteConfig.storeSlogan) setCfgStoreSlogan(siteConfig.storeSlogan);
+    if (siteConfig.storeLogo) setCfgStoreLogo(siteConfig.storeLogo);
+    setCfgStoreNameImage(siteConfig.storeNameImage || '');
+    setCfgStoreSloganImage(siteConfig.storeSloganImage || '');
+    if (siteConfig.leftBannerImage) setCfgLeftImage(siteConfig.leftBannerImage);
+    if (siteConfig.leftBannerTitle) setCfgLeftTitle(siteConfig.leftBannerTitle);
+    if (siteConfig.leftBannerSubtitle) setCfgLeftSubtitle(siteConfig.leftBannerSubtitle);
+    if (siteConfig.leftBannerBtnText) setCfgLeftBtnText(siteConfig.leftBannerBtnText);
+    if (siteConfig.leftBannerCategory) setCfgLeftCategory(siteConfig.leftBannerCategory);
+    if (siteConfig.rightBannerImage) setCfgRightImage(siteConfig.rightBannerImage);
+    if (siteConfig.rightBannerTitle) setCfgRightTitle(siteConfig.rightBannerTitle);
+    if (siteConfig.rightBannerSubtitle) setCfgRightSubtitle(siteConfig.rightBannerSubtitle);
+    if (siteConfig.rightBannerBtnText) setCfgRightBtnText(siteConfig.rightBannerBtnText);
+    if (siteConfig.rightBannerTagline) setCfgRightTagline(siteConfig.rightBannerTagline);
+    if (siteConfig.rightBannerCategory) setCfgRightCategory(siteConfig.rightBannerCategory);
+    if (siteConfig.tickerItems) {
+      if (siteConfig.tickerItems[0]) setCfgTicker1(siteConfig.tickerItems[0]);
+      if (siteConfig.tickerItems[1]) setCfgTicker2(siteConfig.tickerItems[1]);
+      if (siteConfig.tickerItems[2]) setCfgTicker3(siteConfig.tickerItems[2]);
+      if (siteConfig.tickerItems[3]) setCfgTicker4(siteConfig.tickerItems[3]);
+      if (siteConfig.tickerItems[4]) setCfgTicker5(siteConfig.tickerItems[4]);
+      if (siteConfig.tickerItems[5]) setCfgTicker6(siteConfig.tickerItems[5]);
+    }
+    if (siteConfig.categoryImages) setCfgCategoryImages(siteConfig.categoryImages);
+    if (siteConfig.categoryBanners) setCfgCategoryBanners(siteConfig.categoryBanners);
+    if (siteConfig.categoryNames) setCfgCategoryNames(siteConfig.categoryNames);
+    if (siteConfig.aboutTitle) setCfgAboutTitle(siteConfig.aboutTitle);
+    if (siteConfig.aboutSubtitle) setCfgAboutSubtitle(siteConfig.aboutSubtitle);
+    if (siteConfig.aboutOwnerImage) setCfgAboutOwnerImage(siteConfig.aboutOwnerImage);
+    if (siteConfig.aboutHighlightText) setCfgAboutHighlightText(siteConfig.aboutHighlightText);
+    if (siteConfig.aboutParagraph1) setCfgAboutParagraph1(siteConfig.aboutParagraph1);
+    if (siteConfig.aboutParagraph2) setCfgAboutParagraph2(siteConfig.aboutParagraph2);
+    if (siteConfig.aboutParagraph3) setCfgAboutParagraph3(siteConfig.aboutParagraph3);
+    if (siteConfig.aboutFacebookLink) setCfgAboutFacebookLink(siteConfig.aboutFacebookLink);
+    if (siteConfig.messengerLink) setCfgMessengerLink(siteConfig.messengerLink);
+    if (siteConfig.facebookLink) setCfgFacebookLink(siteConfig.facebookLink);
+    if (siteConfig.instagramLink) setCfgInstagramLink(siteConfig.instagramLink);
+    if (siteConfig.youtubeLink) setCfgYoutubeLink(siteConfig.youtubeLink);
+    if (siteConfig.contactOffice) setCfgContactOffice(siteConfig.contactOffice);
+    if (siteConfig.contactPhone) setCfgContactPhone(siteConfig.contactPhone);
+    if (siteConfig.contactEmail) setCfgContactEmail(siteConfig.contactEmail);
+    if (siteConfig.googleMapUrl) setCfgGoogleMapUrl(siteConfig.googleMapUrl);
+    if (siteConfig.refundPolicyText) setCfgRefundPolicyText(siteConfig.refundPolicyText);
+    if (siteConfig.privacyPolicyText) setCfgPrivacyPolicyText(siteConfig.privacyPolicyText);
+    if (siteConfig.promoActive !== undefined) setCfgPromoActive(siteConfig.promoActive);
+    if (siteConfig.promoImage) setCfgPromoImage(siteConfig.promoImage);
+    if (siteConfig.promoLink) setCfgPromoLink(siteConfig.promoLink);
+  }, [siteConfig]);
+
   // Coupon configuration states
   const [cfgCoupons, setCfgCoupons] = useState<Coupon[]>(siteConfig?.coupons || [
     { code: 'MANGO10', type: 'percentage', value: 10 },

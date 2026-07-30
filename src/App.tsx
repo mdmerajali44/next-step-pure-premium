@@ -419,16 +419,30 @@ export default function App() {
   const [isConfigLoaded, setIsConfigLoaded] = useState(false);
 
   // --- Promo Offer Modal State ---
-  const [showPromoModal, setShowPromoModal] = useState<boolean>(false);
+  const [showPromoModal, setShowPromoModal] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('mango_lover_site_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.promoActive !== false;
+      }
+      return DEFAULT_SITE_CONFIG.promoActive !== false;
+    } catch (e) {
+      return true;
+    }
+  });
 
   const handleClosePromoModal = () => {
     setShowPromoModal(false);
-    try {
-      sessionStorage.setItem('mango_lover_promo_closed', 'true');
-    } catch (e) {
-      console.error("Failed to set promo closed session:", e);
-    }
   };
+
+  // --- Scroll to top on page reload / mount ---
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
+  }, []);
 
   // --- Load Fresh Data from MongoDB Atlas on mount ---
   useEffect(() => {
@@ -452,11 +466,23 @@ export default function App() {
           freshSiteConfig.promoImage = 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80';
         }
         setSiteConfig(freshSiteConfig);
+        if (freshSiteConfig.promoActive !== false) {
+          setShowPromoModal(true);
+        }
         setCategories(freshCategories);
         setOrders(freshOrders);
         setUsers(freshUsers);
         setWithdrawRequests(freshWithdraws);
         setProductRequests(freshProductRequests);
+
+        safeSetLocalStorage('ml_products', JSON.stringify(freshProducts));
+        safeSetLocalStorage('mango_lover_site_config', JSON.stringify(freshSiteConfig));
+        safeSetLocalStorage('ml_categories', JSON.stringify(freshCategories));
+        safeSetLocalStorage('ml_orders', JSON.stringify(freshOrders));
+        safeSetLocalStorage('ml_users', JSON.stringify(freshUsers));
+        safeSetLocalStorage('ml_withdraw_requests', JSON.stringify(freshWithdraws));
+        safeSetLocalStorage('ml_product_requests', JSON.stringify(freshProductRequests));
+
         setIsConfigLoaded(true);
       } catch (err) {
         console.error("Failed to fetch fresh data from MongoDB:", err);
@@ -476,15 +502,9 @@ export default function App() {
       if (!newConfig.promoImage) {
         newConfig.promoImage = 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80';
       }
-      try {
-        sessionStorage.removeItem('mango_lover_promo_closed');
-      } catch (e) {}
       setShowPromoModal(true);
     } else {
       setShowPromoModal(false);
-      try {
-        sessionStorage.setItem('mango_lover_promo_closed', 'true');
-      } catch (e) {}
     }
     setSiteConfig(newConfig);
     safeSetLocalStorage('mango_lover_site_config', JSON.stringify(newConfig));
@@ -1255,7 +1275,11 @@ export default function App() {
       rating: 5.0,
       reviewsCount: 1,
     };
-    setProducts((prev) => [...prev, productToAdd]);
+    setProducts((prev) => {
+      const updated = [...prev, productToAdd];
+      safeSetLocalStorage('ml_products', JSON.stringify(updated));
+      return updated;
+    });
     try {
       await api.createProduct(productToAdd);
     } catch (e) {
@@ -1264,7 +1288,11 @@ export default function App() {
   };
 
   const handleEditProduct = async (updatedProduct: Product) => {
-    setProducts((prev) => prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)));
+    setProducts((prev) => {
+      const updated = prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p));
+      safeSetLocalStorage('ml_products', JSON.stringify(updated));
+      return updated;
+    });
     try {
       await api.updateProduct(updatedProduct);
     } catch (e) {
@@ -1273,7 +1301,11 @@ export default function App() {
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
+    setProducts((prev) => {
+      const updated = prev.filter((p) => p.id !== productId);
+      safeSetLocalStorage('ml_products', JSON.stringify(updated));
+      return updated;
+    });
     try {
       await api.deleteProduct(productId);
     } catch (e) {
@@ -3675,71 +3707,37 @@ export default function App() {
               <div className="flex flex-wrap items-center justify-center gap-3">
                 {/* bKash */}
                 <div className="bg-white hover:bg-[#FFF0F5] border border-stone-200 hover:border-pink-300 px-3 py-1.5 rounded-xl select-none transition-all duration-300 flex items-center justify-center gap-1.5 h-9 hover:shadow-md cursor-pointer group">
-                  <img 
-                    src="https://abcd-bd.org/assets/img/bkash.png" 
-                    alt="bKash" 
-                    referrerPolicy="no-referrer"
-                    className="h-4.5 w-auto object-contain group-hover:scale-105 transition-transform"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      target.onerror = null;
-                      target.src = "https://www.logo.wine/a/logo/BKash/BKash-Logo.wine.svg";
-                    }}
-                  />
+                  <span className="w-5 h-5 rounded-full bg-[#D12053] text-white font-black text-[11px] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">b</span>
                   <span className="text-[11px] font-black text-[#D12053] tracking-tight">বিকাশ</span>
                 </div>
 
                 {/* Nagad */}
                 <div className="bg-white hover:bg-[#FFF5EE] border border-stone-200 hover:border-orange-300 px-3 py-1.5 rounded-xl select-none transition-all duration-300 flex items-center justify-center gap-1.5 h-9 hover:shadow-md cursor-pointer group">
-                  <img 
-                    src="https://abcd-bd.org/assets/img/nagad.png" 
-                    alt="Nagad" 
-                    referrerPolicy="no-referrer"
-                    className="h-4.5 w-auto object-contain group-hover:scale-105 transition-transform"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      target.onerror = null;
-                      target.src = "https://www.logo.wine/a/logo/Nagad/Nagad-Logo.wine.svg";
-                    }}
-                  />
+                  <span className="w-5 h-5 rounded-full bg-[#F15A22] text-white font-black text-[11px] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">ন</span>
                   <span className="text-[11px] font-black text-[#F15A22] tracking-tight">নগদ</span>
                 </div>
 
                 {/* Rocket */}
                 <div className="bg-white hover:bg-[#F8F0FC] border border-stone-200 hover:border-purple-300 px-3 py-1.5 rounded-xl select-none transition-all duration-300 flex items-center justify-center gap-1.5 h-9 hover:shadow-md cursor-pointer group">
-                  <img 
-                    src="https://upload.wikimedia.org/wikipedia/commons/f/f7/Rocket_mobile_banking_logo.svg" 
-                    alt="Rocket" 
-                    referrerPolicy="no-referrer"
-                    className="h-4.5 w-auto object-contain group-hover:scale-105 transition-transform"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      target.onerror = null;
-                      target.src = "https://abcd-bd.org/assets/img/rocket.png";
-                    }}
-                  />
+                  <span className="w-5 h-5 rounded-full bg-[#8C3494] text-white font-black text-[11px] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">R</span>
                   <span className="text-[11px] font-black text-[#8C3494] tracking-tight">রকেট</span>
                 </div>
 
                 {/* Visa Card */}
                 <div className="bg-white hover:bg-[#F0F4FC] border border-stone-200 hover:border-blue-300 px-3 py-1.5 rounded-xl select-none transition-all duration-300 flex items-center justify-center gap-1.5 h-9 hover:shadow-md cursor-pointer group">
-                  <img 
-                    src="https://static.vecteezy.com/system/resources/thumbnails/020/975/570/small/visa-logo-visa-icon-transparent-free-png.png" 
-                    alt="Visa" 
-                    referrerPolicy="no-referrer"
-                    className="h-3.5 w-auto object-contain group-hover:scale-105 transition-transform"
-                  />
+                  <svg className="h-3.5 w-auto group-hover:scale-105 transition-transform" viewBox="0 0 36 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14.63 0.22L9.58 11.78H6.55L4.01 2.53C3.86 1.95 3.44 1.51 2.91 1.25C1.98 0.77 0.94 0.4 0 0.2L0.06 0.22H4.96C5.62 0.22 6.2 0.65 6.33 1.34L7.54 7.78L10.63 0.22H14.63ZM27.08 8.16C27.09 5.04 22.77 4.87 22.8 3.48C22.81 3.06 23.22 2.61 24.18 2.48C24.66 2.41 26.01 2.36 27.53 3.06L28.12 0.38C27.31 0.08 26.27 -0.01 24.96 0.0001C21.89 0.0001 19.72 1.63 19.7 3.96C19.67 5.69 21.25 6.66 22.43 7.24C23.65 7.84 24.06 8.22 24.05 8.75C24.04 9.57 23.05 9.93 22.13 9.94C20.57 9.96 19.67 9.51 18.96 9.18L18.35 11.96C19.2 12.35 20.78 12.69 22.4 12.71C25.68 12.71 27.81 11.09 27.08 8.16ZM34.98 11.78H38L35.37 0.22H32.73C32.08 0.22 31.54 0.6 31.3 1.18L26.75 11.78H29.93L30.57 10.03H34.46L34.98 11.78ZM31.43 7.64L32.99 3.37L33.88 7.64H31.43ZM19.26 0.22L16.89 11.78H13.88L16.25 0.22H19.26Z" fill="#1A1F71"/>
+                  </svg>
                   <span className="text-[11px] font-black text-[#1A1F71] tracking-tight">ভিসা</span>
                 </div>
 
                 {/* Mastercard */}
                 <div className="bg-white hover:bg-[#FCF5F0] border border-stone-200 hover:border-amber-300 px-3 py-1.5 rounded-xl select-none transition-all duration-300 flex items-center justify-center gap-1.5 h-9 hover:shadow-md cursor-pointer group">
-                  <img 
-                    src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" 
-                    alt="Mastercard" 
-                    referrerPolicy="no-referrer"
-                    className="h-4 w-auto object-contain group-hover:scale-105 transition-transform"
-                  />
+                  <svg className="h-4 w-auto group-hover:scale-105 transition-transform" viewBox="0 0 36 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="13" cy="11" r="7" fill="#EB001B"/>
+                    <circle cx="23" cy="11" r="7" fill="#F79E1B"/>
+                    <path d="M18 5.76C19.5 7.02 20.44 8.9 20.44 11C20.44 13.1 19.5 14.98 18 16.24C16.5 14.98 15.56 13.1 15.56 11C15.56 8.9 16.5 7.02 18 5.76Z" fill="#FF5F00"/>
+                  </svg>
                   <span className="text-[11px] font-black text-[#F79E1B] tracking-tight">মাস্টারকার্ড</span>
                 </div>
               </div>
@@ -4307,9 +4305,9 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 🎁 Promo Offer Modal (shown on load) */}
+      {/* 🎁 Promo Offer Modal (shown on load for customers only) */}
       <AnimatePresence>
-        {isConfigLoaded && showPromoModal && siteConfig.promoActive && (
+        {!isAdminMode && !isSellerDashboardOpen && showPromoModal && siteConfig.promoActive && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

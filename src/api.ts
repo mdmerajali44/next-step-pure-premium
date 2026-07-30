@@ -34,8 +34,7 @@ export const api = {
     try {
       const list = await apiRequest<Product[]>("/api/products");
       return Array.isArray(list) ? list : fallback;
-    } catch (e) {
-      console.warn("API getProducts failed, falling back to local:", e);
+    } catch {
       const saved = localStorage.getItem("ml_products");
       return saved ? JSON.parse(saved) : fallback;
     }
@@ -46,8 +45,7 @@ export const api = {
         method: "POST",
         body: JSON.stringify(product),
       });
-    } catch (e) {
-      console.warn("API createProduct failed, falling back to local:", e);
+    } catch {
       return product;
     }
   },
@@ -57,8 +55,7 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(product),
       });
-    } catch (e) {
-      console.warn("API updateProduct failed, falling back to local:", e);
+    } catch {
       return product;
     }
   },
@@ -68,8 +65,7 @@ export const api = {
         method: "DELETE",
       });
       return true;
-    } catch (e) {
-      console.warn("API deleteProduct failed:", e);
+    } catch {
       return false;
     }
   },
@@ -79,8 +75,7 @@ export const api = {
     try {
       const list = await apiRequest<Category[]>("/api/categories");
       return Array.isArray(list) ? list : fallback;
-    } catch (e) {
-      console.warn("API getCategories failed, falling back to local:", e);
+    } catch {
       const saved = localStorage.getItem("ml_categories");
       return saved ? JSON.parse(saved) : fallback;
     }
@@ -91,8 +86,7 @@ export const api = {
         method: "POST",
         body: JSON.stringify(category),
       });
-    } catch (e) {
-      console.warn("API createCategory failed:", e);
+    } catch {
       return category;
     }
   },
@@ -102,8 +96,7 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(category),
       });
-    } catch (e) {
-      console.warn("API updateCategory failed:", e);
+    } catch {
       return category;
     }
   },
@@ -113,8 +106,7 @@ export const api = {
         method: "DELETE",
       });
       return true;
-    } catch (e) {
-      console.warn("API deleteCategory failed:", e);
+    } catch {
       return false;
     }
   },
@@ -285,8 +277,7 @@ export const api = {
     try {
       const config = await apiRequest<SiteConfig | null>("/api/siteconfig");
       return config ? { ...fallback, ...config } : fallback;
-    } catch (e) {
-      console.warn("API getSiteConfig failed, falling back to local:", e);
+    } catch {
       const saved = localStorage.getItem("mango_lover_site_config");
       return saved ? { ...fallback, ...JSON.parse(saved) } : fallback;
     }
@@ -297,8 +288,7 @@ export const api = {
         method: "POST",
         body: JSON.stringify(config),
       });
-    } catch (e) {
-      console.warn("API updateSiteConfig failed, falling back to local:", e);
+    } catch {
       return config;
     }
   },

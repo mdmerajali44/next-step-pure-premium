@@ -1,4 +1,8 @@
 import mongoose from "mongoose";
+import fs from "fs";
+import path from "path";
+
+const DATA_FILE = path.join(process.cwd(), "data_store.json");
 
 // Local storage for in-memory database fallback
 export const inMemoryStore: Record<string, any[]> = {
@@ -12,6 +16,36 @@ export const inMemoryStore: Record<string, any[]> = {
   ChatSession: []
 };
 
+function saveStoreToDisk() {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(inMemoryStore, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Failed to save fallback store to disk:", err);
+  }
+}
+
+function loadStoreFromDisk(): boolean {
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      const data = fs.readFileSync(DATA_FILE, "utf-8");
+      if (data) {
+        const parsed = JSON.parse(data);
+        let hasAnyData = false;
+        for (const key of Object.keys(inMemoryStore)) {
+          if (Array.isArray(parsed[key]) && parsed[key].length > 0) {
+            inMemoryStore[key] = parsed[key];
+            hasAnyData = true;
+          }
+        }
+        return hasAnyData;
+      }
+    }
+  } catch (err) {
+    console.error("Failed to load fallback store from disk:", err);
+  }
+  return false;
+}
+
 // Helper to populate store on boot
 export function populateFallbackStore(
   categories: any[],
@@ -19,6 +53,8 @@ export function populateFallbackStore(
   users: any[],
   siteConfig: any
 ) {
+  const loaded = loadStoreFromDisk();
+
   if (inMemoryStore.Category.length === 0) {
     inMemoryStore.Category = JSON.parse(JSON.stringify(categories));
   }
@@ -31,6 +67,10 @@ export function populateFallbackStore(
   if (inMemoryStore.SiteConfig.length === 0) {
     inMemoryStore.SiteConfig = [JSON.parse(JSON.stringify(siteConfig))];
   }
+
+  if (!loaded) {
+    saveStoreToDisk();
+  }
 }
 
 // Simple query engine matching filter fields
@@ -38,7 +78,6 @@ function matchesFilter(item: any, filter: any): boolean {
   if (!filter || Object.keys(filter).length === 0) return true;
   for (const [key, val] of Object.entries(filter)) {
     if (val && typeof val === 'object') {
-      // Support basic nested or direct values
       continue;
     } else {
       if (item[key] !== val) return false;
@@ -83,10 +122,9 @@ class MockQuery<T> {
 function wrapDoc(modelName: string, doc: any) {
   if (!doc) return null;
   
-  // Ensure the document maintains references to update in-place in array
   Object.defineProperty(doc, 'save', {
     value: async function() {
-      // Document updates itself in-place since it is a reference to the store item
+      saveStoreToDisk();
       return this;
     },
     writable: true,
@@ -102,10 +140,10 @@ function findOneAndUpdateMock(modelName: string, filter: any, update: any) {
   let doc = arr.find(item => matchesFilter(item, filter));
   
   if (!doc) {
-    // If updating config and it doesn't exist yet, we create it
     if (modelName === 'SiteConfig') {
       doc = JSON.parse(JSON.stringify(update));
       arr.push(doc);
+      saveStoreToDisk();
       return wrapDoc(modelName, doc);
     }
     return null;
@@ -129,6 +167,7 @@ function findOneAndUpdateMock(modelName: string, filter: any, update: any) {
     }
   }
   
+  saveStoreToDisk();
   return wrapDoc(modelName, doc);
 }
 
@@ -152,14 +191,28 @@ export function createMockModel(modelName: string) {
     },
     create: async (docData: any) => {
       const arr = inMemoryStore[modelName];
-      const doc = JSON.parse(JSON.stringify(docData));
-      arr.push(doc);
+      let doc: any;
+      if (docData.id || docData.slug) {
+        const existingIdx = arr.findIndex(item => (docData.id && item.id === docData.id) || (docData.slug && item.slug === docData.slug));
+        if (existingIdx !== -1) {
+          arr[existingIdx] = JSON.parse(JSON.stringify(docData));
+          doc = arr[existingIdx];
+        } else {
+          doc = JSON.parse(JSON.stringify(docData));
+          arr.push(doc);
+        }
+      } else {
+        doc = JSON.parse(JSON.stringify(docData));
+        arr.push(doc);
+      }
+      saveStoreToDisk();
       return wrapDoc(modelName, doc);
     },
     insertMany: async (docs: any[]) => {
       const arr = inMemoryStore[modelName];
       const clonedDocs = JSON.parse(JSON.stringify(docs));
       arr.push(...clonedDocs);
+      saveStoreToDisk();
       return clonedDocs.map((doc: any) => wrapDoc(modelName, doc));
     },
     findOneAndUpdate: async (filter: any, update: any, options?: any) => {
@@ -170,6 +223,7 @@ export function createMockModel(modelName: string) {
       const index = arr.findIndex(item => matchesFilter(item, filter));
       if (index !== -1) {
         const [deleted] = arr.splice(index, 1);
+        saveStoreToDisk();
         return deleted;
       }
       return null;
