@@ -1087,7 +1087,7 @@ export default function AdminDashboard({
 
   const [cfgContactOffice, setCfgContactOffice] = useState(siteConfig?.contactOffice || 'Shyamnagar, Satkhira, Bangladesh');
   const [cfgContactPhone, setCfgContactPhone] = useState(siteConfig?.contactPhone || '+880 1837-587551');
-  const [cfgContactEmail, setCfgContactEmail] = useState(siteConfig?.contactEmail || 'info AT mangolover.com.bd');
+  const [cfgContactEmail, setCfgContactEmail] = useState(siteConfig?.contactEmail || 'info.SatkhiraPremium.com.bd');
   const [cfgGoogleMapUrl, setCfgGoogleMapUrl] = useState(siteConfig?.googleMapUrl || 'https://www.openstreetmap.org/export/embed.html?bbox=88.5800%2C24.3600%2C88.6200%2C24.3900&amp;layer=mapnik&amp;marker=24.3750%2C88.6010');
 
   const [selectedRequestDetails, setSelectedRequestDetails] = useState<ProductRequest | null>(null);
@@ -3507,7 +3507,7 @@ export default function AdminDashboard({
                             </>
                           )}
                           <p className="text-[10px] text-slate-500 font-semibold mt-1">অফিস: {siteConfig.contactOffice || "Shyamnagar, Satkhira"}</p>
-                          <p className="text-[10px] text-slate-500 font-semibold font-sans">মোবাইল: {siteConfig.contactPhone || "01837-587551"} | ইমেইল: {siteConfig.contactEmail || "info@mangolover.com.bd"}</p>
+                          <p className="text-[10px] text-slate-500 font-semibold font-sans">মোবাইল: {siteConfig.contactPhone || "01837-587551"} | ইমেইল: {siteConfig.contactEmail || "info@SatkhiraPremium.com.bd"}</p>
                         </div>
 
                         <div className="text-center py-1 relative z-10">

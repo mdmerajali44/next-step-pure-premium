@@ -518,7 +518,7 @@ async function startServer() {
       const storeName = siteConfig?.storeName || "সাতক্ষীরা প্রিমিয়াম";
       const contactPhone = siteConfig?.contactPhone || "+880 1837-587551";
       const contactOffice = siteConfig?.contactOffice || "Shyamnagar, Satkhira, Bangladesh";
-      const contactEmail = siteConfig?.contactEmail || "info@mangolover.com.bd";
+      const contactEmail = siteConfig?.contactEmail || "info@SatkhiraPremium.com.bd";
 
       const fallbackReply = `আসসালামু আলাইকুম! আমাদের সাথে যোগাযোগের জন্য ধন্যবাদ। আমাদের একজন প্রতিনিধি খুব শীঘ্রই আপনার সাথে যোগাযোগ করবেন। জরুরী প্রয়োজনে আমাদের কাস্টমার কেয়ার নম্বরে কল করুন: ${contactPhone}।`;
 

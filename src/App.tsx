@@ -338,7 +338,7 @@ const DEFAULT_SITE_CONFIG: SiteConfig = {
   aboutFacebookLink: 'https://facebook.com',
   contactOffice: 'Shyamnagar, Satkhira, Bangladesh',
   contactPhone: '+880 1837-587551',
-  contactEmail: 'info AT mangolover.com.bd',
+  contactEmail: 'info.SatkhiraPremium.com.bd',
   refundPolicyText: 'আমাদের মূল লক্ষ্য গ্রাহকের সন্তুষ্টি। যদি কোনো কারণে আপনি পণ্য পেয়ে অসন্তুষ্ট হন, তবে নিম্নলিখিত নীতি অনুযায়ী আমরা পণ্য পরিবর্তন বা মূল্য ফেরত দিয়ে থাকি:\n\n১. ডেলিভারির সময় পণ্য দেখে নেওয়ার সুযোগ রয়েছে। কোনো প্রকার ক্রটি থাকলে ডেলিভারি ম্যানের কাছেই ফেরত দিতে পারবেন।\n\n২. আমরা সাতক্ষীরা ও শ্যামনগর থেকে সরাসরি তাজা পণ্য পাঠাই। পরিবহণকালীন ক্ষয়ক্ষতির জন্য আমরা ১০০% দায়বদ্ধ।\n\n৩. রিটার্ন করার পর ৩ কার্যদিবসের মধ্যে আপনার বিকাশ/রকেট/নগদ অথবা ব্যাংক অ্যাকাউন্টে টাকা রিফান্ড করা হবে।',
   privacyPolicyText: 'আপনার গোপনীয়তা আমাদের কাছে অত্যন্ত গুরুত্বপূর্ণ। সাতক্ষীরা প্রিমিয়াম গ্রাহকদের ব্যক্তিগত তথ্যের সর্বোচ্চ নিরাপত্তা নিশ্চিত করে:\n\n১. আমরা শুধুমাত্র অর্ডার প্রসেসিং এবং পণ্য ডেলিভারির সুবিধার্থে গ্রাহকের নাম, মোবাইল নম্বর এবং ঠিকানা সংগ্রহ করি।\n\n২. সংগৃহীত তথ্য কোনো তৃতীয় পক্ষের কাছে বিক্রয় বা হস্তান্তর করা হয় না।\n\n৩. আমাদের ওয়েবসাইট এবং গ্রাহক ডেটাবেজ সুরক্ষিত রাখতে আমরা আধুনিক সিকিউরিটি প্রোটোকল ব্যবহার করি।',
   coupons: [
@@ -1489,7 +1489,7 @@ export default function App() {
   sectionsList.push({
     id: 'section-produced',
     title: 'আমাদের উৎপাদিত',
-    subtitle: 'Prepared by MangoLover',
+    subtitle: 'Prepared by Satkhira Premium',
     categoryName: 'all',
     btnText: 'সবগুলো দেখুন',
     isSpecialProduced: true,
@@ -2582,10 +2582,10 @@ export default function App() {
                       ইমেইল
                     </h4>
                     <a 
-                      href={`mailto:${siteConfig.contactEmail || 'info@mangolover.com.bd'}`}
+                      href={`mailto:${siteConfig.contactEmail || 'info@SatkhiraPremium.com.bd'}`}
                       className="text-xs md:text-sm text-gray-700 font-bold hover:text-orange-500 transition-colors break-all"
                     >
-                      {siteConfig.contactEmail || 'info AT mangolover.com.bd'}
+                      {siteConfig.contactEmail || 'info.SatkhiraPremium.com.bd'}
                     </a>
                   </div>
 
@@ -3747,7 +3747,7 @@ export default function App() {
           {/* Bottom Copyright & Rights Bar */}
           <div className="border-t border-emerald-950/40 mt-8 pt-6 flex flex-col items-center justify-center text-center gap-1.5 text-xs font-semibold text-gray-400">
             <div>
-              © 2026 <span className="text-white font-extrabold">MangoLover</span>. All rights reserved.
+              © 2026 <span className="text-white font-extrabold">Satkhira Premium</span>. All rights reserved.
             </div>
             <div className="text-gray-400 text-xs font-medium tracking-wide">
               Designe and Developed by
