@@ -515,7 +515,7 @@ async function startServer() {
       const activeSessionId = sessionId || "default-session";
       const activeCustomerName = customerName || `কাস্টমার #${activeSessionId.substring(0, 5)}`;
 
-      const storeName = siteConfig?.storeName || "ম্যাংগো লাভার";
+      const storeName = siteConfig?.storeName || "সাতক্ষীরা প্রিমিয়াম";
       const contactPhone = siteConfig?.contactPhone || "+880 1837-587551";
       const contactOffice = siteConfig?.contactOffice || "Shyamnagar, Satkhira, Bangladesh";
       const contactEmail = siteConfig?.contactEmail || "info@mangolover.com.bd";
@@ -580,8 +580,8 @@ async function startServer() {
         const isRefundInquiry = cleanMsg.includes("রিফান্ড") || cleanMsg.includes("ফেরত") || cleanMsg.includes("রিটার্ন") || cleanMsg.includes("নীতি") ||
           cleanMsg.includes("refund") || cleanMsg.includes("ferot") || cleanMsg.includes("return") || cleanMsg.includes("policy");
 
-        const isAboutInquiry = cleanMsg.includes("সম্পর্কে") || cleanMsg.includes("শপ") || cleanMsg.includes("কেমন") || cleanMsg.includes("ম্যাংগো লাভার") ||
-          cleanMsg.includes("somporke") || cleanMsg.includes("about") || cleanMsg.includes("shop") || cleanMsg.includes("shopp") || cleanMsg.includes("mango lover");
+        const isAboutInquiry = cleanMsg.includes("সম্পর্কে") || cleanMsg.includes("শপ") || cleanMsg.includes("কেমন") || cleanMsg.includes("সাতক্ষীরা প্রিমিয়াম") ||
+          cleanMsg.includes("somporke") || cleanMsg.includes("about") || cleanMsg.includes("shop") || cleanMsg.includes("shopp") || cleanMsg.includes("Satkhira Premium");
 
         const isGreetingInquiry = cleanMsg.includes("হ্যালো") || cleanMsg.includes("hello") || cleanMsg.includes("hi") || cleanMsg.includes("হাই") || cleanMsg.includes("কেমন আছেন") || cleanMsg.includes("সালাম") || cleanMsg.includes("আসসালামু আলাইকুম") || cleanMsg.includes("আসসালামুআলাইকুম") ||
           cleanMsg.includes("salam") || cleanMsg.includes("slm") || cleanMsg.includes("hlw") || cleanMsg.includes("helo") || cleanMsg.includes("assalamualaikum") || cleanMsg.includes("kemon aso") || cleanMsg.includes("kemon achen") || cleanMsg.includes("kemon asen") || cleanMsg.includes("valoni") || cleanMsg.includes("valo");
@@ -712,7 +712,7 @@ async function startServer() {
 
       const sysInstruction = `
 You are the official AI Live Chat Assistant of the online shop "${storeName}". 
-Your name is "Mango Lover Assistant". You must converse politely, warm, and strictly in Bengali.
+Your name is "Satkhira Premium Assistant". You must converse politely, warm, and strictly in Bengali.
 
 CRITICAL INSTRUCTION ON USER INPUTS:
 - The user may type their message in standard Bengali script OR in Banglish (Bengali written with the English alphabet, e.g., "apnadr thikana ki?", "dam koto?", "delivery fee koto?", "khejur ache?", "hello kemon achen?").

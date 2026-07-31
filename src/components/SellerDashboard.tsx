@@ -28,7 +28,7 @@ const PRESET_IMAGES = [
   { name: 'সুন্দরবনের মধু বোতল', path: '/src/assets/images/sundarban_honey_jar_1782453470122.jpg' },
   { name: 'আম্রপালি আম', path: '/src/assets/images/green_mangoes_1_1782466276525.jpg' },
   { name: 'আমবাগান চাষী', path: '/src/assets/images/mango_farmer_orchard_1782453455911.jpg' },
-  { name: 'ম্যাংগো লাভার লোগো', path: '/src/assets/images/mango_lover_logo_1782453485561.jpg' },
+  { name: 'সাতক্ষীরা প্রিমিয়াম লোগো', path: '/src/assets/images/mango_lover_logo_1782453485561.jpg' },
 ];
 
 interface SellerDashboardProps {
@@ -370,7 +370,7 @@ export default function SellerDashboard({
     setProdPurchasePrice('');
     setProdBadge('none');
     setProdDescriptionBullets('');
-    setProdManufacturer('ম্যাংগো লাভার (MangoLover)');
+    setProdManufacturer('সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)');
     setProdSourceArea('রাজশাহী, বাংলাদেশ');
     setProdShelfLife('১২ মাস (শুকনো ও ঠাণ্ডা জায়গায় সংরক্ষণ করুন)');
     setProdOrganicCertificate('১০০% প্রাকৃতিক ও কেমিক্যালমুক্ত পরীক্ষিত');

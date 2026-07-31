@@ -430,13 +430,13 @@ export default function CheckoutModal({
                     <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-2 border-orange-100 shadow-xs mb-3">
                       <img 
                         src="/src/assets/images/mango_lover_logo_1782453485561.jpg" 
-                        alt="Mango Lover Logo" 
+                        alt="Satkhira Premium Logo" 
                         className="w-full h-full object-cover scale-105"
                         referrerPolicy="no-referrer"
                       />
                     </div>
                     <span className="font-extrabold text-xl md:text-2xl tracking-tight bg-gradient-to-r from-orange-500 via-amber-500 to-green-600 bg-clip-text text-transparent">
-                      {siteConfig?.storeName || 'ম্যাংগো লাভার'}
+                      {siteConfig?.storeName || 'সাতক্ষীরা প্রিমিয়াম'}
                     </span>
                     <h2 className="text-2xl md:text-4xl font-black text-slate-800 mt-2">অর্ডার ফর্ম</h2>
                   </div>

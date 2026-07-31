@@ -29,7 +29,7 @@ export default function MarketingTab({
   const [cfgPromoImage, setCfgPromoImage] = useState<string>(siteConfig?.promoImage || 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80');
   const [cfgPromoLink, setCfgPromoLink] = useState<string>(siteConfig?.promoLink || '');
 
-  const [cfgStoreName, setCfgStoreName] = useState(siteConfig?.storeName || 'ম্যাংগো লাভার');
+  const [cfgStoreName, setCfgStoreName] = useState(siteConfig?.storeName || 'সাতক্ষীরা প্রিমিয়াম');
   const [cfgStoreSlogan, setCfgStoreSlogan] = useState(siteConfig?.storeSlogan || 'Pure & Organic Food');
   const [cfgStoreLogo, setCfgStoreLogo] = useState(siteConfig?.storeLogo || '');
   const [cfgStoreNameImage, setCfgStoreNameImage] = useState(siteConfig?.storeNameImage || '');

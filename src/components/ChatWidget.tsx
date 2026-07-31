@@ -40,7 +40,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ siteConfig }) => {
     };
   }, []);
 
-  const storeName = siteConfig?.storeName || "ম্যাংগো লাভার";
+  const storeName = siteConfig?.storeName || "সাতক্ষীরা প্রিমিয়াম";
   const contactPhone = siteConfig?.contactPhone || "01837-587551";
   const messengerUrl = siteConfig?.messengerLink || "https://m.me/61556942953282";
   
