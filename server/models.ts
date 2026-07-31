@@ -25,6 +25,7 @@ export interface IUserDocument extends Document {
   paymentMethod?: 'bkash' | 'nagad' | 'bank';
   paymentDetails?: string;
   balance?: number;
+  readNotifications?: string[];
 }
 
 const UserSchema = new Schema<IUserDocument>({
@@ -50,7 +51,8 @@ const UserSchema = new Schema<IUserDocument>({
   sellerStatus: { type: String, enum: ['pending', 'approved', 'rejected'] },
   paymentMethod: { type: String, enum: ['bkash', 'nagad', 'bank'] },
   paymentDetails: { type: String },
-  balance: { type: Number, default: 0 }
+  balance: { type: Number, default: 0 },
+  readNotifications: [{ type: String }]
 });
 
 // --- PRODUCT SCHEMA ---

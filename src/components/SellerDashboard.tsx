@@ -28,7 +28,7 @@ const PRESET_IMAGES = [
   { name: 'সুন্দরবনের মধু বোতল', path: '/src/assets/images/sundarban_honey_jar_1782453470122.jpg' },
   { name: 'আম্রপালি আম', path: '/src/assets/images/green_mangoes_1_1782466276525.jpg' },
   { name: 'আমবাগান চাষী', path: '/src/assets/images/mango_farmer_orchard_1782453455911.jpg' },
-  { name: 'সাতক্ষীরা প্রিমিয়াম লোগো', path: '/src/assets/images/mango_lover_logo_1782453485561.jpg' },
+  { name: 'ম্যাংগো লাভার লোগো', path: '/src/assets/images/mango_lover_logo_1782453485561.jpg' },
 ];
 
 interface SellerDashboardProps {
@@ -83,6 +83,9 @@ export default function SellerDashboard({
 
   const [showNotificationsList, setShowNotificationsList] = useState(false);
   const [readNotifications, setReadNotifications] = useState<string[]>(() => {
+    if (loggedInUser?.readNotifications && Array.isArray(loggedInUser.readNotifications)) {
+      return loggedInUser.readNotifications;
+    }
     try {
       const saved = localStorage.getItem(`read_notifications_${loggedInUser.id}`);
       return saved ? JSON.parse(saved) : [];
@@ -91,16 +94,28 @@ export default function SellerDashboard({
     }
   });
 
+  useEffect(() => {
+    if (loggedInUser?.readNotifications && Array.isArray(loggedInUser.readNotifications)) {
+      setReadNotifications(loggedInUser.readNotifications);
+    }
+  }, [loggedInUser?.readNotifications]);
+
   const markAsRead = (id: string) => {
-    const updated = [...readNotifications, id];
+    const updated = Array.from(new Set([...readNotifications, id]));
     setReadNotifications(updated);
     safeSetLocalStorage(`read_notifications_${loggedInUser.id}`, JSON.stringify(updated));
+    if (onUpdateUser) {
+      onUpdateUser({ ...loggedInUser, readNotifications: updated });
+    }
   };
 
   const markAllAsRead = (ids: string[]) => {
-    const updated = [...readNotifications, ...ids];
+    const updated = Array.from(new Set([...readNotifications, ...ids]));
     setReadNotifications(updated);
     safeSetLocalStorage(`read_notifications_${loggedInUser.id}`, JSON.stringify(updated));
+    if (onUpdateUser) {
+      onUpdateUser({ ...loggedInUser, readNotifications: updated });
+    }
   };
 
   const [orderSearchQuery, setOrderSearchQuery] = useState(initialSearchQuery || '');
@@ -370,7 +385,7 @@ export default function SellerDashboard({
     setProdPurchasePrice('');
     setProdBadge('none');
     setProdDescriptionBullets('');
-    setProdManufacturer('সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)');
+    setProdManufacturer('ম্যাংগো লাভার (MangoLover)');
     setProdSourceArea('রাজশাহী, বাংলাদেশ');
     setProdShelfLife('১২ মাস (শুকনো ও ঠাণ্ডা জায়গায় সংরক্ষণ করুন)');
     setProdOrganicCertificate('১০০% প্রাকৃতিক ও কেমিক্যালমুক্ত পরীক্ষিত');

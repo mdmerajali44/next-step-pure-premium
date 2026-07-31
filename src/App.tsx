@@ -477,6 +477,15 @@ export default function App() {
         setWithdrawRequests(freshWithdraws);
         setProductRequests(freshProductRequests);
 
+        // Refresh loggedInUser from fresh MongoDB user data for cross-browser sync
+        if (loggedInUser) {
+          const freshUser = freshUsers.find(u => u.id === loggedInUser.id || u.phone === loggedInUser.phone);
+          if (freshUser) {
+            setLoggedInUser(freshUser);
+            safeSetLocalStorage('ml_logged_in_user', JSON.stringify(freshUser));
+          }
+        }
+
         safeSetLocalStorage('ml_products', JSON.stringify(freshProducts));
         safeSetLocalStorage('mango_lover_site_config', JSON.stringify(freshSiteConfig));
         safeSetLocalStorage('ml_categories', JSON.stringify(freshCategories));
@@ -579,6 +588,54 @@ export default function App() {
     }
     return null;
   });
+
+  // Continuous Auto-Sync across Browsers and Devices
+  useEffect(() => {
+    let intervalId: any;
+
+    const refreshData = async () => {
+      try {
+        const [freshProducts, freshSiteConfig, freshCategories, freshOrders, freshUsers, freshWithdraws, freshProductRequests] = await Promise.all([
+          api.getProducts(INITIAL_PRODUCTS),
+          api.getSiteConfig(DEFAULT_SITE_CONFIG),
+          api.getCategories(CATEGORIES),
+          api.getOrders(SEEDED_ORDERS),
+          api.getUsers(INITIAL_USERS),
+          api.getWithdrawRequests(),
+          api.getProductRequests()
+        ]);
+
+        setProducts(freshProducts);
+        setCategories(freshCategories);
+        setOrders(freshOrders);
+        setUsers(freshUsers);
+        setWithdrawRequests(freshWithdraws);
+        setProductRequests(freshProductRequests);
+
+        if (loggedInUser) {
+          const freshUser = freshUsers.find(u => u.id === loggedInUser.id || u.phone === loggedInUser.phone);
+          if (freshUser) {
+            setLoggedInUser(freshUser);
+            safeSetLocalStorage('ml_logged_in_user', JSON.stringify(freshUser));
+          }
+        }
+      } catch (err) {
+        // silent
+      }
+    };
+
+    const handleFocus = () => {
+      refreshData();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    intervalId = setInterval(refreshData, 12000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(intervalId);
+    };
+  }, [loggedInUser?.id]);
 
   const [withdrawRequests, setWithdrawRequests] = useState<WithdrawRequest[]>(() => {
     const saved = localStorage.getItem('ml_withdraw_requests');
@@ -851,6 +908,9 @@ export default function App() {
   const [sellerInitialSearch, setSellerInitialSearch] = useState<string>('');
 
   const [readNotifications, setReadNotifications] = useState<string[]>(() => {
+    if (loggedInUser?.readNotifications && Array.isArray(loggedInUser.readNotifications)) {
+      return loggedInUser.readNotifications;
+    }
     try {
       const saved = localStorage.getItem('read_notifications_v3');
       return saved ? JSON.parse(saved) : [];
@@ -861,22 +921,28 @@ export default function App() {
 
   useEffect(() => {
     if (loggedInUser) {
+      const dbRead = Array.isArray(loggedInUser.readNotifications) ? loggedInUser.readNotifications : [];
+      let localRead: string[] = [];
       try {
         const saved = localStorage.getItem(`read_notifications_v3_${loggedInUser.id}`);
-        setReadNotifications(saved ? JSON.parse(saved) : []);
-      } catch {
-        setReadNotifications([]);
-      }
+        if (saved) localRead = JSON.parse(saved);
+      } catch {}
+
+      const merged = Array.from(new Set([...dbRead, ...localRead]));
+      setReadNotifications(merged);
     } else {
       setReadNotifications([]);
     }
-  }, [loggedInUser]);
+  }, [loggedInUser?.id, JSON.stringify(loggedInUser?.readNotifications)]);
 
   const markAsRead = (id: string) => {
     if (!loggedInUser) return;
-    const updated = [...readNotifications, id];
+    const updated = Array.from(new Set([...readNotifications, id]));
     setReadNotifications(updated);
     safeSetLocalStorage(`read_notifications_v3_${loggedInUser.id}`, JSON.stringify(updated));
+
+    const updatedUser = { ...loggedInUser, readNotifications: updated };
+    handleUpdateUser(updatedUser);
   };
 
   const markAllAsRead = (ids: string[]) => {
@@ -884,6 +950,9 @@ export default function App() {
     const updated = Array.from(new Set([...readNotifications, ...ids]));
     setReadNotifications(updated);
     safeSetLocalStorage(`read_notifications_v3_${loggedInUser.id}`, JSON.stringify(updated));
+
+    const updatedUser = { ...loggedInUser, readNotifications: updated };
+    handleUpdateUser(updatedUser);
   };
 
   interface AppNotification {

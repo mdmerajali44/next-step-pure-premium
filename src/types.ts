@@ -200,6 +200,7 @@ export interface User {
   paymentMethod?: 'bkash' | 'nagad' | 'bank';
   paymentDetails?: string;
   balance?: number;
+  readNotifications?: string[];
 }
 
 export interface WithdrawRequest {
