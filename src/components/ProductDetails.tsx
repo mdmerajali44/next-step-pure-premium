@@ -454,7 +454,7 @@ export default function ProductDetails({
     const unitPrice = (selectedSize && product.sizePrices?.[selectedSize]) ? product.sizePrices[selectedSize].price : product.price;
     const totalPrice = unitPrice * quantity;
     
-    let storeName = 'ম্যাংগো লাভার';
+    let storeName = 'সাতক্ষীরা প্রিমিয়াম';
     let whatsAppNum = '8801902454972';
     try {
       const savedConfigStr = localStorage.getItem('mango_lover_site_config');
@@ -931,7 +931,7 @@ export default function ProductDetails({
             </div>
             
             <p className="text-gray-500 font-semibold text-[11px] md:text-xs pt-4 border-t border-gray-100 mt-4">
-              ম্যাংগো লাভার-এর অঙ্গীকার: আপনার এবং আপনার পরিবারের জন্য— কেবল শতভাগ ফ্রেশ এবং অরগানিক খাবারই আমরা আপনার ঠিকানায় পাঠাবো, এটিই আমাদের ওয়াদা।
+              সাতক্ষীরা প্রিমিয়াম-এর অঙ্গীকার: আপনার এবং আপনার পরিবারের জন্য— কেবল শতভাগ ফ্রেশ এবং অরগানিক খাবারই আমরা আপনার ঠিকানায় পাঠাবো, এটিই আমাদের ওয়াদা।
             </p>
           </div>
         ) : activeTab === 'info' ? (
@@ -942,12 +942,12 @@ export default function ProductDetails({
             </div>
             <div className="grid grid-cols-3 py-3 font-medium">
               <span className="text-gray-400 font-bold">প্রস্তুতকারক</span>
-              <span className="col-span-2 text-slate-800 font-semibold">{product.manufacturer || "ম্যাংগো লাভার (MangoLover)"}</span>
+              <span className="col-span-2 text-slate-800 font-semibold">{product.manufacturer || "সাতক্ষীরা প্রিমিয়াম (সাতক্ষীরা প্রিমিয়াম)"}</span>
             </div>
             <div className="grid grid-cols-3 py-3 font-medium">
               <span className="text-gray-400 font-bold">উৎস অঞ্চল</span>
               <span className="col-span-2 text-slate-800 font-semibold">
-                {product.sourceArea || (product.category === 'মধু' ? 'সুন্দরবন গভীর অরণ্য' : 'রাজশাহী ও সিরাজগঞ্জ, বাংলাদেশ')}
+                {product.sourceArea || (product.category === 'মধু' ? 'সুন্দরবন গভীর অরণ্য' : 'সাতক্ষীরা ও শ্যামনাগর, বাংলাদেশ')}
               </span>
             </div>
             <div className="grid grid-cols-3 py-3 font-medium">

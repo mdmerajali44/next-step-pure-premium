@@ -400,7 +400,7 @@ export default function RequestsTab({
                 />
               ) : (
                 <>
-                  <h1 className="text-xl font-black text-slate-950">{siteConfig.storeName || "ম্যাংগো লাভার"}</h1>
+                  <h1 className="text-xl font-black text-slate-950">{siteConfig.storeName || "সাতক্ষীরা প্রিমিয়াম"}</h1>
                   {siteConfig.storeSloganImage ? (
                     <img 
                       src={siteConfig.storeSloganImage} 
