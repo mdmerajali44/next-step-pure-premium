@@ -303,7 +303,7 @@ const getProductSizes = (id: string, product?: Product) => {
 };
 
 const DEFAULT_SITE_CONFIG: SiteConfig = {
-  storeName: 'সাতক্ষীরা প্রিমিয়াম',
+  storeName: 'ম্যাংগো লাভার',
   storeSlogan: 'Pure & Organic Food',
   storeLogo: '/src/assets/images/mango_lover_logo_1782453485561.jpg',
   leftBannerImage: '/src/assets/images/mango_farmer_orchard_1782453455911.jpg',
@@ -329,18 +329,18 @@ const DEFAULT_SITE_CONFIG: SiteConfig = {
   categoryBanners: {},
   categoryNames: {},
   aboutTitle: 'আমাদের সম্পর্কে?',
-  aboutSubtitle: 'এই যে আপনি আজ আমাদের সম্পর্কে জানতে চাচ্ছেন, এই পথটা সহজ ছিল না। অনেক চড়াই-উতরাই পেরিয়ে আজকের অবস্থানে আপনাদের পছন্দের এই সাতক্ষীরা প্রিমিয়াম। আমাদের এই পথচলায় সকল প্রিয় গ্রাহক ও শুভাকাঙ্ক্ষীদের কাছে আমরা চিরকৃতজ্ঞ।',
+  aboutSubtitle: 'এই যে আপনি আজ আমাদের সম্পর্কে জানতে চাচ্ছেন, এই পথটা সহজ ছিল না। অনেক চড়াই-উতরাই পেরিয়ে আজকের অবস্থানে আপনাদের পছন্দের এই ম্যাংগো লাভার। আমাদের এই পথচলায় সকল প্রিয় গ্রাহক ও শুভাকাঙ্ক্ষীদের কাছে আমরা চিরকৃতজ্ঞ।',
   aboutOwnerImage: '/src/assets/images/mango_farmer_orchard_1782453455911.jpg',
   aboutHighlightText: 'নোয়াখালী বিজ্ঞান ও প্রযুক্তি বিশ্ববিদ্যালয়ের পুষ্টি বিভাগ থেকে স্নাতক সম্পন্ন করা এক তরুণ - নাম তার মেহেদী হাসান',
   aboutParagraph1: 'যার শৈশব ও বেড়ে ওঠা নিভৃত পল্লীগাঁয়ে। উচ্চশিক্ষার উদ্দেশ্যে গ্রাম ছেড়ে তিনি পাড়ি জমান নোয়াখালীতে। সেখানে গিয়ে নিজের প্রয়োজনে কেনা খেজুরের গুড়, ঘি কিংবা আম - সবকিছুতেই কৃত্রিমতার ছাপ লক্ষ্য করেন। যেহেতু তার শৈশব কেটেছে গ্রামে, তাই খাঁটি খাদ্যদ্রব্য চিনতে তার ভুল হওয়ার কথা নয়; তার ওপর নিজের পড়াশোনাও ছিল \'নিরাপদ খাদ্য\' নিয়ে।',
   aboutParagraph2: 'ক্যাম্পাসে পরিচিতদের জন্য গুড় ও ঘি এনে প্রশংসা পাওয়ার পর তার মনে হয়েছিল—নিজে উদ্যোক্তা হয়ে দেশজুড়ে মানুষের কাছে খাঁটি খাদ্য পৌঁছে দিলে কেমন হয়? সেই ভাবনা থেকেই পরিবারের দেওয়া সামান্য আর্থিক পুঁজি নিয়ে তিনি এই সংকল্পে নামলেন যে - যতটুকু সম্ভব, ততটুকুই খাঁটি জিনিস তিনি গ্রাহকদের কাছে পৌঁছে দেবেন। অনেক নির্ঘুম রাত আর অক্লান্ত পরিশ্রমে তিনি নিজের প্রচেষ্টা অব্যাহত রেখে প্রমাণ করলেন যে, একাগ্রতা থাকলে সবই সম্ভব। কোনো কিছু অর্জন করতে হলে আগে সেটি দৃঢ়ভাবে চাইতে হয়।',
-  aboutParagraph3: 'পরবর্তীতে কয়েক লক্ষ গ্রাহকের দোরগোড়ায় তিনি পৌঁছে দিয়েছেন তার এই \'সাতক্ষীরা প্রিমিয়াম\'-এর পণ্য। তৈরি হয়েছে বিশাল এক অনুগত গ্রাহক শ্রেণি। সেই সঙ্গে নিরবিচ্ছিন্ন সেবা নিশ্চিত করতে তিনি গড়ে তুলেছেন দক্ষ সাপোর্ট টিম। আজ ৬০ জনেরও বেশি কর্মী নিয়ে তিনি সফলতার সাথে এগিয়ে যাচ্ছেন।',
+  aboutParagraph3: 'পরবর্তীতে কয়েক লক্ষ গ্রাহকের দোরগোড়ায় তিনি পৌঁছে দিয়েছেন তার এই \'ম্যাংগো লাভার\'-এর পণ্য। তৈরি হয়েছে বিশাল এক অনুগত গ্রাহক শ্রেণি। সেই সঙ্গে নিরবিচ্ছিন্ন সেবা নিশ্চিত করতে তিনি গড়ে তুলেছেন দক্ষ সাপোর্ট টিম। আজ ৬০ জনেরও বেশি কর্মী নিয়ে তিনি সফলতার সাথে এগিয়ে যাচ্ছেন।',
   aboutFacebookLink: 'https://facebook.com',
   contactOffice: 'Shyamnagar, Satkhira, Bangladesh',
   contactPhone: '+880 1837-587551',
-  contactEmail: 'info.SatkhiraPremium.com.bd',
+  contactEmail: 'info AT mangolover.com.bd',
   refundPolicyText: 'আমাদের মূল লক্ষ্য গ্রাহকের সন্তুষ্টি। যদি কোনো কারণে আপনি পণ্য পেয়ে অসন্তুষ্ট হন, তবে নিম্নলিখিত নীতি অনুযায়ী আমরা পণ্য পরিবর্তন বা মূল্য ফেরত দিয়ে থাকি:\n\n১. ডেলিভারির সময় পণ্য দেখে নেওয়ার সুযোগ রয়েছে। কোনো প্রকার ক্রটি থাকলে ডেলিভারি ম্যানের কাছেই ফেরত দিতে পারবেন।\n\n২. আমরা সাতক্ষীরা ও শ্যামনগর থেকে সরাসরি তাজা পণ্য পাঠাই। পরিবহণকালীন ক্ষয়ক্ষতির জন্য আমরা ১০০% দায়বদ্ধ।\n\n৩. রিটার্ন করার পর ৩ কার্যদিবসের মধ্যে আপনার বিকাশ/রকেট/নগদ অথবা ব্যাংক অ্যাকাউন্টে টাকা রিফান্ড করা হবে।',
-  privacyPolicyText: 'আপনার গোপনীয়তা আমাদের কাছে অত্যন্ত গুরুত্বপূর্ণ। সাতক্ষীরা প্রিমিয়াম গ্রাহকদের ব্যক্তিগত তথ্যের সর্বোচ্চ নিরাপত্তা নিশ্চিত করে:\n\n১. আমরা শুধুমাত্র অর্ডার প্রসেসিং এবং পণ্য ডেলিভারির সুবিধার্থে গ্রাহকের নাম, মোবাইল নম্বর এবং ঠিকানা সংগ্রহ করি।\n\n২. সংগৃহীত তথ্য কোনো তৃতীয় পক্ষের কাছে বিক্রয় বা হস্তান্তর করা হয় না।\n\n৩. আমাদের ওয়েবসাইট এবং গ্রাহক ডেটাবেজ সুরক্ষিত রাখতে আমরা আধুনিক সিকিউরিটি প্রোটোকল ব্যবহার করি।',
+  privacyPolicyText: 'আপনার গোপনীয়তা আমাদের কাছে অত্যন্ত গুরুত্বপূর্ণ। ম্যাংগো লাভার গ্রাহকদের ব্যক্তিগত তথ্যের সর্বোচ্চ নিরাপত্তা নিশ্চিত করে:\n\n১. আমরা শুধুমাত্র অর্ডার প্রসেসিং এবং পণ্য ডেলিভারির সুবিধার্থে গ্রাহকের নাম, মোবাইল নম্বর এবং ঠিকানা সংগ্রহ করি।\n\n২. সংগৃহীত তথ্য কোনো তৃতীয় পক্ষের কাছে বিক্রয় বা হস্তান্তর করা হয় না।\n\n৩. আমাদের ওয়েবসাইট এবং গ্রাহক ডেটাবেজ সুরক্ষিত রাখতে আমরা আধুনিক সিকিউরিটি প্রোটোকল ব্যবহার করি।',
   coupons: [
     { code: 'MANGO10', type: 'percentage', value: 10 },
     { code: 'MANGO100', type: 'flat', value: 100 },
@@ -357,7 +357,7 @@ const DEFAULT_SITE_CONFIG: SiteConfig = {
     },
     {
       question: 'আম কি সম্পূর্ণ কেমিক্যাল ও ফরমালিন মুক্ত?',
-      answer: 'হ্যাঁ, সাতক্ষীরা প্রিমিয়াম-এর প্রতিটি আম সাতক্ষীরা ও শ্যামনগরের বাগান থেকে শতভাগ কেমিক্যাল ও ফরমালিন ছাড়াই প্রাকৃতিকভাবে পাকানো অবস্থায় গাছ থেকে পেড়ে সরাসরি পাঠানো হয়।'
+      answer: 'হ্যাঁ, ম্যাংগো লাভার-এর প্রতিটি আম সাতক্ষীরা ও শ্যামনগরের বাগান থেকে শতভাগ কেমিক্যাল ও ফরমালিন ছাড়াই প্রাকৃতিকভাবে পাকানো অবস্থায় গাছ থেকে পেড়ে সরাসরি পাঠানো হয়।'
     },
     {
       question: 'ডেলিভারি পাওয়ার পর আম বা অন্য পণ্য নষ্ট বের হলে কী করণীয়?',
@@ -419,6 +419,7 @@ export default function App() {
   const [isConfigLoaded, setIsConfigLoaded] = useState(false);
 
   // --- Promo Offer Modal State ---
+  const [promoClosedInSession, setPromoClosedInSession] = useState<boolean>(false);
   const [showPromoModal, setShowPromoModal] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('mango_lover_site_config');
@@ -434,6 +435,7 @@ export default function App() {
 
   const handleClosePromoModal = () => {
     setShowPromoModal(false);
+    setPromoClosedInSession(true);
   };
 
   // --- Scroll to top on page reload / mount ---
@@ -466,7 +468,7 @@ export default function App() {
           freshSiteConfig.promoImage = 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80';
         }
         setSiteConfig(freshSiteConfig);
-        if (freshSiteConfig.promoActive !== false) {
+        if (freshSiteConfig.promoActive !== false && !promoClosedInSession) {
           setShowPromoModal(true);
         }
         setCategories(freshCategories);
@@ -498,19 +500,22 @@ export default function App() {
   }, []);
 
   const handleUpdateSiteConfig = async (newConfig: SiteConfig) => {
-    if (newConfig.promoActive) {
-      if (!newConfig.promoImage) {
-        newConfig.promoImage = 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80';
+    const mergedConfig = { ...siteConfig, ...newConfig };
+    if (mergedConfig.promoActive) {
+      if (!mergedConfig.promoImage) {
+        mergedConfig.promoImage = 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80';
       }
-      setShowPromoModal(true);
+      if (!promoClosedInSession) {
+        setShowPromoModal(true);
+      }
     } else {
       setShowPromoModal(false);
     }
-    setSiteConfig(newConfig);
-    safeSetLocalStorage('mango_lover_site_config', JSON.stringify(newConfig));
+    setSiteConfig(mergedConfig);
+    safeSetLocalStorage('mango_lover_site_config', JSON.stringify(mergedConfig));
 
     try {
-      await api.updateSiteConfig(newConfig);
+      await api.updateSiteConfig(mergedConfig);
     } catch (e) {
       console.error("Failed to sync site config:", e);
     }
@@ -1489,7 +1494,7 @@ export default function App() {
   sectionsList.push({
     id: 'section-produced',
     title: 'আমাদের উৎপাদিত',
-    subtitle: 'Prepared by Satkhira Premium',
+    subtitle: 'Prepared by MangoLover',
     categoryName: 'all',
     btnText: 'সবগুলো দেখুন',
     isSpecialProduced: true,
@@ -1635,7 +1640,7 @@ export default function App() {
         />
       ) : (
         <>
-          {/* 1. Header (সাতক্ষীরা প্রিমিয়াম) */}
+          {/* 1. Header (ম্যাংগো লাভার) */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-100 shadow-xs">
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
           {/* Brand Logo & Name */}
@@ -2582,10 +2587,10 @@ export default function App() {
                       ইমেইল
                     </h4>
                     <a 
-                      href={`mailto:${siteConfig.contactEmail || 'info@SatkhiraPremium.com.bd'}`}
+                      href={`mailto:${siteConfig.contactEmail || 'info@mangolover.com.bd'}`}
                       className="text-xs md:text-sm text-gray-700 font-bold hover:text-orange-500 transition-colors break-all"
                     >
-                      {siteConfig.contactEmail || 'info.SatkhiraPremium.com.bd'}
+                      {siteConfig.contactEmail || 'info AT mangolover.com.bd'}
                     </a>
                   </div>
 
@@ -2632,13 +2637,24 @@ export default function App() {
                         return (
                           <>
                             <iframe 
-                              title="Satkhira Premium Location Map"
+                              title="Mango Lover Location Map"
                               src={mapData.embedUrl} 
                               className="absolute inset-0 w-full h-full border-0"
                               allowFullScreen
                             />
+                            {mapData.directUrl && (
+                              <a 
+                                href={mapData.directUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="absolute top-2 right-2 bg-white/95 hover:bg-emerald-600 hover:text-white transition-colors px-2.5 py-1 rounded-lg text-[10px] font-bold text-gray-700 border border-gray-200 shadow-sm flex items-center gap-1 z-10"
+                              >
+                                <Map className="w-3 h-3 text-emerald-600 group-hover:text-white" />
+                                <span>গুগল ম্যাপে খুলুন</span>
+                              </a>
+                            )}
                             <div className="absolute bottom-2 right-2 bg-white/95 px-3 py-1 rounded-lg text-[10px] font-extrabold text-emerald-900 border border-emerald-100 shadow-sm pointer-events-none uppercase tracking-wide">
-                              {siteConfig.storeName || "Satkhira Premium"}
+                              {siteConfig.storeName || "Mango Lover"}
                             </div>
                           </>
                         );
@@ -3747,7 +3763,7 @@ export default function App() {
           {/* Bottom Copyright & Rights Bar */}
           <div className="border-t border-emerald-950/40 mt-8 pt-6 flex flex-col items-center justify-center text-center gap-1.5 text-xs font-semibold text-gray-400">
             <div>
-              © 2026 <span className="text-white font-extrabold">Satkhira Premium</span>. All rights reserved.
+              © 2026 <span className="text-white font-extrabold">MangoLover</span>. All rights reserved.
             </div>
             <div className="text-gray-400 text-xs font-medium tracking-wide">
               Designe and Developed by
@@ -4307,7 +4323,7 @@ export default function App() {
 
       {/* 🎁 Promo Offer Modal (shown on load for customers only) */}
       <AnimatePresence>
-        {!isAdminMode && !isSellerDashboardOpen && showPromoModal && siteConfig.promoActive && (
+        {!isAdminMode && !isSellerDashboardOpen && !promoClosedInSession && showPromoModal && siteConfig.promoActive && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

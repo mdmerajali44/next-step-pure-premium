@@ -36,7 +36,7 @@ const PRESET_IMAGES = [
   { name: 'সুন্দরবনের মধু বোতল', path: '/src/assets/images/sundarban_honey_jar_1782453470122.jpg' },
   { name: 'আম্রপালি আম', path: '/src/assets/images/green_mangoes_1_1782466276525.jpg' },
   { name: 'আমবাগান চাষী', path: '/src/assets/images/mango_farmer_orchard_1782453455911.jpg' },
-  { name: 'সাতক্ষীরা প্রিমিয়াম লোগো', path: '/src/assets/images/mango_lover_logo_1782453485561.jpg' },
+  { name: 'ম্যাংগো লাভার লোগো', path: '/src/assets/images/mango_lover_logo_1782453485561.jpg' },
 ];
 
 interface AdminDashboardProps {
@@ -978,7 +978,7 @@ export default function AdminDashboard({
   const [pTagline, setPTagline] = useState('');
   const [pDetailedTitle, setPDetailedTitle] = useState('');
   const [pDescriptionBullets, setPDescriptionBullets] = useState('');
-  const [pManufacturer, setPManufacturer] = useState('সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)');
+  const [pManufacturer, setPManufacturer] = useState('ম্যাংগো লাভার (MangoLover)');
   const [pSourceArea, setPSourceArea] = useState('সাতক্ষীরা ও শ্যামনগর, বাংলাদেশ');
   const [pShelfLife, setPShelfLife] = useState('১২ মাস (শুকনো ও ঠাণ্ডা জায়গায় সংরক্ষণ করুন)');
   const [pOrganicCertificate, setPOrganicCertificate] = useState('১০০% প্রাকৃতিক ও কেমিক্যালমুক্ত পরীক্ষিত');
@@ -1019,7 +1019,7 @@ export default function AdminDashboard({
   const [editTagline, setEditTagline] = useState('');
   const [editDetailedTitle, setEditDetailedTitle] = useState('');
   const [editDescriptionBullets, setEditDescriptionBullets] = useState('');
-  const [editManufacturer, setEditManufacturer] = useState('সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)');
+  const [editManufacturer, setEditManufacturer] = useState('ম্যাংগো লাভার (MangoLover)');
   const [editSourceArea, setEditSourceArea] = useState('সাতক্ষীরা ও শ্যামনগর, বাংলাদেশ');
   const [editShelfLife, setEditShelfLife] = useState('১২ মাস (শুকনো ও ঠাণ্ডা জায়গায় সংরক্ষণ করুন)');
   const [editOrganicCertificate, setEditOrganicCertificate] = useState('১০০% প্রাকৃতিক ও কেমিক্যালমুক্ত পরীক্ষিত');
@@ -1041,7 +1041,7 @@ export default function AdminDashboard({
   const [cfgPromoLink, setCfgPromoLink] = useState<string>(siteConfig?.promoLink || '');
 
   // Marketing Config Form inputs
-  const [cfgStoreName, setCfgStoreName] = useState(siteConfig?.storeName || 'সাতক্ষীরা প্রিমিয়াম');
+  const [cfgStoreName, setCfgStoreName] = useState(siteConfig?.storeName || 'ম্যাংগো লাভার');
   const [cfgStoreSlogan, setCfgStoreSlogan] = useState(siteConfig?.storeSlogan || 'Pure & Organic Food');
   const [cfgStoreLogo, setCfgStoreLogo] = useState(siteConfig?.storeLogo || '/src/assets/images/mango_lover_logo_1782453485561.jpg');
   const [cfgStoreNameImage, setCfgStoreNameImage] = useState(siteConfig?.storeNameImage || '');
@@ -1073,12 +1073,12 @@ export default function AdminDashboard({
 
   // Custom pages editable state
   const [cfgAboutTitle, setCfgAboutTitle] = useState(siteConfig?.aboutTitle || 'আমাদের সম্পর্কে?');
-  const [cfgAboutSubtitle, setCfgAboutSubtitle] = useState(siteConfig?.aboutSubtitle || 'এই যে আপনি আজ আমাদের সম্পর্কে জানতে চাচ্ছেন, এই পথটা সহজ ছিল না। অনেক চড়াই-উতরাই পেরিয়ে আজকের অবস্থানে আপনাদের পছন্দের এই সাতক্ষীরা প্রিমিয়াম। আমাদের এই পথচলায় সকল প্রিয় গ্রাহক ও শুভাকাঙ্ক্ষীদের কাছে আমরা চিরকৃতজ্ঞ।');
+  const [cfgAboutSubtitle, setCfgAboutSubtitle] = useState(siteConfig?.aboutSubtitle || 'এই যে আপনি আজ আমাদের সম্পর্কে জানতে চাচ্ছেন, এই পথটা সহজ ছিল না। অনেক চড়াই-উতরাই পেরিয়ে আজকের অবস্থানে আপনাদের পছন্দের এই ম্যাংগো লাভার। আমাদের এই পথচলায় সকল প্রিয় গ্রাহক ও শুভাকাঙ্ক্ষীদের কাছে আমরা চিরকৃতজ্ঞ।');
   const [cfgAboutOwnerImage, setCfgAboutOwnerImage] = useState(siteConfig?.aboutOwnerImage || siteConfig?.leftBannerImage || '/src/assets/images/mango_farmer_orchard_1782453455911.jpg');
   const [cfgAboutHighlightText, setCfgAboutHighlightText] = useState(siteConfig?.aboutHighlightText || 'নোয়াখালী বিজ্ঞান ও প্রযুক্তি বিশ্ববিদ্যালয়ের পুষ্টি বিভাগ থেকে স্নাতক সম্পন্ন করা এক তরুণ - নাম তার মেহেদী হাসান।');
   const [cfgAboutParagraph1, setCfgAboutParagraph1] = useState(siteConfig?.aboutParagraph1 || 'যার শৈশব ও বেড়ে ওঠা নিভৃত পল্লীগাঁয়ে। উচ্চশিক্ষার উদ্দেশ্যে গ্রাম ছেড়ে তিনি পাড়ি জমান নোয়াখালীতে। সেখানে গিয়ে নিজের প্রয়োজনে কেনা খেজুরের গুড়, ঘি কিংবা আম - সবকিছুতেই কৃত্রিমতার ছাপ লক্ষ্য করেন। যেহেতু তার শৈশব কেটেছে গ্রামে, তাই খাঁটি খাদ্যদ্রব্য চিনতে তার ভুল হওয়ার কথা নয়; তার ওপর নিজের পড়াশোনাও ছিল \'নিরাপদ খাদ্য\' নিয়ে।');
   const [cfgAboutParagraph2, setCfgAboutParagraph2] = useState(siteConfig?.aboutParagraph2 || 'ক্যাম্পাসে পরিচিতদের জন্য গুড় ও ঘি এনে প্রশংসা পাওয়ার পর তার মনে হয়েছিল—নিজে উদ্যোক্তা হয়ে দেশজুড়ে মানুষের কাছে খাঁটি খাদ্য পৌঁছে দিলে কেমন হয়? সেই ভাবনা থেকেই পরিবারের দেওয়া সামান্য আর্থিক পুঁজি নিয়ে তিনি এই সংকল্পে নামলেন যে - যতটুকু সম্ভব, ততটুকুই খাঁটি জিনিস তিনি গ্রাহকদের কাছে পৌঁছে দেবেন। অনেক নির্ঘুম রাত আর অক্লান্ত পরিশ্রমে তিনি নিজের প্রচেষ্টা অব্যাহত রেখে প্রমাণ করলেন যে, একাগ্রতা থাকলে সবই সম্ভব। কোনো কিছু অর্জন করতে হলে আগে সেটি দৃঢ়ভাবে চাইতে হয়।');
-  const [cfgAboutParagraph3, setCfgAboutParagraph3] = useState(siteConfig?.aboutParagraph3 || 'পরবর্তীতে কয়েক লক্ষ গ্রাহকের দোরগোড়ায় তিনি পৌঁছে দিয়েছেন তার এই \'সাতক্ষীরা প্রিমিয়াম\'-এর পণ্য। তৈরি হয়েছে বিশাল এক অনুগত গ্রাহক শ্রেণি। সেই সঙ্গে নিরবিচ্ছিন্ন সেবা নিশ্চিত করতে তিনি গড়ে তুলেছেন দক্ষ সাপোর্ট টিম। আজ ৬০ জনেরও বেশি কর্মী নিয়ে তিনি সফলতার সাথে এগিয়ে যাচ্ছেন।');
+  const [cfgAboutParagraph3, setCfgAboutParagraph3] = useState(siteConfig?.aboutParagraph3 || 'পরবর্তীতে কয়েক লক্ষ গ্রাহকের দোরগোড়ায় তিনি পৌঁছে দিয়েছেন তার এই \'ম্যাংগো লাভার\'-এর পণ্য। তৈরি হয়েছে বিশাল এক অনুগত গ্রাহক শ্রেণি। সেই সঙ্গে নিরবিচ্ছিন্ন সেবা নিশ্চিত করতে তিনি গড়ে তুলেছেন দক্ষ সাপোর্ট টিম। আজ ৬০ জনেরও বেশি কর্মী নিয়ে তিনি সফলতার সাথে এগিয়ে যাচ্ছেন।');
   const [cfgAboutFacebookLink, setCfgAboutFacebookLink] = useState(siteConfig?.aboutFacebookLink || 'https://facebook.com');
   const [cfgMessengerLink, setCfgMessengerLink] = useState(siteConfig?.messengerLink || 'https://m.me/61556942953282');
   const [cfgFacebookLink, setCfgFacebookLink] = useState(siteConfig?.facebookLink || 'https://facebook.com');
@@ -1087,13 +1087,13 @@ export default function AdminDashboard({
 
   const [cfgContactOffice, setCfgContactOffice] = useState(siteConfig?.contactOffice || 'Shyamnagar, Satkhira, Bangladesh');
   const [cfgContactPhone, setCfgContactPhone] = useState(siteConfig?.contactPhone || '+880 1837-587551');
-  const [cfgContactEmail, setCfgContactEmail] = useState(siteConfig?.contactEmail || 'info.SatkhiraPremium.com.bd');
+  const [cfgContactEmail, setCfgContactEmail] = useState(siteConfig?.contactEmail || 'info AT mangolover.com.bd');
   const [cfgGoogleMapUrl, setCfgGoogleMapUrl] = useState(siteConfig?.googleMapUrl || 'https://www.openstreetmap.org/export/embed.html?bbox=88.5800%2C24.3600%2C88.6200%2C24.3900&amp;layer=mapnik&amp;marker=24.3750%2C88.6010');
 
   const [selectedRequestDetails, setSelectedRequestDetails] = useState<ProductRequest | null>(null);
 
   const [cfgRefundPolicyText, setCfgRefundPolicyText] = useState(siteConfig?.refundPolicyText || 'আমাদের মূল লক্ষ্য গ্রাহকের সন্তুষ্টি। যদি কোনো কারণে আপনি পণ্য পেয়ে অসন্তুষ্ট হন, তবে নিম্নলিখিত নীতি অনুযায়ী আমরা পণ্য পরিবর্তন বা মূল্য ফেরত দিয়ে থাকি:\n\n১. ডেলিভারির সময় পণ্য দেখে নেওয়ার সুযোগ রয়েছে। কোনো প্রকার ক্রটি থাকলে ডেলিভারি ম্যানের কাছেই ফেরত দিতে পারবেন।\n\n২. আমরা সাতক্ষীরা ও শ্যামনগর থেকে সরাসরি তাজা পণ্য পাঠাই। পরিবহণকালীন ক্ষয়ক্ষতির জন্য আমরা ১০০% দায়বদ্ধ।\n\n৩. রিটার্ন করার পর ৩ কার্যদিবসের মধ্যে আপনার বিকাশ/রকেট/নগদ অথবা ব্যাংক অ্যাকাউন্টে টাকা রিফান্ড করা হবে।');
-  const [cfgPrivacyPolicyText, setCfgPrivacyPolicyText] = useState(siteConfig?.privacyPolicyText || 'আপনার গোপনীয়তা আমাদের কাছে অত্যন্ত গুরুত্বপূর্ণ। সাতক্ষীরা প্রিমিয়াম গ্রাহকদের ব্যক্তিগত তথ্যের সর্বোচ্চ নিরাপত্তা নিশ্চিত করে:\n\n১. আমরা শুধুমাত্র অর্ডার প্রসেসিং এবং পণ্য ডেলিভারির সুবিধার্থে গ্রাহকের নাম, মোবাইল নম্বর এবং ঠিকানা সংগ্রহ করি।\n\n২. সংগৃহীত তথ্য কোনো তৃতীয় পক্ষের কাছে বিক্রয় বা হস্তান্তর করা হয় না।\n\n৩. আমাদের ওয়েবসাইট এবং গ্রাহক ডেটাবেজ সুরক্ষিত রাখতে আমরা আধুনিক সিকিউরিটি প্রোটোকল ব্যবহার করি।');
+  const [cfgPrivacyPolicyText, setCfgPrivacyPolicyText] = useState(siteConfig?.privacyPolicyText || 'আপনার গোপনীয়তা আমাদের কাছে অত্যন্ত গুরুত্বপূর্ণ। ম্যাংগো লাভার গ্রাহকদের ব্যক্তিগত তথ্যের সর্বোচ্চ নিরাপত্তা নিশ্চিত করে:\n\n১. আমরা শুধুমাত্র অর্ডার প্রসেসিং এবং পণ্য ডেলিভারির সুবিধার্থে গ্রাহকের নাম, মোবাইল নম্বর এবং ঠিকানা সংগ্রহ করি।\n\n২. সংগৃহীত তথ্য কোনো তৃতীয় পক্ষের কাছে বিক্রয় বা হস্তান্তর করা হয় না।\n\n৩. আমাদের ওয়েবসাইট এবং গ্রাহক ডেটাবেজ সুরক্ষিত রাখতে আমরা আধুনিক সিকিউরিটি প্রোটোকল ব্যবহার করি।');
 
   const [cfgFaqItems, setCfgFaqItems] = useState<{ question: string; answer: string }[]>(siteConfig?.faqItems || [
     {
@@ -1102,7 +1102,7 @@ export default function AdminDashboard({
     },
     {
       question: 'আম কি সম্পূর্ণ কেমিক্যাল ও ফরমালিন মুক্ত?',
-      answer: 'হ্যাঁ, সাতক্ষীরা প্রিমিয়াম-এর প্রতিটি আম সাতক্ষীরা ও শ্যামনগরের বাগান থেকে শতভাগ কেমিক্যাল ও ফরমালিন ছাড়াই প্রাকৃতিকভাবে পাকানো অবস্থায় গাছ থেকে পেড়ে সরাসরি পাঠানো হয়।'
+      answer: 'হ্যাঁ, ম্যাংগো লাভার-এর প্রতিটি আম সাতক্ষীরা ও শ্যামনগরের বাগান থেকে শতভাগ কেমিক্যাল ও ফরমালিন ছাড়াই প্রাকৃতিকভাবে পাকানো অবস্থায় গাছ থেকে পেড়ে সরাসরি পাঠানো হয়।'
     },
     {
       question: 'ডেলিভারি পাওয়ার পর আম বা অন্য পণ্য নষ্ট বের হলে কী করণীয়?',
@@ -1493,7 +1493,7 @@ export default function AdminDashboard({
     setEditTagline(product.tagline || details.tagline);
     setEditDetailedTitle(product.detailedTitle || details.title);
     setEditDescriptionBullets(product.descriptionBullets ? product.descriptionBullets.join('\n') : details.bullets.join('\n'));
-    setEditManufacturer(product.manufacturer || 'সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)');
+    setEditManufacturer(product.manufacturer || 'ম্যাংগো লাভার (MangoLover)');
     setEditSourceArea(product.sourceArea || (product.category === 'মধু' ? 'সুন্দরবন গভীর অরণ্য' : 'সাতক্ষীরা ও শ্যামনগর, বাংলাদেশ'));
     setEditShelfLife(product.shelfLife || '১২ মাস (শুকনো ও ঠাণ্ডা জায়গায় সংরক্ষণ করুন)');
     setEditOrganicCertificate(product.organicCertificate || '১০০% প্রাকৃতিক ও কেমিক্যালমুক্ত পরীক্ষিত');
@@ -1603,7 +1603,7 @@ export default function AdminDashboard({
     setPTagline('');
     setPDetailedTitle('');
     setPDescriptionBullets('');
-    setPManufacturer('সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)');
+    setPManufacturer('ম্যাংগো লাভার (MangoLover)');
     setPSourceArea('সাতক্ষীরা ও শ্যামনগর, বাংলাদেশ');
     setPShelfLife('১২ মাস (শুকনো ও ঠাণ্ডা জায়গায় সংরক্ষণ করুন)');
     setPOrganicCertificate('১০০% প্রাকৃতিক ও কেমিক্যালমুক্ত পরীক্ষিত');
@@ -1783,7 +1783,7 @@ export default function AdminDashboard({
             <ShieldAlert className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-extrabold text-base md:text-lg tracking-tight">সাতক্ষীরা প্রিমিয়াম - কন্ট্রোল প্যানেল</h1>
+            <h1 className="font-extrabold text-base md:text-lg tracking-tight">ম্যাংগো লাভার - কন্ট্রোল প্যানেল</h1>
             <p className="text-xs text-slate-400 font-medium">অ্যাডমিন ড্যাশবোর্ড</p>
           </div>
         </div>
@@ -2318,7 +2318,7 @@ export default function AdminDashboard({
                           <label className="block text-[10px] font-bold text-gray-600 mb-1">প্রস্তুতকারক (Manufacturer)</label>
                           <input
                             type="text"
-                            placeholder="সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)"
+                            placeholder="ম্যাংগো লাভার (MangoLover)"
                             value={pManufacturer}
                             onChange={(e) => setPManufacturer(e.target.value)}
                             className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 focus:outline-hidden focus:border-emerald-600 font-medium bg-white"
@@ -2604,7 +2604,7 @@ export default function AdminDashboard({
                           setPTagline('');
                           setPDetailedTitle('');
                           setPDescriptionBullets('');
-                          setPManufacturer('সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)');
+                          setPManufacturer('ম্যাংগো লাভার (MangoLover)');
                           setPSourceArea('সাতক্ষীরা ও শ্যামনগর, বাংলাদেশ');
                           setPShelfLife('১২ মাস (শুকনো ও ঠাণ্ডা জায়গায় সংরক্ষণ করুন)');
                           setPOrganicCertificate('১০০% প্রাকৃতিক ও কেমিক্যালমুক্ত পরীক্ষিত');
@@ -3447,7 +3447,7 @@ export default function AdminDashboard({
                               referrerPolicy="no-referrer"
                             />
                           ) : (
-                            <h2 className="text-3xl font-black uppercase tracking-widest">{siteConfig.storeName || "সাতক্ষীরা প্রিমিয়াম"}</h2>
+                            <h2 className="text-3xl font-black uppercase tracking-widest">{siteConfig.storeName || "ম্যাংগো লাভার"}</h2>
                           )}
                           {siteConfig.storeSloganImage && (
                             <img 
@@ -3493,7 +3493,7 @@ export default function AdminDashboard({
                             />
                           ) : (
                             <>
-                              <h1 className="text-2xl font-black text-slate-950">{siteConfig.storeName || "সাতক্ষীরা প্রিমিয়াম"}</h1>
+                              <h1 className="text-2xl font-black text-slate-950">{siteConfig.storeName || "ম্যাংগো লাভার"}</h1>
                               {siteConfig.storeSloganImage ? (
                                 <img 
                                   src={siteConfig.storeSloganImage} 
@@ -3507,7 +3507,7 @@ export default function AdminDashboard({
                             </>
                           )}
                           <p className="text-[10px] text-slate-500 font-semibold mt-1">অফিস: {siteConfig.contactOffice || "Shyamnagar, Satkhira"}</p>
-                          <p className="text-[10px] text-slate-500 font-semibold font-sans">মোবাইল: {siteConfig.contactPhone || "01837-587551"} | ইমেইল: {siteConfig.contactEmail || "info@SatkhiraPremium.com.bd"}</p>
+                          <p className="text-[10px] text-slate-500 font-semibold font-sans">মোবাইল: {siteConfig.contactPhone || "01837-587551"} | ইমেইল: {siteConfig.contactEmail || "info@mangolover.com.bd"}</p>
                         </div>
 
                         <div className="text-center py-1 relative z-10">
@@ -3586,7 +3586,7 @@ export default function AdminDashboard({
 
                         {/* Message */}
                         <div className="text-center pt-6 text-[11px] font-bold text-slate-500 italic relative z-10">
-                          "আমাদের থেকে পণ্য ক্রয়ের জন্য আপনাকে আন্তরিক ধন্যবাদ। সাতক্ষীরা প্রিমিয়াম-এর সাথে থাকুন!"
+                          "আমাদের থেকে পণ্য ক্রয়ের জন্য আপনাকে আন্তরিক ধন্যবাদ। ম্যাংগো লাভার-এর সাথে থাকুন!"
                         </div>
 
                         {/* Barcode Graphic */}
@@ -3625,7 +3625,7 @@ export default function AdminDashboard({
                             />
                           )}
                           <h1 className="shop-name" style={{ fontSize: '14px', fontWeight: 'bold', margin: '0' }}>
-                            {siteConfig.storeName || "সাতক্ষীরা প্রিমিয়াম"}
+                            {siteConfig.storeName || "ম্যাংগো লাভার"}
                           </h1>
                           <p className="shop-meta" style={{ fontSize: '9px', margin: '0' }}>
                             {siteConfig.contactOffice || "Shyamnagar, Satkhira"}
@@ -3709,7 +3709,7 @@ export default function AdminDashboard({
 
                         {/* Footer */}
                         <div className="footer" style={{ marginTop: '8px', textAlign: 'center', fontSize: '9px', borderTop: '1px dotted #ccc', paddingTop: '4px' }}>
-                          <p>আমাদের থেকে পণ্য ক্রয়ের জন্য আপনাকে আন্তরিক ধন্যবাদ। সাতক্ষীরা প্রিমিয়াম-এর সাথে থাকুন!</p>
+                          <p>আমাদের থেকে পণ্য ক্রয়ের জন্য আপনাকে আন্তরিক ধন্যবাদ। ম্যাংগো লাভার-এর সাথে থাকুন!</p>
                           <p style={{ fontSize: '8px', color: '#666' }}>Sold by: {selectedOrderDetails.items[0]?.addedBy || "মেহেদী হাসান"}</p>
                         </div>
                       </div>
@@ -5135,23 +5135,19 @@ export default function AdminDashboard({
                       />
                     </div>
                     <div className="md:col-span-3">
-                      <label className="block text-xs font-bold text-gray-700 mb-1">গুগল ম্যাপ / ওপেনস্ট্রিটম্যাপ এমবেড লিংক (Map Embed URL - iframe src)</label>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">গুগল ম্যাপস লিংক বা এমবেড কোড (Google Maps URL or Embed Code)</label>
                       <input
                         type="text"
                         value={cfgGoogleMapUrl}
                         onChange={(e) => setCfgGoogleMapUrl(e.target.value)}
-                        placeholder="যেমন: https://www.google.com/maps/embed?pb=..."
+                        placeholder="যেমন: https://www.google.com/maps/place/... অথবা <iframe src=...>"
                         className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 focus:outline-hidden font-medium"
                       />
                       <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3.5 mt-2 space-y-1.5 text-amber-900">
-                        <span className="text-xs font-black block">📍 গুগল ম্যাপস থেকে সঠিক লিংক বের করার নিয়ম (Step-by-Step Guide):</span>
-                        <ol className="text-[11px] list-decimal list-inside space-y-1 font-semibold leading-relaxed">
-                          <li>গুগল ম্যাপস (<a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-950">maps.google.com</a>) এ আপনার ঠিকানা লিখে সার্চ করুন।</li>
-                          <li>সেখানকার <span className="font-black">"Share" (শেয়ার)</span> বাটনে ক্লিক করুন।</li>
-                          <li>পপ-আপ উইন্ডো থেকে <span className="font-black">"Embed a map" (মানচিত্র এম্বেড করুন)</span> ট্যাবটি সিলেক্ট করুন।</li>
-                          <li>সেখানে থাকা <span className="font-black">"Copy HTML" (HTML কপি করুন)</span> বাটনে ক্লিক করুন।</li>
-                          <li>কপি করা কোড থেকে শুধুমাত্র <code className="bg-amber-100 px-1.5 py-0.5 rounded text-[10px]">src="..."</code> এর ভেতরের অংশটুকু (https://... দিয়ে শুরু হওয়া লিংকটি) কপি করে এই ইনপুট বক্সে বসিয়ে দিন।</li>
-                        </ol>
+                        <span className="text-xs font-black block">📍 যেকোনো গুগল ম্যাপস লিংক ব্যবহারের উপায়:</span>
+                        <p className="text-[11px] font-semibold leading-relaxed">
+                          আপনি সরাসরি গুগল ম্যাপসের ব্রাউজার URL (যেমন: <code className="bg-amber-100 px-1 py-0.5 rounded text-[10px]">https://www.google.com/maps/place/...</code>), শেয়ার লিংক, অথবা Embed HTML iframe কোড—যেকোনোটি এই বক্সে পেস্ট করতে পারেন। সিস্টেম স্বয়ংক্রিয়ভাবে অক্ষাংশ, দ্রাঘিমাংশ ও লোকেশন পিন এক্সট্রাক্ট করে সাইটে নিখুঁত ম্যাপ প্রদর্শন করবে।
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -8193,7 +8189,7 @@ export default function AdminDashboard({
                     />
                   ) : (
                     <>
-                      <h1 className="text-xl font-black text-slate-950">{siteConfig.storeName || "সাতক্ষীরা প্রিমিয়াম"}</h1>
+                      <h1 className="text-xl font-black text-slate-950">{siteConfig.storeName || "ম্যাংগো লাভার"}</h1>
                       {siteConfig.storeSloganImage ? (
                         <img 
                           src={siteConfig.storeSloganImage} 
@@ -8770,7 +8766,7 @@ export default function AdminDashboard({
                     <label className="block text-[10px] font-bold text-gray-600 mb-1">প্রস্তুতকারক (Manufacturer)</label>
                     <input
                       type="text"
-                      placeholder="সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)"
+                      placeholder="ম্যাংগো লাভার (MangoLover)"
                       value={editManufacturer}
                       onChange={(e) => setEditManufacturer(e.target.value)}
                       className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 focus:outline-hidden focus:border-red-700 font-medium bg-white"
@@ -9911,7 +9907,7 @@ export function FaqSection({ siteConfig }: FaqSectionProps) {
     },
     {
       question: 'আম কি সম্পূর্ণ কেমিক্যাল ও ফরমালিন মুক্ত?',
-      answer: 'হ্যাঁ, সাতক্ষীরা প্রিমিয়াম-এর প্রতিটি আম সাতক্ষীরা ও শ্যামনগরের বাগান থেকে শতভাগ কেমিক্যাল ও ফরমালিন ছাড়াই প্রাকৃতিকভাবে পাকানো অবস্থায় গাছ থেকে পেড়ে সরাসরি পাঠানো হয়।'
+      answer: 'হ্যাঁ, ম্যাংগো লাভার-এর প্রতিটি আম সাতক্ষীরা ও শ্যামনগরের বাগান থেকে শতভাগ কেমিক্যাল ও ফরমালিন ছাড়াই প্রাকৃতিকভাবে পাকানো অবস্থায় গাছ থেকে পেড়ে সরাসরি পাঠানো হয়।'
     },
     {
       question: 'ডেলিভারি পাওয়ার পর আম বা অন্য পণ্য নষ্ট বের হলে কী করণীয়?',

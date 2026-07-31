@@ -214,7 +214,7 @@ export interface WithdrawRequest {
 }
 
 export const getEmbedMapUrl = (url: string): { embedUrl: string; directUrl?: string } => {
-  if (!url) {
+  if (!url || !url.trim()) {
     return { 
       embedUrl: "https://www.openstreetmap.org/export/embed.html?bbox=88.5800%2C24.3600%2C88.6200%2C24.3900&amp;layer=mapnik&amp;marker=24.3750%2C88.6010" 
     };
@@ -222,70 +222,74 @@ export const getEmbedMapUrl = (url: string): { embedUrl: string; directUrl?: str
 
   let targetUrl = url.trim();
 
-  // 1. If user pasted the whole iframe code, extract src
-  if (targetUrl.startsWith('<iframe')) {
+  // 1. If user pasted iframe HTML snippet, extract src
+  if (targetUrl.includes('<iframe')) {
     const match = targetUrl.match(/src="([^"]+)"/);
     if (match && match[1]) {
       targetUrl = match[1];
     }
   }
 
-  // If it's already an embed URL, return it
+  // 2. If it's already an embed URL, return it directly
   if (
     targetUrl.includes('/embed') || 
     targetUrl.includes('openstreetmap.org') || 
     targetUrl.includes('google.com/maps/embed') ||
     targetUrl.includes('output=embed')
   ) {
-    return { embedUrl: targetUrl.replace(/&amp;/g, '&') };
+    return { embedUrl: targetUrl.replace(/&amp;/g, '&'), directUrl: targetUrl };
   }
 
-  // 2. Try to convert standard Google Maps links into free search-based embed links
-  // Pattern A: google.com/maps/place/Place+Name/@lat,lng,zoom...
-  if (targetUrl.includes('google.com/maps/place/')) {
-    const parts = targetUrl.split('google.com/maps/place/');
+  // 3. Extract Place Name if present
+  let placeName = '';
+  if (targetUrl.includes('/place/')) {
+    const parts = targetUrl.split('/place/');
     if (parts.length > 1) {
-      const placePart = parts[1].split('/')[0];
-      if (placePart) {
-        const decodedPlace = decodeURIComponent(placePart).replace(/\+/g, ' ');
-        const embedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(decodedPlace)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
-        return { embedUrl, directUrl: targetUrl };
+      const p = parts[1].split('/')[0];
+      if (p && !p.match(/^-?\d+\.\d+,-?\d+\.\d+$/)) {
+        try {
+          placeName = decodeURIComponent(p).replace(/\+/g, ' ');
+        } catch (e) {
+          placeName = p.replace(/\+/g, ' ');
+        }
       }
     }
   }
 
-  // Pattern B: google.com/maps/search/Search+Query/...
-  if (targetUrl.includes('google.com/maps/search/')) {
-    const parts = targetUrl.split('google.com/maps/search/');
-    if (parts.length > 1) {
-      const queryPart = parts[1].split('/')[0];
-      if (queryPart) {
-        const decodedQuery = decodeURIComponent(queryPart).replace(/\+/g, ' ');
-        const embedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(decodedQuery)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
-        return { embedUrl, directUrl: targetUrl };
-      }
-    }
+  // 4. Extract Latitude & Longitude from URL if present
+  // Pattern A: @lat,lng (e.g. /@22.513955,89.1272681,17z)
+  const atMatch = targetUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  // Pattern B: !3dlat!4dlng (e.g. !3d22.513955!4d89.1272681)
+  const dMatch = targetUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  // Pattern C: q=lat,lng or ll=lat,lng
+  const qMatch = targetUrl.match(/(?:q|ll|place)\/?:?(-?\d+\.\d+),(-?\d+\.\d+)/);
+
+  const lat = atMatch?.[1] || dMatch?.[1] || qMatch?.[1];
+  const lng = atMatch?.[2] || dMatch?.[2] || qMatch?.[2];
+
+  if (lat && lng) {
+    const queryStr = placeName ? `${lat},${lng} (${placeName})` : `${lat},${lng}`;
+    const embedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(queryStr)}&hl=bn&z=16&output=embed`;
+    return { embedUrl, directUrl: targetUrl };
   }
 
-  // Pattern C: google.com/maps/query with ?q=... or ?daddr=...
-  const urlObj = (() => {
-    try {
-      return new URL(targetUrl);
-    } catch (e) {
-      return null;
-    }
-  })();
+  // 5. If place name exists without lat/lng
+  if (placeName) {
+    const embedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(placeName)}&hl=bn&z=15&output=embed`;
+    return { embedUrl, directUrl: targetUrl };
+  }
 
-  if (urlObj && (urlObj.hostname.includes('google.com') || urlObj.hostname.includes('maps.google'))) {
+  // 6. Search query parameter from URL
+  try {
+    const urlObj = new URL(targetUrl);
     const q = urlObj.searchParams.get('q') || urlObj.searchParams.get('daddr');
     if (q) {
-      const embedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(q)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+      const embedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(q)}&hl=bn&z=15&output=embed`;
       return { embedUrl, directUrl: targetUrl };
     }
-  }
+  } catch (e) {}
 
-  // If we can't convert it (e.g. maps.app.goo.gl or other short links),
-  // we return it as directUrl so we can show a gorgeous Map Link card!
+  // Fallback: If we can't extract embed, return directUrl so button is rendered
   return {
     embedUrl: '',
     directUrl: targetUrl
