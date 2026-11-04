@@ -8,7 +8,8 @@ import { Order, OrderStatus, SiteConfig } from '../types';
 import { 
   X, Search, Truck, Phone, MapPin, Calendar, DollarSign, 
   CheckCircle, Clock, AlertCircle, ShoppingBag, MessageSquare, 
-  ChevronRight, Copy, Check, ShieldCheck, Box, User, Receipt, CreditCard
+  ChevronRight, Copy, Check, ShieldCheck, Box, User, Receipt, CreditCard,
+  AlertTriangle, Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -17,15 +18,25 @@ interface OrderTrackingModalProps {
   onClose: () => void;
   orders: Order[];
   siteConfig: SiteConfig;
+  onAddComplaint?: (complaint: any) => Promise<any>;
 }
 
-export default function OrderTrackingModal({ isOpen, onClose, orders, siteConfig }: OrderTrackingModalProps) {
+export default function OrderTrackingModal({ isOpen, onClose, orders, siteConfig, onAddComplaint }: OrderTrackingModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searched, setSearched] = useState(false);
   const [matchedOrders, setMatchedOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState(false);
+
+  // Complaint modal states
+  const [showComplaintModal, setShowComplaintModal] = useState(false);
+  const [complaintCategory, setComplaintCategory] = useState<'damage' | 'delay' | 'wrong_item' | 'quality' | 'price' | 'behavior' | 'other'>('damage');
+  const [complaintPriority, setComplaintPriority] = useState<'normal' | 'high' | 'urgent'>('normal');
+  const [complaintDescription, setComplaintDescription] = useState('');
+  const [complaintSubmitting, setComplaintSubmitting] = useState(false);
+  const [complaintSuccessNotice, setComplaintSuccessNotice] = useState<string | null>(null);
+  const [complaintError, setComplaintError] = useState<string | null>(null);
 
   // Clear states when opening/closing
   useEffect(() => {
@@ -298,19 +309,21 @@ export default function OrderTrackingModal({ isOpen, onClose, orders, siteConfig
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md cursor-pointer"
-          />
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <div key="order-tracking-modal-root" className="fixed inset-0 z-50 overflow-y-auto">
+            {/* Backdrop */}
+            <motion.div
+              key="order-tracking-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onClose}
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-md cursor-pointer"
+            />
 
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            <div className="flex min-h-full items-center justify-center p-4 text-center">
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 15 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -716,6 +729,23 @@ export default function OrderTrackingModal({ isOpen, onClose, orders, siteConfig
                       </div>
                     </div>
 
+                    {/* Order Complaint Support Button */}
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setComplaintDescription('');
+                          setComplaintSuccessNotice(null);
+                          setComplaintError(null);
+                          setShowComplaintModal(true);
+                        }}
+                        className="w-full bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300/80 font-black py-2.5 px-3 rounded-2xl transition-all cursor-pointer text-xs flex items-center justify-center gap-2 shadow-2xs"
+                      >
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>এই অর্ডারে কোনো সমস্যা? অভিযোগ / কম্পেলেইন জমা দিন</span>
+                      </button>
+                    </div>
+
                     {/* Footer Contact for Help */}
                     <div className="flex flex-col sm:flex-row gap-2.5 pt-4 border-t border-slate-100">
                       <a
@@ -745,5 +775,205 @@ export default function OrderTrackingModal({ isOpen, onClose, orders, siteConfig
         </div>
       )}
     </AnimatePresence>
+
+    {/* Complaint Submission Modal in OrderTracking */}
+    <AnimatePresence>
+      {showComplaintModal && selectedOrder && (
+        <div key="order-tracking-complaint-modal-root" className="fixed inset-0 z-60 overflow-y-auto flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <motion.div
+            key="tracking-complaint-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowComplaintModal(false)}
+            className="fixed inset-0 bg-black/40"
+          />
+          <motion.div
+            key="tracking-complaint-panel"
+            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 15 }}
+            className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl relative z-10 border border-orange-200 max-h-[90vh] overflow-y-auto text-left"
+          >
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shadow-xs">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-black text-gray-900">অভিযোগ / কম্পেলেইন জমা দিন</h4>
+                    <p className="text-[11px] text-gray-400 font-bold">অর্ডার #{selectedOrder.id} এর বিপরীতে অভিযোগ নথিভুক্ত করুন</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowComplaintModal(false)}
+                  className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {complaintSuccessNotice ? (
+                <div className="py-6 text-center space-y-3">
+                  <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-md">
+                    <CheckCircle className="w-8 h-8" />
+                  </div>
+                  <h5 className="font-black text-slate-800 text-base">অভিযোগ সফলভাবে জমা হয়েছে!</h5>
+                  <p className="text-xs text-gray-600 font-bold max-w-xs mx-auto leading-relaxed">{complaintSuccessNotice}</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowComplaintModal(false)}
+                    className="bg-slate-800 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer hover:bg-slate-900 mt-2"
+                  >
+                    ঠিক আছে
+                  </button>
+                </div>
+              ) : (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!complaintDescription.trim()) {
+                      setComplaintError('অনুগ্রহ করে সমস্যার কারণ বা বিস্তারিত নোট লিখুন');
+                      return;
+                    }
+                    setComplaintSubmitting(true);
+                    setComplaintError(null);
+                    try {
+                      const categoryLabels: Record<string, string> = {
+                        damage: 'পণ্য ক্ষতিগ্রস্থ / নষ্ট',
+                        delay: 'ডেলিভারি বিলম্ব',
+                        wrong_item: 'ভুল বা কম পণ্য প্রাপ্তি',
+                        quality: 'পণ্যের গুণমান নিয়ে আপত্তি',
+                        price: 'বিল / মূল্য বা পেমেন্ট সংক্রান্ত',
+                        behavior: 'ডেলিভারি ম্যান বা আচরণ সংক্রান্ত',
+                        other: 'অন্যান্য সমস্যা'
+                      };
+
+                      if (onAddComplaint) {
+                        await onAddComplaint({
+                          orderId: selectedOrder.id,
+                          customerName: selectedOrder.customerName,
+                          customerPhone: selectedOrder.customerPhone,
+                          customerAddress: `${selectedOrder.deliveryAddress}, ${selectedOrder.area}, ${selectedOrder.district}`,
+                          issueCategory: complaintCategory,
+                          issueCategoryLabel: categoryLabels[complaintCategory] || 'সাধারণ সমস্যা',
+                          priority: complaintPriority,
+                          description: complaintDescription.trim(),
+                          createdBy: 'গ্রাহক (ট্র্যাকিং মেমো)'
+                        });
+                      }
+                      setComplaintSuccessNotice('আপনার অভিযোগটি সফলভাবে নথিভুক্ত করা হয়েছে! আমাদের প্রতিনিধি দ্রুত সমাধানের জন্য আপনার সাথে যোগাযোগ করবেন।');
+                    } catch (err: any) {
+                      setComplaintError(err?.message || 'অভিযোগ জমা করতে ব্যর্থ হয়েছে');
+                    } finally {
+                      setComplaintSubmitting(false);
+                    }
+                  }}
+                  className="space-y-3.5 text-xs"
+                >
+                  {/* Auto-filled details from Selected Order */}
+                  <div className="bg-slate-50 border border-slate-200/70 rounded-2xl p-3.5 space-y-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">অটো-লোড হওয়া তথ্য</span>
+                    <div className="grid grid-cols-2 gap-2 text-slate-700 font-semibold">
+                      <div>
+                        <span className="text-gray-400 block text-[10px]">গ্রাহকের নাম:</span>
+                        <span className="font-black text-slate-800">{selectedOrder.customerName}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block text-[10px]">মোবাইল নম্বর *:</span>
+                        <span className="font-mono font-black text-slate-800">{selectedOrder.customerPhone}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block text-[10px]">অর্ডার আইডি:</span>
+                        <span className="font-mono font-black text-orange-600">#{selectedOrder.id}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block text-[10px]">ঠিকানা:</span>
+                        <span className="truncate block" title={selectedOrder.deliveryAddress}>
+                          {selectedOrder.deliveryAddress}, {selectedOrder.area}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Issue Category */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      সমস্যার ধরন (Issue Category) <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={complaintCategory}
+                      onChange={(e) => setComplaintCategory(e.target.value as any)}
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-800 focus:outline-hidden focus:border-orange-500"
+                    >
+                      <option value="damage">পণ্য ক্ষতিগ্রস্থ / নষ্ট</option>
+                      <option value="delay">ডেলিভারি বিলম্ব</option>
+                      <option value="wrong_item">ভুল বা কম পণ্য প্রাপ্তি</option>
+                      <option value="quality">পণ্যের গুণমান নিয়ে আপত্তি</option>
+                      <option value="price">বিল / মূল্য বা পেমেন্ট সংক্রান্ত</option>
+                      <option value="behavior">ডেলিভারি ম্যান বা আচরণ সংক্রান্ত</option>
+                      <option value="other">অন্যান্য সমস্যা</option>
+                    </select>
+                  </div>
+
+                  {/* Priority */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      অগ্রাধিকার (Priority)
+                    </label>
+                    <select
+                      value={complaintPriority}
+                      onChange={(e) => setComplaintPriority(e.target.value as any)}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-800 focus:outline-hidden focus:border-orange-500"
+                    >
+                      <option value="normal">সাধারণ (Normal)</option>
+                      <option value="high">জরুরি (High)</option>
+                      <option value="urgent">অতি জরুরি (Urgent)</option>
+                    </select>
+                  </div>
+
+                  {/* Detailed Description / Reason */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      অভিযোগের কারণ বা বিস্তারিত নোট <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="সমস্যার বিস্তারিত লিখুন (যেমন: কী সমস্যা হয়েছে, কোনো ত্রুটি আছে কি না ইত্যাদি)..."
+                      value={complaintDescription}
+                      onChange={(e) => {
+                        setComplaintDescription(e.target.value);
+                        if (complaintError) setComplaintError(null);
+                      }}
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-hidden focus:border-orange-500 resize-none text-xs"
+                    />
+                    {complaintError && <p className="text-red-500 text-[10px] mt-1 font-bold">{complaintError}</p>}
+                  </div>
+
+                  <div className="flex gap-2.5 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowComplaintModal(false)}
+                      className="flex-1 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold text-xs cursor-pointer transition-colors"
+                    >
+                      বাতিল
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={complaintSubmitting}
+                      className="flex-1 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{complaintSubmitting ? 'জমা হচ্ছে...' : 'অভিযোগ জমা দিন'}</span>
+                    </button>
+                  </div>
+                </form>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

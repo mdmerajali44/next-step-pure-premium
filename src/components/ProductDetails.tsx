@@ -429,8 +429,18 @@ export default function ProductDetails({
   const sku = getProductSKU(product.id, product.name, product);
   const details = getDetailedContent(product);
 
-  const currentOrigPrice = (selectedSize && product.sizePrices?.[selectedSize]) ? product.sizePrices[selectedSize].originalPrice : product.originalPrice;
-  const currentActivePrice = (selectedSize && product.sizePrices?.[selectedSize]) ? product.sizePrices[selectedSize].price : product.price;
+  const selectedSizeInfo = selectedSize ? product.sizePrices?.[selectedSize] : undefined;
+  const currentActivePrice = (product.isOffer && selectedSizeInfo?.offerPrice && selectedSizeInfo.offerPrice > 0)
+    ? selectedSizeInfo.offerPrice
+    : (product.isOffer && product.offerPrice && product.offerPrice > 0)
+      ? product.offerPrice
+      : (selectedSizeInfo ? selectedSizeInfo.price : product.price);
+
+  const currentOrigPrice = (product.isOffer && selectedSizeInfo?.offerPrice && selectedSizeInfo.offerPrice > 0)
+    ? (selectedSizeInfo.originalPrice || selectedSizeInfo.price)
+    : (product.isOffer && product.offerPrice && product.offerPrice > 0)
+      ? (product.originalPrice || product.price)
+      : (selectedSizeInfo?.originalPrice !== undefined ? selectedSizeInfo.originalPrice : product.originalPrice);
 
   const discountedPct = (currentOrigPrice && Number(currentOrigPrice) > Number(currentActivePrice))
     ? Math.round(((currentOrigPrice - currentActivePrice) / currentOrigPrice) * 100)
@@ -451,7 +461,7 @@ export default function ProductDetails({
   };
 
   const handleWhatsAppOrder = () => {
-    const unitPrice = (selectedSize && product.sizePrices?.[selectedSize]) ? product.sizePrices[selectedSize].price : product.price;
+    const unitPrice = currentActivePrice;
     const totalPrice = unitPrice * quantity;
     
     let storeName = 'সাতক্ষীরা প্রিমিয়াম';
@@ -751,19 +761,28 @@ export default function ProductDetails({
               <div className="flex flex-wrap gap-2">
                 {sizes.map((size) => {
                   const isActive = selectedSize === size;
+                  const szInfo = product.sizePrices?.[size];
+                  const szPrice = (product.isOffer && szInfo?.offerPrice && szInfo.offerPrice > 0)
+                    ? szInfo.offerPrice
+                    : (szInfo?.price ?? product.price);
                   return (
                     <motion.button
                       key={size}
                       onClick={() => setSelectedSize(size)}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className={`px-4 py-2 text-xs font-bold border rounded-md transition-all relative cursor-pointer ${
+                      className={`px-3.5 py-1.5 text-xs font-bold border rounded-xl transition-all relative cursor-pointer flex items-center gap-1.5 ${
                         isActive
-                          ? 'bg-emerald-50/70 text-emerald-800 border-emerald-500 shadow-sm animate-pulse-weight'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50/50 animate-pulse-weight-inactive'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-500 shadow-sm animate-pulse-weight'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-50/50 animate-pulse-weight-inactive'
                       }`}
                     >
                       <span>{size}</span>
+                      {szInfo && (
+                        <span className={`text-[10px] ${isActive ? 'text-emerald-700 font-black' : 'text-gray-500'}`}>
+                          (৳{szPrice})
+                        </span>
+                      )}
                     </motion.button>
                   );
                 })}
@@ -942,12 +961,12 @@ export default function ProductDetails({
             </div>
             <div className="grid grid-cols-3 py-3 font-medium">
               <span className="text-gray-400 font-bold">প্রস্তুতকারক</span>
-              <span className="col-span-2 text-slate-800 font-semibold">{product.manufacturer || "সাতক্ষীরা প্রিমিয়াম (সাতক্ষীরা প্রিমিয়াম)"}</span>
+              <span className="col-span-2 text-slate-800 font-semibold">{product.manufacturer || "সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)"}</span>
             </div>
             <div className="grid grid-cols-3 py-3 font-medium">
               <span className="text-gray-400 font-bold">উৎস অঞ্চল</span>
               <span className="col-span-2 text-slate-800 font-semibold">
-                {product.sourceArea || (product.category === 'মধু' ? 'সুন্দরবন গভীর অরণ্য' : 'সাতক্ষীরা ও শ্যামনাগর, বাংলাদেশ')}
+                {product.sourceArea || (product.category === 'মধু' ? 'সুন্দরবন গভীর অরণ্য' : 'রাজশাহী ও সিরাজগঞ্জ, বাংলাদেশ')}
               </span>
             </div>
             <div className="grid grid-cols-3 py-3 font-medium">

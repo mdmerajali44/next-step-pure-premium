@@ -138,8 +138,17 @@ const getCategoryLabel = (product: Product) => {
 export default function ProductCard({ product, onAddToCart, onSelect, onDirectBuy, onQuickView, onRequestProduct, onViewImage, isCompact = false, sellerName }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
-  const discount = (product.originalPrice && Number(product.originalPrice) > Number(product.price)) 
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+  const hasOffer = !!(product.isOffer && (product.offerPrice || (product.sizePrices && Object.values(product.sizePrices).some(sp => sp.offerPrice))));
+  const cardDisplayPrice = hasOffer && product.offerPrice && product.offerPrice > 0
+    ? product.offerPrice
+    : product.price;
+
+  const cardOriginalPrice = (hasOffer && product.offerPrice && product.offerPrice > 0)
+    ? (product.originalPrice && Number(product.originalPrice) > Number(product.offerPrice) ? product.originalPrice : product.price)
+    : product.originalPrice;
+
+  const discount = (cardOriginalPrice && Number(cardOriginalPrice) > Number(cardDisplayPrice)) 
+    ? Math.round(((Number(cardOriginalPrice) - Number(cardDisplayPrice)) / Number(cardOriginalPrice)) * 100)
     : 0;
 
   const sizeOptions = getProductSizes(product.id, product);
@@ -160,6 +169,11 @@ export default function ProductCard({ product, onAddToCart, onSelect, onDirectBu
       {product.stock === 0 ? (
         <div className="absolute top-4 left-4 z-10 px-2.5 py-1 rounded-full bg-red-600 text-white text-[9px] font-black uppercase tracking-wider shadow-xs">
           Stock Out
+        </div>
+      ) : hasOffer ? (
+        <div className="absolute top-4 left-4 z-10 bg-gradient-to-r from-red-600 to-orange-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full tracking-wider uppercase shadow-xs flex items-center gap-1">
+          <span>⚡ অফার</span>
+          {discount > 0 && <span className="bg-white/20 px-1 py-0.2 rounded">-{discount}%</span>}
         </div>
       ) : product.badge === 'new' ? (
         <div className="absolute top-4 left-4 z-10 bg-[#00b050] text-white text-[9px] font-black px-2.5 py-1 rounded-full tracking-wider uppercase shadow-xs">
@@ -281,11 +295,11 @@ export default function ProductCard({ product, onAddToCart, onSelect, onDirectBu
           isCompact ? 'mb-2.5' : 'mb-3.5'
         }`}>
           <span className="text-orange-600 text-base md:text-lg">
-            {product.price}৳
+            {cardDisplayPrice}৳
           </span>
-          {product.originalPrice && Number(product.originalPrice) > Number(product.price) && (
+          {cardOriginalPrice && Number(cardOriginalPrice) > Number(cardDisplayPrice) && (
             <span className="text-xs text-red-500 line-through font-medium">
-              {product.originalPrice}৳
+              {cardOriginalPrice}৳
             </span>
           )}
         </div>

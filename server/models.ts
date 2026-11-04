@@ -72,7 +72,7 @@ export interface IProductDocument extends Document {
   reviewsCount: number;
   sku?: string;
   sizes?: string[];
-  sizePrices?: Record<string, { price: number; originalPrice?: number }>;
+  sizePrices?: Record<string, { price: number; originalPrice?: number; offerPrice?: number }>;
   reorderLevel?: number;
   addedBy?: string;
   status?: string;
@@ -88,6 +88,9 @@ export interface IProductDocument extends Document {
   sellerId?: string;
   sellerName?: string;
   sellerProductStatus?: 'pending' | 'approved' | 'rejected';
+  isBestSeller?: boolean;
+  isOffer?: boolean;
+  offerPrice?: number;
 }
 
 const ProductSchema = new Schema<IProductDocument>({
@@ -121,7 +124,10 @@ const ProductSchema = new Schema<IProductDocument>({
   organicCertificate: { type: String },
   sellerId: { type: String },
   sellerName: { type: String },
-  sellerProductStatus: { type: String, enum: ['pending', 'approved', 'rejected'] }
+  sellerProductStatus: { type: String, enum: ['pending', 'approved', 'rejected'] },
+  isBestSeller: { type: Boolean, default: false },
+  isOffer: { type: Boolean, default: false },
+  offerPrice: { type: Number }
 });
 
 // --- ORDER SCHEMA ---
@@ -150,6 +156,14 @@ export interface IOrderDocument extends Document {
   createdAt: string;
   couponCode?: string;
   discountAmount?: number;
+  customerNotes?: {
+    id?: string;
+    author?: string;
+    text?: string;
+    createdAt?: string;
+    type?: string;
+  }[];
+  complaintIds?: string[];
 }
 
 const OrderSchema = new Schema<IOrderDocument>({
@@ -176,7 +190,15 @@ const OrderSchema = new Schema<IOrderDocument>({
   status: { type: String, enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'], default: 'pending' },
   createdAt: { type: String, required: true },
   couponCode: { type: String },
-  discountAmount: { type: Number }
+  discountAmount: { type: Number },
+  customerNotes: [{
+    id: { type: String },
+    author: { type: String },
+    text: { type: String },
+    createdAt: { type: String },
+    type: { type: String }
+  }],
+  complaintIds: [{ type: String }]
 });
 
 // --- CATEGORY SCHEMA ---
@@ -302,6 +324,9 @@ export interface ISiteConfigDocument extends Document {
   sellerSystemActive?: boolean;
   commissionPercentage?: number;
   allowAdminsToDeleteOrders?: boolean;
+  deliveryChargeInsideDhaka?: number;
+  deliveryChargeOutsideDhaka?: number;
+  checkoutGuaranteeText?: string;
 }
 
 const SiteConfigSchema = new Schema<ISiteConfigDocument>({
@@ -358,7 +383,10 @@ const SiteConfigSchema = new Schema<ISiteConfigDocument>({
   faqItems: [{ question: String, answer: String }],
   sellerSystemActive: { type: Boolean, default: true },
   commissionPercentage: { type: Number, default: 10 },
-  allowAdminsToDeleteOrders: { type: Boolean, default: true }
+  allowAdminsToDeleteOrders: { type: Boolean, default: true },
+  deliveryChargeInsideDhaka: { type: Number, default: 60 },
+  deliveryChargeOutsideDhaka: { type: Number, default: 120 },
+  checkoutGuaranteeText: { type: String }
 });
 
 // --- CHAT SESSION SCHEMA ---
@@ -388,6 +416,73 @@ const ChatSessionSchema = new Schema<IChatSessionDocument>({
   unreadByAdmin: { type: Boolean, default: false }
 });
 
+// --- COMPLAINT SCHEMA ---
+export interface IComplaintDocument extends Document {
+  id: string;
+  orderId?: string;
+  customerName: string;
+  customerPhone: string;
+  customerAddress?: string;
+  issueCategory: string;
+  issueCategoryLabel: string;
+  description: string;
+  priority: string;
+  status: string;
+  createdAt: string;
+  updatedAt?: string;
+  createdBy: string;
+  callLogs: {
+    id: string;
+    representativeName: string;
+    callDate: string;
+    notes: string;
+    callNumber: number;
+    customerResponse?: string;
+  }[];
+  resolution?: {
+    resolvedAt: string;
+    resolvedBy: string;
+    actionTaken: string;
+    actionTakenLabel: string;
+    resolutionNotes: string;
+    isCustomerSatisfied: boolean;
+    refundAmount?: number;
+  };
+}
+
+const ComplaintSchema = new Schema<IComplaintDocument>({
+  id: { type: String, required: true, unique: true },
+  orderId: { type: String },
+  customerName: { type: String, required: true },
+  customerPhone: { type: String, required: true },
+  customerAddress: { type: String },
+  issueCategory: { type: String, default: "other" },
+  issueCategoryLabel: { type: String, default: "সাধারণ সমস্যা" },
+  description: { type: String, required: true },
+  priority: { type: String, enum: ["normal", "high", "urgent"], default: "normal" },
+  status: { type: String, enum: ["pending", "in_progress", "resolved", "cancelled"], default: "pending" },
+  createdAt: { type: String, required: true },
+  updatedAt: { type: String },
+  createdBy: { type: String, default: "অ্যাডমিন" },
+  callLogs: [{
+    id: { type: String, required: true },
+    representativeName: { type: String, required: true },
+    callDate: { type: String, required: true },
+    notes: { type: String, required: true },
+    callNumber: { type: Number, required: true },
+    customerResponse: { type: String }
+  }],
+  resolution: {
+    resolvedAt: { type: String },
+    resolvedBy: { type: String },
+    actionTaken: { type: String },
+    actionTakenLabel: { type: String },
+    resolutionNotes: { type: String },
+    isCustomerSatisfied: { type: Boolean, default: true },
+    refundAmount: { type: Number }
+  }
+});
+
 // Compile and export Mongoose Models with automatic in-memory fallback
 import { makeDynamicModelProxy } from "./fallbackStore";
 
@@ -399,6 +494,7 @@ const RawSiteConfig = (mongoose.models.SiteConfig || mongoose.model<ISiteConfigD
 const RawWithdrawRequest = (mongoose.models.WithdrawRequest || mongoose.model<IWithdrawRequestDocument>("WithdrawRequest", WithdrawRequestSchema)) as any;
 const RawProductRequest = (mongoose.models.ProductRequest || mongoose.model<IProductRequestDocument>("ProductRequest", ProductRequestSchema)) as any;
 const RawChatSession = (mongoose.models.ChatSession || mongoose.model<IChatSessionDocument>("ChatSession", ChatSessionSchema)) as any;
+const RawComplaint = (mongoose.models.Complaint || mongoose.model<IComplaintDocument>("Complaint", ComplaintSchema)) as any;
 
 export const User = makeDynamicModelProxy("User", RawUser);
 export const Product = makeDynamicModelProxy("Product", RawProduct);
@@ -408,4 +504,6 @@ export const SiteConfig = makeDynamicModelProxy("SiteConfig", RawSiteConfig);
 export const WithdrawRequest = makeDynamicModelProxy("WithdrawRequest", RawWithdrawRequest);
 export const ProductRequest = makeDynamicModelProxy("ProductRequest", RawProductRequest);
 export const ChatSession = makeDynamicModelProxy("ChatSession", RawChatSession);
+export const Complaint = makeDynamicModelProxy("Complaint", RawComplaint);
+
 

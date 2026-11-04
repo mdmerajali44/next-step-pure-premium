@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sliders, Palette, Users, MapPin, ShieldAlert, CreditCard, ImageIcon, HelpCircle, Upload, Volume2, Share2, Facebook, Instagram, Youtube, Plus, Trash2 } from 'lucide-react';
+import { Sliders, Palette, Users, MapPin, ShieldAlert, CreditCard, ImageIcon, HelpCircle, Upload, Volume2, Share2, Facebook, Instagram, Youtube, Plus, Trash2, Truck } from 'lucide-react';
 import { Category, Coupon, SiteConfig } from '../../types';
 import { compressImageFile as compressAndSetImage } from '../../utils/storage';
 
@@ -23,7 +23,11 @@ export default function MarketingTab({
   selectedImageFromGallery,
   onClearSelectedImageFromGallery,
 }: MarketingTabProps) {
-  const [marketingSubTab, setMarketingSubTab] = useState<'brand_banners' | 'ticker_categories' | 'about_page' | 'contact_info' | 'policies' | 'coupons' | 'promo_offer' | 'faq'>('brand_banners');
+  const [marketingSubTab, setMarketingSubTab] = useState<'brand_banners' | 'ticker_categories' | 'about_page' | 'contact_info' | 'policies' | 'coupons' | 'promo_offer' | 'faq' | 'shipping_delivery'>('brand_banners');
+
+  const [cfgDeliveryInside, setCfgDeliveryInside] = useState<number>(siteConfig?.deliveryChargeInsideDhaka ?? 60);
+  const [cfgDeliveryOutside, setCfgDeliveryOutside] = useState<number>(siteConfig?.deliveryChargeOutsideDhaka ?? 120);
+  const [cfgGuaranteeText, setCfgGuaranteeText] = useState<string>(siteConfig?.checkoutGuaranteeText || 'পণ্য হাতে পেয়ে চেক করে দেখে মূল্য পরিশোধ করুন। শতভাগ খাঁটি ও ফ্রেশ কোয়ালিটির সম্পূর্ণ নিশ্চয়তা!');
 
   const [cfgPromoActive, setCfgPromoActive] = useState<boolean>(siteConfig?.promoActive ?? true);
   const [cfgPromoImage, setCfgPromoImage] = useState<string>(siteConfig?.promoImage || 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80');
@@ -124,6 +128,9 @@ export default function MarketingTab({
       setCfgPromoActive(siteConfig.promoActive ?? true);
       if (siteConfig.promoImage) setCfgPromoImage(siteConfig.promoImage);
       if (siteConfig.promoLink !== undefined) setCfgPromoLink(siteConfig.promoLink);
+      if (siteConfig.deliveryChargeInsideDhaka !== undefined) setCfgDeliveryInside(siteConfig.deliveryChargeInsideDhaka);
+      if (siteConfig.deliveryChargeOutsideDhaka !== undefined) setCfgDeliveryOutside(siteConfig.deliveryChargeOutsideDhaka);
+      if (siteConfig.checkoutGuaranteeText !== undefined) setCfgGuaranteeText(siteConfig.checkoutGuaranteeText);
     }
   }, [siteConfig]);
 
@@ -173,6 +180,9 @@ export default function MarketingTab({
       promoImage: cfgPromoImage,
       promoLink: cfgPromoLink,
       faqItems: cfgFaqItems,
+      deliveryChargeInsideDhaka: Number(cfgDeliveryInside) || 60,
+      deliveryChargeOutsideDhaka: Number(cfgDeliveryOutside) || 120,
+      checkoutGuaranteeText: cfgGuaranteeText,
     });
     notify('অভিনন্দন! আপনার শপ কাস্টমাইজেশন সফলভাবে আপডেট করা হয়েছে।', 'success');
   };
@@ -282,6 +292,18 @@ export default function MarketingTab({
           >
             <HelpCircle className="w-3.5 h-3.5" />
             <span>৮. এফএকিউ (FAQ)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMarketingSubTab('shipping_delivery')}
+            className={`px-4 py-2.5 text-[11px] font-black tracking-tight rounded-xl flex items-center gap-1.5 cursor-pointer transition-all ${
+              marketingSubTab === 'shipping_delivery'
+                ? 'bg-[#006437] text-white shadow-md shadow-emerald-900/10'
+                : 'bg-slate-100 border border-slate-200/60 text-slate-600 hover:bg-slate-200/50'
+            }`}
+          >
+            <Truck className="w-3.5 h-3.5" />
+            <span>৯. শিপিং ও ডেলিভারি চার্জ</span>
           </button>
         </div>
 
@@ -1614,6 +1636,81 @@ export default function MarketingTab({
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {marketingSubTab === 'shipping_delivery' && (
+          <div className="space-y-6">
+            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-5">
+              <div className="flex items-center gap-2.5 border-b border-gray-100 pb-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-xs">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm md:text-base font-extrabold text-slate-800">ডেলিভারি চার্জ ও শিপিং সেটিংস</h4>
+                  <p className="text-xs text-gray-400 font-medium">ঢাকা ও ঢাকার বাহিরের শিপিং চার্জ নির্ধারণ করুন এবং কুপন ফিল্ডের নিচের গ্যারান্টি লেখা কাস্টমাইজ করুন</p>
+                </div>
+              </div>
+
+              {/* Delivery charges grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-orange-50/40 border border-orange-200/60 rounded-2xl space-y-2">
+                  <label className="block text-xs font-black text-slate-800 flex items-center gap-1.5">
+                    <span>🏢 ঢাকার ভিতরে ডেলিভারি চার্জ (টাকা):</span>
+                    <span className="text-[10px] bg-orange-200/60 text-orange-900 px-1.5 py-0.2 rounded font-mono font-bold">Inside Dhaka</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      value={cfgDeliveryInside}
+                      onChange={(e) => setCfgDeliveryInside(Number(e.target.value) || 0)}
+                      placeholder="যেমন: ৬০"
+                      className="w-full bg-white px-3.5 py-2.5 text-sm rounded-xl border border-orange-200 focus:outline-hidden focus:border-orange-500 font-mono font-black text-slate-900"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">৳</span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 font-medium">গ্রাহক ঢাকার ভেতরের ঠিকানা নির্বাচন করলে স্বয়ংক্রিয়ভাবে এই চার্জটি যুক্ত হবে।</p>
+                </div>
+
+                <div className="p-4 bg-emerald-50/40 border border-emerald-200/60 rounded-2xl space-y-2">
+                  <label className="block text-xs font-black text-slate-800 flex items-center gap-1.5">
+                    <span>🚛 ঢাকার বাহিরে ডেলিভারি চার্জ (টাকা):</span>
+                    <span className="text-[10px] bg-emerald-200/60 text-emerald-900 px-1.5 py-0.2 rounded font-mono font-bold">Outside Dhaka</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      value={cfgDeliveryOutside}
+                      onChange={(e) => setCfgDeliveryOutside(Number(e.target.value) || 0)}
+                      placeholder="যেমন: ১২০"
+                      className="w-full bg-white px-3.5 py-2.5 text-sm rounded-xl border border-emerald-200 focus:outline-hidden focus:border-emerald-500 font-mono font-black text-slate-900"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">৳</span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 font-medium">গ্রাহক ঢাকার বাইরের কোনো জেলা নির্বাচন করলে স্বয়ংক্রিয়ভাবে এই চার্জটি লক হয়ে যাবে।</p>
+                </div>
+              </div>
+
+              {/* Checkout Guarantee Text under Coupon */}
+              <div className="p-4 bg-slate-50 border border-slate-200/70 rounded-2xl space-y-2.5">
+                <label className="block text-xs font-black text-slate-800 flex items-center gap-1.5">
+                  <ShieldAlert className="w-4 h-4 text-emerald-600" />
+                  <span>কুপনের নিচে সুন্দর বর্ডারসহ গ্যারান্টি নোটিশের লেখা:</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={cfgGuaranteeText}
+                  onChange={(e) => setCfgGuaranteeText(e.target.value)}
+                  placeholder="যেমন: পণ্য হাতে পেয়ে চেক করে দেখে মূল্য পরিশোধ করুন। শতভাগ খাঁটি ও ফ্রেশ কোয়ালিটির সম্পূর্ণ নিশ্চয়তা!"
+                  className="w-full bg-white px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-500 font-semibold text-slate-800 resize-none leading-relaxed"
+                />
+                <p className="text-[11px] text-gray-500 font-medium">
+                  এই লেখাটি চেকআউট ফর্মের কুপন কোড ফিল্ডের নিচে চারপাশে সুন্দর বর্ডার এবং আইকন সহকারে ফ্রেম আকারে প্রদর্শিত হবে।
+                </p>
               </div>
             </div>
           </div>

@@ -4,11 +4,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Product, CartItem, Order, OrderStatus, SiteConfig, ProductRequest, getEmbedMapUrl, User, Category, matchesSearchWithNumerals, sortProductSizes, WithdrawRequest } from './types';
+import { Product, CartItem, Order, OrderStatus, SiteConfig, ProductRequest, getEmbedMapUrl, User, Category, matchesSearchWithNumerals, sortProductSizes, WithdrawRequest, Complaint } from './types';
 import { CATEGORIES, INITIAL_PRODUCTS } from './data';
 import { api } from './api';
 import { safeSetLocalStorage } from './utils/storage';
 import ProductCard from './components/ProductCard';
+import CategoryProductCarousel from './components/CategoryProductCarousel';
+import FeaturedDealsSection from './components/FeaturedDealsSection';
 import CartDrawer from './components/CartDrawer';
 import CheckoutModal from './components/CheckoutModal';
 import AdminDashboard, { FaqSection } from './components/AdminDashboard';
@@ -18,12 +20,14 @@ import { ChatWidget } from './components/ChatWidget';
 import SellerDashboard from './components/SellerDashboard';
 import OrderTrackingModal from './components/OrderTrackingModal';
 import DoubleRingLoader from './components/DoubleRingLoader';
+import BestSellerSection from './components/BestSellerSection';
+import OfferSection from './components/OfferSection';
 import { 
   Search, ShoppingCart, ShieldAlert, X, Star, CheckCircle, 
   Plus, Minus, ShoppingBag, Clock, HelpCircle, Store, ChevronRight, ChevronLeft,
   Home, Droplet, Cookie, Candy, Waves, Leaf, Sprout, Sun, Wheat, Sparkles, Loader2,
   Truck, ShieldCheck, Headphones, Facebook, Instagram, Youtube, AlertTriangle, Info,
-  MapPin, Map, User as UserIcon, LogOut, LogIn, UserPlus, ChevronDown, Bell, AlertCircle
+  MapPin, Map, User as UserIcon, LogOut, LogIn, UserPlus, ChevronDown, Bell, AlertCircle, Gift
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -167,37 +171,22 @@ const safeParseDate = (dateVal: any): Date => {
         }
       }
     } catch (e) {
-      console.error("Error parsing Bengali date:", e);
+      // fallback
     }
   }
-  
   return new Date();
 };
 
-const getBengaliTimeAgo = (dateVal: any): string => {
+const getRelativeTime = (dateVal: any): string => {
   const date = safeParseDate(dateVal);
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  
-  if (diffMs < 0) {
-    return 'এইমাত্র';
-  }
-  
-  const diffSecs = Math.floor(diffMs / 1000);
-  const diffMins = Math.floor(diffSecs / 60);
+  const diffMs = Math.max(0, now.getTime() - date.getTime());
+  const diffMins = Math.floor(diffMs / (1000 * 60));
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
   const diffMonths = Math.floor(diffDays / 30);
   const diffYears = Math.floor(diffDays / 365);
-  
-  const toBengaliNumber = (num: number): string => {
-    const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
-    return num.toString().split('').map(digit => {
-      const idx = parseInt(digit, 10);
-      return !isNaN(idx) ? bengaliDigits[idx] : digit;
-    }).join('');
-  };
-  
+
   if (diffMins < 1) {
     return 'এইমাত্র';
   }
@@ -216,25 +205,38 @@ const getBengaliTimeAgo = (dateVal: any): string => {
   return `${toBengaliNumber(diffYears)} বছর আগে`;
 };
 
+const getBengaliTimeAgo = (dateVal: any): string => {
+  return getRelativeTime(dateVal);
+};
+
 const formatBengaliDateTime = (dateVal: any): string => {
   const date = safeParseDate(dateVal);
-  try {
-    const timeStr = date.toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', hour12: true });
-    const dateStr = date.toLocaleDateString('bn-BD', { year: 'numeric', month: 'long', day: 'numeric' });
-    return `${timeStr} - ${dateStr}`;
-  } catch {
-    return '';
-  }
+  if (isNaN(date.getTime())) return '';
+  const year = toBengaliNumber(date.getFullYear());
+  const monthNames = ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'];
+  const month = monthNames[date.getMonth()];
+  const day = toBengaliNumber(date.getDate());
+  let hours = date.getHours();
+  const minutes = toBengaliNumber(String(date.getMinutes()).padStart(2, '0'));
+  const ampm = hours >= 12 ? 'অপরাহ্ন' : 'পূর্বাহ্ন';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const hoursBn = toBengaliNumber(hours);
+  return `${day} ${month} ${year}, ${hoursBn}:${minutes} ${ampm}`;
 };
 
 const isProductVisibleToCustomer = (product: Product): boolean => {
-  if (product.status === 'Inactive') {
-    return false;
-  }
-  if (product.sellerId && product.sellerProductStatus !== 'approved') {
-    return false;
-  }
+  if (!product) return false;
+  if (product.status === 'Inactive') return false;
+  if (product.sellerProductStatus && product.sellerProductStatus !== 'approved') return false;
   return true;
+};
+
+const getProductSizes = (id: string, product?: Product) => {
+  if (product && product.sizes && product.sizes.length > 0) {
+    return product.sizes;
+  }
+  return [];
 };
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -268,42 +270,11 @@ const getProductSKU = (id: string, name: string, product?: Product) => {
     'd1': 'MARYAM-DATES',
   };
   if (customMap[id]) return customMap[id];
-  return name.replace(/[^\w\s-]/g, '').trim().toUpperCase().replace(/\s+/g, '-').substring(0, 15) || `ML-${id.toUpperCase()}`;
-};
-
-const getProductSizes = (id: string, product?: Product) => {
-  let sizes: string[] = [];
-  if (product && product.sizes && product.sizes.length > 0) {
-    sizes = product.sizes;
-  } else {
-    const sizeMap: Record<string, string[]> = {
-      'p1': ['0.5 KG', '1 KG'],
-      'p2': ['0.5 KG', '1 KG', '2 KG'],
-      'p3': ['1 Liter', '2 Liter', '5 Liter'],
-      'p4': ['1 KG'],
-      'p5': ['1 KG'],
-      'p6': ['500G'],
-      'p7': ['5 KG', '10 KG'],
-      'p8': ['400G'],
-      'h1': ['0.5 KG', '1 KG'],
-      'h2': ['0.5 KG', '1 KG', '2 KG'],
-      'h3': ['0.5 KG', '1 KG'],
-      'h4': ['0.5 KG', '1 KG'],
-      'm1': ['12 KG', '24 KG'],
-      'm2': ['12 KG', '24 KG'],
-      'm3': ['12 KG', '24 KG'],
-      'm4': ['12 KG', '24 KG'],
-      'm5': ['12 KG', '24 KG'],
-      'm6': ['12 KG', '24 KG'],
-      'd1': ['0.5 KG', '1 KG'],
-    };
-    sizes = sizeMap[id] || (product && product.unit ? [product.unit] : ['1 KG']);
-  }
-  return sortProductSizes(sizes);
+  return name.replace(/[^\w\s-]/g, '').trim().toUpperCase().replace(/\s+/g, '-');
 };
 
 const DEFAULT_SITE_CONFIG: SiteConfig = {
-  storeName: 'ম্যাংগো লাভার',
+  storeName: 'সাতক্ষীরা প্রিমিয়াম',
   storeSlogan: 'Pure & Organic Food',
   storeLogo: '/src/assets/images/mango_lover_logo_1782453485561.jpg',
   leftBannerImage: '/src/assets/images/mango_farmer_orchard_1782453455911.jpg',
@@ -329,18 +300,18 @@ const DEFAULT_SITE_CONFIG: SiteConfig = {
   categoryBanners: {},
   categoryNames: {},
   aboutTitle: 'আমাদের সম্পর্কে?',
-  aboutSubtitle: 'এই যে আপনি আজ আমাদের সম্পর্কে জানতে চাচ্ছেন, এই পথটা সহজ ছিল না। অনেক চড়াই-উতরাই পেরিয়ে আজকের অবস্থানে আপনাদের পছন্দের এই ম্যাংগো লাভার। আমাদের এই পথচলায় সকল প্রিয় গ্রাহক ও শুভাকাঙ্ক্ষীদের কাছে আমরা চিরকৃতজ্ঞ।',
+  aboutSubtitle: 'এই যে আপনি আজ আমাদের সম্পর্কে জানতে চাচ্ছেন, এই পথটা সহজ ছিল না। অনেক চড়াই-উতরাই পেরিয়ে আজকের অবস্থানে আপনাদের পছন্দের এই সাতক্ষীরা প্রিমিয়াম। আমাদের এই পথচলায় সকল প্রিয় গ্রাহক ও শুভাকাঙ্ক্ষীদের কাছে আমরা চিরকৃতজ্ঞ।',
   aboutOwnerImage: '/src/assets/images/mango_farmer_orchard_1782453455911.jpg',
   aboutHighlightText: 'নোয়াখালী বিজ্ঞান ও প্রযুক্তি বিশ্ববিদ্যালয়ের পুষ্টি বিভাগ থেকে স্নাতক সম্পন্ন করা এক তরুণ - নাম তার মেহেদী হাসান',
   aboutParagraph1: 'যার শৈশব ও বেড়ে ওঠা নিভৃত পল্লীগাঁয়ে। উচ্চশিক্ষার উদ্দেশ্যে গ্রাম ছেড়ে তিনি পাড়ি জমান নোয়াখালীতে। সেখানে গিয়ে নিজের প্রয়োজনে কেনা খেজুরের গুড়, ঘি কিংবা আম - সবকিছুতেই কৃত্রিমতার ছাপ লক্ষ্য করেন। যেহেতু তার শৈশব কেটেছে গ্রামে, তাই খাঁটি খাদ্যদ্রব্য চিনতে তার ভুল হওয়ার কথা নয়; তার ওপর নিজের পড়াশোনাও ছিল \'নিরাপদ খাদ্য\' নিয়ে।',
   aboutParagraph2: 'ক্যাম্পাসে পরিচিতদের জন্য গুড় ও ঘি এনে প্রশংসা পাওয়ার পর তার মনে হয়েছিল—নিজে উদ্যোক্তা হয়ে দেশজুড়ে মানুষের কাছে খাঁটি খাদ্য পৌঁছে দিলে কেমন হয়? সেই ভাবনা থেকেই পরিবারের দেওয়া সামান্য আর্থিক পুঁজি নিয়ে তিনি এই সংকল্পে নামলেন যে - যতটুকু সম্ভব, ততটুকুই খাঁটি জিনিস তিনি গ্রাহকদের কাছে পৌঁছে দেবেন। অনেক নির্ঘুম রাত আর অক্লান্ত পরিশ্রমে তিনি নিজের প্রচেষ্টা অব্যাহত রেখে প্রমাণ করলেন যে, একাগ্রতা থাকলে সবই সম্ভব। কোনো কিছু অর্জন করতে হলে আগে সেটি দৃঢ়ভাবে চাইতে হয়।',
-  aboutParagraph3: 'পরবর্তীতে কয়েক লক্ষ গ্রাহকের দোরগোড়ায় তিনি পৌঁছে দিয়েছেন তার এই \'ম্যাংগো লাভার\'-এর পণ্য। তৈরি হয়েছে বিশাল এক অনুগত গ্রাহক শ্রেণি। সেই সঙ্গে নিরবিচ্ছিন্ন সেবা নিশ্চিত করতে তিনি গড়ে তুলেছেন দক্ষ সাপোর্ট টিম। আজ ৬০ জনেরও বেশি কর্মী নিয়ে তিনি সফলতার সাথে এগিয়ে যাচ্ছেন।',
+  aboutParagraph3: 'পরবর্তীতে কয়েক লক্ষ গ্রাহকের দোরগোড়ায় তিনি পৌঁছে দিয়েছেন তার এই \'সাতক্ষীরা প্রিমিয়াম\'-এর পণ্য। তৈরি হয়েছে বিশাল এক অনুগত গ্রাহক শ্রেণি। সেই সঙ্গে নিরবিচ্ছিন্ন সেবা নিশ্চিত করতে তিনি গড়ে তুলেছেন দক্ষ সাপোর্ট টিম। আজ ৬০ জনেরও বেশি কর্মী নিয়ে তিনি সফলতার সাথে এগিয়ে যাচ্ছেন।',
   aboutFacebookLink: 'https://facebook.com',
   contactOffice: 'Shyamnagar, Satkhira, Bangladesh',
   contactPhone: '+880 1837-587551',
-  contactEmail: 'info.SathkiraPremium@gmail.com',
+  contactEmail: 'info AT satkhirapremium.com.bd',
   refundPolicyText: 'আমাদের মূল লক্ষ্য গ্রাহকের সন্তুষ্টি। যদি কোনো কারণে আপনি পণ্য পেয়ে অসন্তুষ্ট হন, তবে নিম্নলিখিত নীতি অনুযায়ী আমরা পণ্য পরিবর্তন বা মূল্য ফেরত দিয়ে থাকি:\n\n১. ডেলিভারির সময় পণ্য দেখে নেওয়ার সুযোগ রয়েছে। কোনো প্রকার ক্রটি থাকলে ডেলিভারি ম্যানের কাছেই ফেরত দিতে পারবেন।\n\n২. আমরা সাতক্ষীরা ও শ্যামনগর থেকে সরাসরি তাজা পণ্য পাঠাই। পরিবহণকালীন ক্ষয়ক্ষতির জন্য আমরা ১০০% দায়বদ্ধ।\n\n৩. রিটার্ন করার পর ৩ কার্যদিবসের মধ্যে আপনার বিকাশ/রকেট/নগদ অথবা ব্যাংক অ্যাকাউন্টে টাকা রিফান্ড করা হবে।',
-  privacyPolicyText: 'আপনার গোপনীয়তা আমাদের কাছে অত্যন্ত গুরুত্বপূর্ণ। ম্যাংগো লাভার গ্রাহকদের ব্যক্তিগত তথ্যের সর্বোচ্চ নিরাপত্তা নিশ্চিত করে:\n\n১. আমরা শুধুমাত্র অর্ডার প্রসেসিং এবং পণ্য ডেলিভারির সুবিধার্থে গ্রাহকের নাম, মোবাইল নম্বর এবং ঠিকানা সংগ্রহ করি।\n\n২. সংগৃহীত তথ্য কোনো তৃতীয় পক্ষের কাছে বিক্রয় বা হস্তান্তর করা হয় না।\n\n৩. আমাদের ওয়েবসাইট এবং গ্রাহক ডেটাবেজ সুরক্ষিত রাখতে আমরা আধুনিক সিকিউরিটি প্রোটোকল ব্যবহার করি।',
+  privacyPolicyText: 'আপনার গোপনীয়তা আমাদের কাছে অত্যন্ত গুরুত্বপূর্ণ। সাতক্ষীরা প্রিমিয়াম গ্রাহকদের ব্যক্তিগত তথ্যের সর্বোচ্চ নিরাপত্তা নিশ্চিত করে:\n\n১. আমরা শুধুমাত্র অর্ডার প্রসেসিং এবং পণ্য ডেলিভারির সুবিধার্থে গ্রাহকের নাম, মোবাইল নম্বর এবং ঠিকানা সংগ্রহ করি।\n\n২. সংগৃহীত তথ্য কোনো তৃতীয় পক্ষের কাছে বিক্রয় বা হস্তান্তর করা হয় না।\n\n৩. আমাদের ওয়েবসাইট এবং গ্রাহক ডেটাবেজ সুরক্ষিত রাখতে আমরা আধুনিক সিকিউরিটি প্রোটোকল ব্যবহার করি।',
   coupons: [
     { code: 'MANGO10', type: 'percentage', value: 10 },
     { code: 'MANGO100', type: 'flat', value: 100 },
@@ -357,7 +328,7 @@ const DEFAULT_SITE_CONFIG: SiteConfig = {
     },
     {
       question: 'আম কি সম্পূর্ণ কেমিক্যাল ও ফরমালিন মুক্ত?',
-      answer: 'হ্যাঁ, ম্যাংগো লাভার-এর প্রতিটি আম সাতক্ষীরা ও শ্যামনগরের বাগান থেকে শতভাগ কেমিক্যাল ও ফরমালিন ছাড়াই প্রাকৃতিকভাবে পাকানো অবস্থায় গাছ থেকে পেড়ে সরাসরি পাঠানো হয়।'
+      answer: 'হ্যাঁ, সাতক্ষীরা প্রিমিয়াম-এর প্রতিটি আম সাতক্ষীরা ও শ্যামনগরের বাগান থেকে শতভাগ কেমিক্যাল ও ফরমালিন ছাড়াই প্রাকৃতিকভাবে পাকানো অবস্থায় গাছ থেকে পেড়ে সরাসরি পাঠানো হয়।'
     },
     {
       question: 'ডেলিভারি পাওয়ার পর আম বা অন্য পণ্য নষ্ট বের হলে কী করণীয়?',
@@ -367,7 +338,10 @@ const DEFAULT_SITE_CONFIG: SiteConfig = {
       question: 'আপনাদের কি কোনো অফলাইন শোরুম আছে নাকি শুধু অনলাইনেই সার্ভিস দেন?',
       answer: 'আমাদের মূল বাগান ও সংগ্রহ কেন্দ্র সাতক্ষীরা ও শ্যামনগরে অবস্থিত। বর্তমানে আমরা শুধু অনলাইনের মাধ্যমে সরাসরি বাগান থেকে ফ্রেশ পণ্য গ্রাহকের দোরগোড়ায় পৌঁছে দেওয়ার সেবা দিয়ে আসছি।'
     }
-  ]
+  ],
+  deliveryChargeInsideDhaka: 60,
+  deliveryChargeOutsideDhaka: 120,
+  checkoutGuaranteeText: 'পণ্য হাতে পেয়ে চেক করে দেখে মূল্য পরিশোধ করুন। শতভাগ খাঁটি ও ফ্রেশ কোয়ালিটির সম্পূর্ণ নিশ্চয়তা!'
 };
 
 const toBengaliNumber = (num: number | string): string => {
@@ -595,22 +569,29 @@ export default function App() {
 
     const refreshData = async () => {
       try {
-        const [freshProducts, freshSiteConfig, freshCategories, freshOrders, freshUsers, freshWithdraws, freshProductRequests] = await Promise.all([
+        const [freshProducts, freshSiteConfig, freshCategories, freshOrders, freshUsers, freshWithdraws, freshProductRequests, freshComplaints] = await Promise.all([
           api.getProducts(INITIAL_PRODUCTS),
           api.getSiteConfig(DEFAULT_SITE_CONFIG),
           api.getCategories(CATEGORIES),
           api.getOrders(SEEDED_ORDERS),
           api.getUsers(INITIAL_USERS),
           api.getWithdrawRequests(),
-          api.getProductRequests()
+          api.getProductRequests(),
+          api.getComplaints([])
         ]);
 
-        setProducts(freshProducts);
+        if (Array.isArray(freshProducts) && freshProducts.length > 0) {
+          setProducts(freshProducts);
+          safeSetLocalStorage('ml_products', JSON.stringify(freshProducts));
+        }
         setCategories(freshCategories);
         setOrders(freshOrders);
         setUsers(freshUsers);
         setWithdrawRequests(freshWithdraws);
         setProductRequests(freshProductRequests);
+        if (Array.isArray(freshComplaints) && freshComplaints.length > 0) {
+          setComplaints(freshComplaints);
+        }
 
         if (loggedInUser) {
           const freshUser = freshUsers.find(u => u.id === loggedInUser.id || u.phone === loggedInUser.phone);
@@ -636,6 +617,22 @@ export default function App() {
       clearInterval(intervalId);
     };
   }, [loggedInUser?.id]);
+
+  const [complaints, setComplaints] = useState<Complaint[]>(() => {
+    const saved = localStorage.getItem('ml_complaints');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // ignore
+      }
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    safeSetLocalStorage('ml_complaints', JSON.stringify(complaints));
+  }, [complaints]);
 
   const [withdrawRequests, setWithdrawRequests] = useState<WithdrawRequest[]>(() => {
     const saved = localStorage.getItem('ml_withdraw_requests');
@@ -826,7 +823,7 @@ export default function App() {
   };
 
   // --- UI Filter & Navigation State ---
-  const [activePage, setActivePage] = useState<'home' | 'about' | 'contact' | 'privacy' | 'refund' | 'faq'>('home');
+  const [activePage, setActivePage] = useState<'home' | 'about' | 'contact' | 'privacy' | 'refund' | 'faq' | 'offers'>('home');
   const [currentCategory, setCurrentCategory] = useState<string>('all');
   const [showAllProducts, setShowAllProducts] = useState<boolean>(false);
   const [showOnlyProduced, setShowOnlyProduced] = useState<boolean>(false);
@@ -1204,9 +1201,18 @@ export default function App() {
     if (size) {
       targetProduct.unit = size;
       if (product.sizePrices?.[size]) {
-        targetProduct.price = product.sizePrices[size].price;
-        targetProduct.originalPrice = product.sizePrices[size].originalPrice;
+        const sp = product.sizePrices[size];
+        if (product.isOffer && sp.offerPrice && sp.offerPrice > 0) {
+          targetProduct.price = sp.offerPrice;
+          targetProduct.originalPrice = sp.originalPrice || sp.price;
+        } else {
+          targetProduct.price = sp.price;
+          targetProduct.originalPrice = sp.originalPrice;
+        }
       }
+    } else if (product.isOffer && product.offerPrice && product.offerPrice > 0) {
+      targetProduct.price = product.offerPrice;
+      targetProduct.originalPrice = product.originalPrice || product.price;
     }
     
     setCart((prevCart) => {
@@ -1238,8 +1244,25 @@ export default function App() {
   };
 
   // --- Direct Purchase triggers ---
-  const handleDirectBuy = (product: Product) => {
-    setDirectBuyItem({ product, quantity: 1 });
+  const handleDirectBuy = (product: Product, size?: string) => {
+    const targetProduct = { ...product };
+    if (size) {
+      targetProduct.unit = size;
+      if (product.sizePrices?.[size]) {
+        const sp = product.sizePrices[size];
+        if (product.isOffer && sp.offerPrice && sp.offerPrice > 0) {
+          targetProduct.price = sp.offerPrice;
+          targetProduct.originalPrice = sp.originalPrice || sp.price;
+        } else {
+          targetProduct.price = sp.price;
+          targetProduct.originalPrice = sp.originalPrice;
+        }
+      }
+    } else if (product.isOffer && product.offerPrice && product.offerPrice > 0) {
+      targetProduct.price = product.offerPrice;
+      targetProduct.originalPrice = product.originalPrice || product.price;
+    }
+    setDirectBuyItem({ product: targetProduct, quantity: 1 });
     setIsCheckoutOpen(true);
   };
 
@@ -1368,7 +1391,14 @@ export default function App() {
       return updated;
     });
     try {
-      await api.updateProduct(updatedProduct);
+      const result = await api.updateProduct(updatedProduct);
+      if (result && result.id) {
+        setProducts((prev) => {
+          const updated = prev.map((p) => (p.id === result.id ? { ...p, ...result } : p));
+          safeSetLocalStorage('ml_products', JSON.stringify(updated));
+          return updated;
+        });
+      }
     } catch (e) {
       console.error("Failed to edit product:", e);
     }
@@ -1475,6 +1505,32 @@ export default function App() {
     }
   };
 
+  const handleAddComplaint = async (newC: Partial<Complaint>): Promise<Complaint> => {
+    const created = await api.createComplaint(newC);
+    setComplaints((prev) => [created, ...prev]);
+    return created;
+  };
+
+  const handleUpdateComplaint = async (updated: Complaint): Promise<Complaint> => {
+    const res = await api.updateComplaint(updated);
+    setComplaints((prev) => prev.map((c) => (c.id === updated.id ? res : c)));
+    return res;
+  };
+
+  const handleDeleteComplaint = async (id: string): Promise<boolean> => {
+    const success = await api.deleteComplaint(id);
+    if (success) {
+      setComplaints((prev) => prev.filter((c) => c.id !== id));
+    }
+    return success;
+  };
+
+  const handleAddComplaintCallLog = async (complaintId: string, log: { representativeName: string; notes: string; customerResponse?: string }): Promise<Complaint> => {
+    const updated = await api.addComplaintCallLog(complaintId, log);
+    setComplaints((prev) => prev.map((c) => (c.id === complaintId ? updated : c)));
+    return updated;
+  };
+
   // --- Filtering & Searching logic ---
   const filteredProducts = products.filter((product) => {
     // Filter out inactive and unapproved entrepreneur products
@@ -1563,7 +1619,7 @@ export default function App() {
   sectionsList.push({
     id: 'section-produced',
     title: 'আমাদের উৎপাদিত',
-    subtitle: 'Prepared by SathkiraPremium',
+    subtitle: 'Prepared by Satkhira Premium',
     categoryName: 'all',
     btnText: 'সবগুলো দেখুন',
     isSpecialProduced: true,
@@ -1683,6 +1739,11 @@ export default function App() {
           loggedInUser={loggedInUser}
           withdrawRequests={withdrawRequests}
           onUpdateWithdrawRequest={handleUpdateWithdrawRequest}
+          complaints={complaints}
+          onAddComplaint={handleAddComplaint}
+          onUpdateComplaint={handleUpdateComplaint}
+          onDeleteComplaint={handleDeleteComplaint}
+          onAddComplaintCallLog={handleAddComplaintCallLog}
           initialTab={adminInitialTab}
           initialSearchQuery={adminInitialSearch}
         />
@@ -1709,7 +1770,7 @@ export default function App() {
         />
       ) : (
         <>
-          {/* 1. Header (ম্যাংগো লাভার) */}
+          {/* 1. Header (সাতক্ষীরা প্রিমিয়াম) */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-100 shadow-xs">
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
           {/* Brand Logo & Name */}
@@ -2371,6 +2432,14 @@ export default function App() {
         <div className="bg-gray-50 border-t border-gray-100 overflow-x-auto md:overflow-visible">
           <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-5 md:gap-0 md:justify-between py-2.5 text-xs font-bold text-gray-600 whitespace-nowrap relative md:overflow-visible">
             <button
+              onClick={() => { setActivePage('offers'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              className={`pb-1 px-3 py-1 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white shadow-xs font-black animate-pulse ${
+                activePage === 'offers' ? 'ring-2 ring-offset-2 ring-amber-500' : ''
+              }`}
+            >
+              <span>⚡ স্পেশাল অফার</span>
+            </button>
+            <button
               onClick={() => { setActivePage('home'); setCurrentCategory('all'); setShowAllProducts(true); setShowOnlyProduced(false); setSearchQuery(''); setViewingDetailsProduct(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               className={`pb-1 px-1 transition-all cursor-pointer ${
                 activePage === 'home' && currentCategory === 'all' && showAllProducts && !showOnlyProduced
@@ -2515,7 +2584,45 @@ export default function App() {
       </section>
 
       <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
-        {activePage === 'about' ? (
+        {activePage === 'offers' ? (
+          <div className="w-full space-y-8 py-4 max-w-6xl mx-auto">
+            {/* Elegant Header Banner for Offers */}
+            <div className="bg-amber-500/10 border border-amber-200/80 rounded-3xl p-8 md:p-12 text-center space-y-3 animate-fade-in">
+              <div className="w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center mx-auto shadow-md">
+                <Gift className="w-6 h-6 animate-pulse" />
+              </div>
+              <h1 className="text-3xl md:text-4xl font-extrabold text-amber-950 font-sans tracking-tight">
+                বিশেষ অফার ও ডিসকাউন্ট সমাহার (Special Offers)
+              </h1>
+              <p className="text-sm md:text-base text-amber-900/80 font-bold max-w-2xl mx-auto">
+                আমাদের সমস্ত ডিসকাউন্ট ও অফারকৃত খাঁটি পণ্যসমূহ এক নজরে দেখুন। 500 গ্রাম থেকে শুরু করে বিভিন্ন সাইজের আকর্ষণীয় ছাড়ে প্রিমিয়ার প্রোডাক্ট সংগ্রহ করুন।
+              </p>
+              <div className="flex items-center justify-center gap-2 text-xs md:text-sm font-bold text-amber-800 pt-2">
+                <button onClick={() => setActivePage('home')} className="hover:text-orange-500 cursor-pointer">Home</button>
+                <span className="text-gray-400">/</span>
+                <span className="text-amber-900 font-extrabold">Special Offers</span>
+              </div>
+            </div>
+
+            {/* Offer Products Grid */}
+            <OfferSection
+              products={products.filter(p => isProductVisibleToCustomer(p))}
+              onAddToCart={handleAddToCart}
+              onDirectBuy={handleDirectBuy}
+              onSelectProduct={startProductLoadingTransition}
+            />
+
+            {/* Back to Home Button */}
+            <div className="text-center pt-8">
+              <button 
+                onClick={() => setActivePage('home')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm px-8 py-3.5 rounded-2xl shadow-md cursor-pointer hover:scale-102 transition-all"
+              >
+                হোম পেইজে ফিরে যান
+              </button>
+            </div>
+          </div>
+        ) : activePage === 'about' ? (
           <div className="w-full space-y-8 py-4">
             {/* Title block */}
             <div className="text-center space-y-4 max-w-3xl mx-auto">
@@ -2656,10 +2763,10 @@ export default function App() {
                       ইমেইল
                     </h4>
                     <a 
-                      href={`mailto:${siteConfig.contactEmail || 'info@SathkiraPremium.com.bd'}`}
+                      href={`mailto:${siteConfig.contactEmail || 'info@satkhirapremium.com.bd'}`}
                       className="text-xs md:text-sm text-gray-700 font-bold hover:text-orange-500 transition-colors break-all"
                     >
-                      {siteConfig.contactEmail || 'info.SathkiraPremium@gmail.com'}
+                      {siteConfig.contactEmail || 'info AT satkhirapremium.com.bd'}
                     </a>
                   </div>
 
@@ -2874,9 +2981,18 @@ export default function App() {
               if (size) {
                 targetProduct.unit = size;
                 if (p.sizePrices?.[size]) {
-                  targetProduct.price = p.sizePrices[size].price;
-                  targetProduct.originalPrice = p.sizePrices[size].originalPrice;
+                  const sp = p.sizePrices[size];
+                  if (p.isOffer && sp.offerPrice && sp.offerPrice > 0) {
+                    targetProduct.price = sp.offerPrice;
+                    targetProduct.originalPrice = sp.originalPrice || sp.price;
+                  } else {
+                    targetProduct.price = sp.price;
+                    targetProduct.originalPrice = sp.originalPrice;
+                  }
                 }
+              } else if (p.isOffer && p.offerPrice && p.offerPrice > 0) {
+                targetProduct.price = p.offerPrice;
+                targetProduct.originalPrice = p.originalPrice || p.price;
               }
               setDirectBuyItem({ product: targetProduct, quantity: qty });
               setIsCheckoutOpen(true);
@@ -3007,6 +3123,27 @@ export default function App() {
               })}
             </div>
           </section>
+        )}
+
+        {/* Single-Line Running Featured Deals & Special Offers Section */}
+        {!isShopActive && (
+          <FeaturedDealsSection
+            products={products.filter(p => isProductVisibleToCustomer(p))}
+            onAddToCart={handleAddToCart}
+            onDirectBuy={handleDirectBuy}
+            onSelectProduct={(p) => setViewingDetailsProduct(p)}
+            onViewAllOffers={() => { setActivePage('offers'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          />
+        )}
+
+        {/* Best Seller Section */}
+        {!isShopActive && (
+          <BestSellerSection
+            products={products.filter(p => isProductVisibleToCustomer(p))}
+            onAddToCart={handleAddToCart}
+            onDirectBuy={handleDirectBuy}
+            onSelectProduct={(p) => setViewingDetailsProduct(p)}
+          />
         )}
 
         {/* 5. Main Product Listing Section */}
@@ -3201,12 +3338,11 @@ export default function App() {
               const layoutPattern = index % 4; // 0, 1, 2, 3
               const isSubsequent = index >= 3;
               
-              // Filter products for this section
+              // Filter products for this section (include all visible products)
               let secProducts: Product[] = [];
               if (sec.isSpecialProduced) {
                 secProducts = products
-                  .filter((p) => p.category !== 'মধু' && p.category !== 'ফ্রেশ আম' && isProductVisibleToCustomer(p))
-                  .slice(0, 6);
+                  .filter((p) => p.category !== 'মধু' && p.category !== 'ফ্রেশ আম' && isProductVisibleToCustomer(p));
               } else {
                 secProducts = products
                   .filter((p) => p.category === sec.categoryName && isProductVisibleToCustomer(p));
@@ -3215,9 +3351,20 @@ export default function App() {
               // If there are no products in this section, we skip rendering it
               if (secProducts.length === 0) return null;
 
-              // For banner layouts (layoutPattern === 1 or 3), slice products to 4, otherwise to 6
-              const displayLimit = (layoutPattern === 1 || layoutPattern === 3) ? 4 : 6;
-              const productsToRender = secProducts.slice(0, displayLimit);
+              const handleViewAllCategory = () => {
+                if (sec.isSpecialProduced) {
+                  setShowOnlyProduced(true);
+                  setCurrentCategory('all');
+                  setShowAllProducts(false);
+                } else {
+                  setCurrentCategory(sec.categoryName);
+                  setShowAllProducts(false);
+                  setShowOnlyProduced(false);
+                }
+                setSearchQuery('');
+                setViewingDetailsProduct(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              };
 
               // Let's implement the 4 layout designs:
               if (layoutPattern === 0) {
@@ -3234,40 +3381,31 @@ export default function App() {
                         </h2>
                       </div>
                       
-                      <button
-                        onClick={() => {
-                          if (sec.isSpecialProduced) {
-                            setShowOnlyProduced(true);
-                            setShowAllProducts(false);
-                          } else {
-                            setCurrentCategory(sec.categoryName);
-                            setShowAllProducts(false);
-                            setShowOnlyProduced(false);
-                          }
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className="font-bold text-xs md:text-sm px-5 py-2.5 rounded-lg transition-all cursor-pointer bg-orange-50/50 hover:bg-orange-50 text-orange-600 border border-orange-100"
-                      >
-                        {sec.btnText}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleViewAllCategory}
+                          className="font-bold text-xs md:text-sm px-5 py-2.5 rounded-xl transition-all cursor-pointer bg-orange-50/80 hover:bg-orange-100 text-orange-600 border border-orange-200 flex items-center gap-1.5 shadow-2xs active:scale-95 group"
+                        >
+                          <span>{sec.btnText || 'সব দেখুন'}</span>
+                          <span className="group-hover:translate-x-1 transition-transform">→</span>
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
-                      {productsToRender.map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          onAddToCart={(p) => handleAddToCart(p)}
-                          onSelect={handleSelectProduct}
-                          onDirectBuy={handleDirectBuy}
-                          onQuickView={handleQuickView}
-                          onRequestProduct={handleOpenRequestModal}
-                          onViewImage={setZoomImage}
-                          isCompact={isSubsequent}
-                          sellerName={product.sellerId ? (users.find(u => u.id === product.sellerId)?.shopName || users.find(u => u.id === product.sellerId)?.name) : undefined}
-                        />
-                      ))}
-                    </div>
+                    <CategoryProductCarousel
+                      products={secProducts}
+                      cardsPerViewDesktop={5}
+                      intervalSeconds={5}
+                      onAddToCart={(p) => handleAddToCart(p)}
+                      onSelect={handleSelectProduct}
+                      onDirectBuy={handleDirectBuy}
+                      onQuickView={handleQuickView}
+                      onRequestProduct={handleOpenRequestModal}
+                      onViewImage={setZoomImage}
+                      isCompact={isSubsequent}
+                      users={users}
+                    />
                   </section>
                 );
               } else if (layoutPattern === 1) {
@@ -3287,8 +3425,8 @@ export default function App() {
                         />
                       </div>
 
-                      {/* Right content containing header & 4 cards */}
-                      <div className="flex-grow flex flex-col justify-between">
+                      {/* Right content containing header & cards */}
+                      <div className="flex-grow flex flex-col justify-between overflow-hidden">
                         {/* Header row */}
                         <div className="flex items-center justify-between mb-5 border-b border-gray-50 pb-4">
                           <div className="flex flex-col">
@@ -3301,35 +3439,29 @@ export default function App() {
                           </div>
                           
                           <button
-                            onClick={() => {
-                              setCurrentCategory(sec.categoryName);
-                              setShowAllProducts(false);
-                              setShowOnlyProduced(false);
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                            }}
-                            className={`${bgBtnClass} active:scale-98 text-white font-extrabold text-xs md:text-sm px-6 py-2.5 rounded-xl transition-all shadow-md cursor-pointer shrink-0`}
+                            type="button"
+                            onClick={handleViewAllCategory}
+                            className={`${bgBtnClass} active:scale-95 text-white font-extrabold text-xs md:text-sm px-5 py-2.5 rounded-xl transition-all shadow-md cursor-pointer shrink-0 flex items-center gap-1.5 group`}
                           >
-                            {sec.btnText}
+                            <span>{sec.btnText || 'সব দেখুন'}</span>
+                            <span className="group-hover:translate-x-1 transition-transform">→</span>
                           </button>
                         </div>
 
-                        {/* Products Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
-                          {productsToRender.map((product) => (
-                            <ProductCard
-                              key={product.id}
-                              product={product}
-                              onAddToCart={(p) => handleAddToCart(p)}
-                              onSelect={handleSelectProduct}
-                              onDirectBuy={handleDirectBuy}
-                              onQuickView={handleQuickView}
-                              onRequestProduct={handleOpenRequestModal}
-                              onViewImage={setZoomImage}
-                              isCompact={isSubsequent}
-                              sellerName={product.sellerId ? (users.find(u => u.id === product.sellerId)?.shopName || users.find(u => u.id === product.sellerId)?.name) : undefined}
-                            />
-                          ))}
-                        </div>
+                        {/* Products Carousel / Static View */}
+                        <CategoryProductCarousel
+                          products={secProducts}
+                          cardsPerViewDesktop={4}
+                          intervalSeconds={5}
+                          onAddToCart={(p) => handleAddToCart(p)}
+                          onSelect={handleSelectProduct}
+                          onDirectBuy={handleDirectBuy}
+                          onQuickView={handleQuickView}
+                          onRequestProduct={handleOpenRequestModal}
+                          onViewImage={setZoomImage}
+                          isCompact={isSubsequent}
+                          users={users}
+                        />
                       </div>
                     </div>
                   </section>
@@ -3356,36 +3488,30 @@ export default function App() {
                       </div>
                       
                       <button
-                        onClick={() => {
-                          setCurrentCategory(sec.categoryName);
-                          setShowAllProducts(false);
-                          setShowOnlyProduced(false);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className={`${btnClass} active:scale-98 text-white font-extrabold text-xs md:text-sm px-6 py-2.5 rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1.5`}
+                        type="button"
+                        onClick={handleViewAllCategory}
+                        className={`${btnClass} active:scale-95 text-white font-extrabold text-xs md:text-sm px-5 py-2.5 rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1.5 group`}
                       >
-                        <span>{sec.btnText}</span>
-                        <span>→</span>
+                        <span>{sec.btnText || 'সব দেখুন'}</span>
+                        <span className="group-hover:translate-x-1 transition-transform">→</span>
                       </button>
                     </div>
 
-                    {/* Grid Layout */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 relative z-10">
-                      {productsToRender.map((product) => (
-                        <div key={product.id} className="col-span-1">
-                          <ProductCard
-                            product={product}
-                            onAddToCart={(p) => handleAddToCart(p)}
-                            onSelect={handleSelectProduct}
-                            onDirectBuy={handleDirectBuy}
-                            onQuickView={handleQuickView}
-                            onRequestProduct={handleOpenRequestModal}
-                            onViewImage={setZoomImage}
-                            isCompact={isSubsequent}
-                            sellerName={product.sellerId ? (users.find(u => u.id === product.sellerId)?.shopName || users.find(u => u.id === product.sellerId)?.name) : undefined}
-                          />
-                        </div>
-                      ))}
+                    {/* Products Carousel / Static View */}
+                    <div className="relative z-10">
+                      <CategoryProductCarousel
+                        products={secProducts}
+                        cardsPerViewDesktop={5}
+                        intervalSeconds={5}
+                        onAddToCart={(p) => handleAddToCart(p)}
+                        onSelect={handleSelectProduct}
+                        onDirectBuy={handleDirectBuy}
+                        onQuickView={handleQuickView}
+                        onRequestProduct={handleOpenRequestModal}
+                        onViewImage={setZoomImage}
+                        isCompact={isSubsequent}
+                        users={users}
+                      />
                     </div>
                   </section>
                 );
@@ -3396,20 +3522,17 @@ export default function App() {
                 return (
                   <section key={sec.id} className={`border-2 ${borderClass} rounded-3xl p-4 sm:p-6 bg-white shadow-xs relative overflow-hidden`}>
                     <div className="flex flex-col md:flex-row gap-6 items-stretch">
-                      {/* Left content containing header & 4 cards */}
-                      <div className="flex-grow flex flex-col justify-between order-2 md:order-1">
+                      {/* Left content containing header & cards */}
+                      <div className="flex-grow flex flex-col justify-between order-2 md:order-1 overflow-hidden">
                         {/* Header row with button on the left and title on the right */}
                         <div className="flex items-center justify-between mb-5 border-b border-gray-50 pb-4">
                           <button
-                            onClick={() => {
-                              setCurrentCategory(sec.categoryName);
-                              setShowAllProducts(false);
-                              setShowOnlyProduced(false);
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                            }}
-                            className={`${bgBtnClass} active:scale-98 text-white font-extrabold text-xs md:text-sm px-6 py-2.5 rounded-xl transition-all shadow-md cursor-pointer shrink-0`}
+                            type="button"
+                            onClick={handleViewAllCategory}
+                            className={`${bgBtnClass} active:scale-95 text-white font-extrabold text-xs md:text-sm px-5 py-2.5 rounded-xl transition-all shadow-md cursor-pointer shrink-0 flex items-center gap-1.5 group`}
                           >
-                            {sec.btnText}
+                            <span>{sec.btnText || 'সব দেখুন'}</span>
+                            <span className="group-hover:translate-x-1 transition-transform">→</span>
                           </button>
 
                           <div className="flex flex-col text-right">
@@ -3422,23 +3545,20 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* Products Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
-                          {productsToRender.map((product) => (
-                            <ProductCard
-                              key={product.id}
-                              product={product}
-                              onAddToCart={(p) => handleAddToCart(p)}
-                              onSelect={handleSelectProduct}
-                              onDirectBuy={handleDirectBuy}
-                              onQuickView={handleQuickView}
-                              onRequestProduct={handleOpenRequestModal}
-                              onViewImage={setZoomImage}
-                              isCompact={isSubsequent}
-                              sellerName={product.sellerId ? (users.find(u => u.id === product.sellerId)?.shopName || users.find(u => u.id === product.sellerId)?.name) : undefined}
-                            />
-                          ))}
-                        </div>
+                        {/* Products Carousel / Static View */}
+                        <CategoryProductCarousel
+                          products={secProducts}
+                          cardsPerViewDesktop={4}
+                          intervalSeconds={5}
+                          onAddToCart={(p) => handleAddToCart(p)}
+                          onSelect={handleSelectProduct}
+                          onDirectBuy={handleDirectBuy}
+                          onQuickView={handleQuickView}
+                          onRequestProduct={handleOpenRequestModal}
+                          onViewImage={setZoomImage}
+                          isCompact={isSubsequent}
+                          users={users}
+                        />
                       </div>
 
                       {/* Right Big Banner */}
@@ -3792,37 +3912,71 @@ export default function App() {
               <div className="flex flex-wrap items-center justify-center gap-3">
                 {/* bKash */}
                 <div className="bg-white hover:bg-[#FFF0F5] border border-stone-200 hover:border-pink-300 px-3 py-1.5 rounded-xl select-none transition-all duration-300 flex items-center justify-center gap-1.5 h-9 hover:shadow-md cursor-pointer group">
-                  <span className="w-5 h-5 rounded-full bg-[#D12053] text-white font-black text-[11px] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">b</span>
+                  <img 
+                    src="https://abcd-bd.org/assets/img/bkash.png" 
+                    alt="bKash" 
+                    referrerPolicy="no-referrer"
+                    className="h-4.5 w-auto object-contain group-hover:scale-105 transition-transform"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.onerror = null;
+                      target.src = "https://www.logo.wine/a/logo/BKash/BKash-Logo.wine.svg";
+                    }}
+                  />
                   <span className="text-[11px] font-black text-[#D12053] tracking-tight">বিকাশ</span>
                 </div>
 
                 {/* Nagad */}
                 <div className="bg-white hover:bg-[#FFF5EE] border border-stone-200 hover:border-orange-300 px-3 py-1.5 rounded-xl select-none transition-all duration-300 flex items-center justify-center gap-1.5 h-9 hover:shadow-md cursor-pointer group">
-                  <span className="w-5 h-5 rounded-full bg-[#F15A22] text-white font-black text-[11px] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">ন</span>
+                  <img 
+                    src="https://abcd-bd.org/assets/img/nagad.png" 
+                    alt="Nagad" 
+                    referrerPolicy="no-referrer"
+                    className="h-4.5 w-auto object-contain group-hover:scale-105 transition-transform"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.onerror = null;
+                      target.src = "https://www.logo.wine/a/logo/Nagad/Nagad-Logo.wine.svg";
+                    }}
+                  />
                   <span className="text-[11px] font-black text-[#F15A22] tracking-tight">নগদ</span>
                 </div>
 
                 {/* Rocket */}
                 <div className="bg-white hover:bg-[#F8F0FC] border border-stone-200 hover:border-purple-300 px-3 py-1.5 rounded-xl select-none transition-all duration-300 flex items-center justify-center gap-1.5 h-9 hover:shadow-md cursor-pointer group">
-                  <span className="w-5 h-5 rounded-full bg-[#8C3494] text-white font-black text-[11px] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">R</span>
+                  <img 
+                    src="https://upload.wikimedia.org/wikipedia/commons/f/f7/Rocket_mobile_banking_logo.svg" 
+                    alt="Rocket" 
+                    referrerPolicy="no-referrer"
+                    className="h-4.5 w-auto object-contain group-hover:scale-105 transition-transform"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.onerror = null;
+                      target.src = "https://abcd-bd.org/assets/img/rocket.png";
+                    }}
+                  />
                   <span className="text-[11px] font-black text-[#8C3494] tracking-tight">রকেট</span>
                 </div>
 
                 {/* Visa Card */}
                 <div className="bg-white hover:bg-[#F0F4FC] border border-stone-200 hover:border-blue-300 px-3 py-1.5 rounded-xl select-none transition-all duration-300 flex items-center justify-center gap-1.5 h-9 hover:shadow-md cursor-pointer group">
-                  <svg className="h-3.5 w-auto group-hover:scale-105 transition-transform" viewBox="0 0 36 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14.63 0.22L9.58 11.78H6.55L4.01 2.53C3.86 1.95 3.44 1.51 2.91 1.25C1.98 0.77 0.94 0.4 0 0.2L0.06 0.22H4.96C5.62 0.22 6.2 0.65 6.33 1.34L7.54 7.78L10.63 0.22H14.63ZM27.08 8.16C27.09 5.04 22.77 4.87 22.8 3.48C22.81 3.06 23.22 2.61 24.18 2.48C24.66 2.41 26.01 2.36 27.53 3.06L28.12 0.38C27.31 0.08 26.27 -0.01 24.96 0.0001C21.89 0.0001 19.72 1.63 19.7 3.96C19.67 5.69 21.25 6.66 22.43 7.24C23.65 7.84 24.06 8.22 24.05 8.75C24.04 9.57 23.05 9.93 22.13 9.94C20.57 9.96 19.67 9.51 18.96 9.18L18.35 11.96C19.2 12.35 20.78 12.69 22.4 12.71C25.68 12.71 27.81 11.09 27.08 8.16ZM34.98 11.78H38L35.37 0.22H32.73C32.08 0.22 31.54 0.6 31.3 1.18L26.75 11.78H29.93L30.57 10.03H34.46L34.98 11.78ZM31.43 7.64L32.99 3.37L33.88 7.64H31.43ZM19.26 0.22L16.89 11.78H13.88L16.25 0.22H19.26Z" fill="#1A1F71"/>
-                  </svg>
+                  <img 
+                    src="https://static.vecteezy.com/system/resources/thumbnails/020/975/570/small/visa-logo-visa-icon-transparent-free-png.png" 
+                    alt="Visa" 
+                    referrerPolicy="no-referrer"
+                    className="h-3.5 w-auto object-contain group-hover:scale-105 transition-transform"
+                  />
                   <span className="text-[11px] font-black text-[#1A1F71] tracking-tight">ভিসা</span>
                 </div>
 
                 {/* Mastercard */}
                 <div className="bg-white hover:bg-[#FCF5F0] border border-stone-200 hover:border-amber-300 px-3 py-1.5 rounded-xl select-none transition-all duration-300 flex items-center justify-center gap-1.5 h-9 hover:shadow-md cursor-pointer group">
-                  <svg className="h-4 w-auto group-hover:scale-105 transition-transform" viewBox="0 0 36 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="13" cy="11" r="7" fill="#EB001B"/>
-                    <circle cx="23" cy="11" r="7" fill="#F79E1B"/>
-                    <path d="M18 5.76C19.5 7.02 20.44 8.9 20.44 11C20.44 13.1 19.5 14.98 18 16.24C16.5 14.98 15.56 13.1 15.56 11C15.56 8.9 16.5 7.02 18 5.76Z" fill="#FF5F00"/>
-                  </svg>
+                  <img 
+                    src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" 
+                    alt="Mastercard" 
+                    referrerPolicy="no-referrer"
+                    className="h-4 w-auto object-contain group-hover:scale-105 transition-transform"
+                  />
                   <span className="text-[11px] font-black text-[#F79E1B] tracking-tight">মাস্টারকার্ড</span>
                 </div>
               </div>
@@ -3832,10 +3986,10 @@ export default function App() {
           {/* Bottom Copyright & Rights Bar */}
           <div className="border-t border-emerald-950/40 mt-8 pt-6 flex flex-col items-center justify-center text-center gap-1.5 text-xs font-semibold text-gray-400">
             <div>
-              © 2026 <span className="text-white font-extrabold">SathkiraPremium</span>. All rights reserved.
+              © 2026 <span className="text-white font-extrabold">Satkhira Premium</span>. All rights reserved.
             </div>
-            <div className="text-gray-400 text-xs font-medium tracking-wide">
-              Designe and Developed by
+            <div className="text-xs font-semibold tracking-wider">
+              <span className="animate-developer-label">Designe and Developed by</span>
             </div>
           </div>
 
@@ -3976,13 +4130,24 @@ export default function App() {
                     {/* Pricing */}
                     <div className="flex items-baseline gap-2">
                       <span className="text-xl md:text-2xl font-black text-orange-600">
-                        {(quickViewSize && selectedProduct.sizePrices?.[quickViewSize]) ? selectedProduct.sizePrices[quickViewSize].price : selectedProduct.price}৳
+                        {(() => {
+                          const sp = quickViewSize ? selectedProduct.sizePrices?.[quickViewSize] : undefined;
+                          if (selectedProduct.isOffer && sp?.offerPrice) return sp.offerPrice;
+                          if (selectedProduct.isOffer && selectedProduct.offerPrice) return selectedProduct.offerPrice;
+                          return sp ? sp.price : selectedProduct.price;
+                        })()}৳
                       </span>
-                      {((quickViewSize && selectedProduct.sizePrices?.[quickViewSize]) ? selectedProduct.sizePrices[quickViewSize].originalPrice : selectedProduct.originalPrice) !== undefined && (
-                        <span className="text-xs md:text-sm text-red-500 line-through font-medium">
-                          {(quickViewSize && selectedProduct.sizePrices?.[quickViewSize]) ? selectedProduct.sizePrices[quickViewSize].originalPrice : selectedProduct.originalPrice}৳
-                        </span>
-                      )}
+                      {(() => {
+                        const sp = quickViewSize ? selectedProduct.sizePrices?.[quickViewSize] : undefined;
+                        const orig = (selectedProduct.isOffer && sp?.offerPrice)
+                          ? (sp.originalPrice || sp.price)
+                          : (sp?.originalPrice !== undefined ? sp.originalPrice : selectedProduct.originalPrice);
+                        return orig !== undefined ? (
+                          <span className="text-xs md:text-sm text-red-500 line-through font-medium">
+                            {orig}৳
+                          </span>
+                        ) : null;
+                      })()}
                     </div>
 
                     {/* Size/Ozon Selector */}
@@ -4108,6 +4273,7 @@ export default function App() {
         siteConfig={siteConfig}
         currentUser={loggedInUser}
         orders={orders}
+        onAddComplaint={handleAddComplaint}
       />
 
       {/* 9.1. Secure Login & Registration Modal */}
@@ -4135,6 +4301,7 @@ export default function App() {
         onClose={() => setIsTrackOrderOpen(false)}
         orders={orders}
         siteConfig={siteConfig}
+        onAddComplaint={handleAddComplaint}
       />
       
       {/* Product Request Form Modal */}

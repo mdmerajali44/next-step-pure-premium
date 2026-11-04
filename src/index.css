@@ -165,18 +165,14 @@
   display: inline-block;
 }
 
-/* Video-style DataDropX continuous stroke-to-color-fill auto-loop animation (Left to Right + 2s Pause) */
+/* Continuous stroke-to-color-fill auto-loop animation (runs every 4s continuously with no stopping anywhere) */
 @keyframes fill-wipe-loop {
   0% {
     background-position: 100% 0;
     filter: drop-shadow(0 0 2px rgba(249, 115, 22, 0.2));
   }
-  30% {
+  50% {
     filter: drop-shadow(0 0 28px rgba(249, 115, 22, 0.85));
-  }
-  60% {
-    background-position: 0% 0;
-    filter: drop-shadow(0 0 2px rgba(249, 115, 22, 0.2));
   }
   100% {
     background-position: 0% 0;
@@ -203,8 +199,36 @@
   -webkit-text-fill-color: transparent;
   color: transparent;
   -webkit-text-stroke: 1.5px #f97316;
-  animation: fill-wipe-loop 5s ease-in-out infinite;
+  animation: fill-wipe-loop 4s linear infinite;
   display: inline-block;
 }
 
+@keyframes developer-label-sweep {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.animate-developer-label {
+  background: linear-gradient(
+    90deg,
+    #9ca3af 0%,
+    #9ca3af 25%,
+    #f97316 48%,
+    #ffedd5 52%,
+    #f97316 56%,
+    #9ca3af 75%,
+    #9ca3af 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: developer-label-sweep 4s linear infinite;
+  display: inline-block;
+}
 

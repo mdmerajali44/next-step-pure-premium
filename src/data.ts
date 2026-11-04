@@ -71,6 +71,14 @@ export const INITIAL_PRODUCTS: Product[] = [
     unit: '0.5 KG',
     stock: 40,
     isFeatured: true,
+    isBestSeller: true,
+    isOffer: true,
+    offerPrice: 700,
+    sizes: ['0.5 KG', '1 KG'],
+    sizePrices: {
+      '0.5 KG': { price: 750, originalPrice: 850, offerPrice: 700 },
+      '1 KG': { price: 1450, originalPrice: 1650, offerPrice: 1350 }
+    },
     rating: 5.0,
     reviewsCount: 52,
   },
@@ -206,6 +214,14 @@ export const INITIAL_PRODUCTS: Product[] = [
     unit: '1 KG',
     stock: 15,
     isFeatured: true,
+    isBestSeller: true,
+    isOffer: true,
+    offerPrice: 700,
+    sizes: ['0.5 KG', '1 KG'],
+    sizePrices: {
+      '0.5 KG': { price: 400, originalPrice: 480, offerPrice: 380 },
+      '1 KG': { price: 750, originalPrice: 900, offerPrice: 700 }
+    },
     rating: 5.0,
     reviewsCount: 64,
   },

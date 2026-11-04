@@ -1,4 +1,4 @@
-import { Product, Order, Category, SiteConfig, User, WithdrawRequest, ProductRequest } from "./types";
+import { Product, Order, Category, SiteConfig, User, WithdrawRequest, ProductRequest, Complaint } from "./types";
 
 // Dynamic API URL from Vite environment variables (.env / .env.local)
 // In production or when hosted together, empty string '' uses relative path, which is best for Render
@@ -72,12 +72,20 @@ export const api = {
 
   // --- CATEGORIES ---
   getCategories: async (fallback: Category[]): Promise<Category[]> => {
+    const saved = localStorage.getItem("ml_categories");
+    let localCategories: Category[] = [];
+    try {
+      if (saved) localCategories = JSON.parse(saved);
+    } catch (e) {}
+
     try {
       const list = await apiRequest<Category[]>("/api/categories");
-      return Array.isArray(list) ? list : fallback;
+      if (Array.isArray(list) && list.length > 0) {
+        return list;
+      }
+      return localCategories.length > 0 ? localCategories : fallback;
     } catch {
-      const saved = localStorage.getItem("ml_categories");
-      return saved ? JSON.parse(saved) : fallback;
+      return localCategories.length > 0 ? localCategories : fallback;
     }
   },
   createCategory: async (category: Category): Promise<Category> => {
@@ -274,12 +282,39 @@ export const api = {
 
   // --- SITE CONFIG ---
   getSiteConfig: async (fallback: SiteConfig): Promise<SiteConfig> => {
+    const saved = localStorage.getItem("mango_lover_site_config");
+    let localObj: Partial<SiteConfig> = {};
+    try {
+      if (saved) localObj = JSON.parse(saved);
+    } catch (e) {}
+
     try {
       const config = await apiRequest<SiteConfig | null>("/api/siteconfig");
-      return config ? { ...fallback, ...config } : fallback;
+      if (config) {
+        return {
+          ...fallback,
+          ...config,
+          categoryImages: {
+            ...(fallback.categoryImages || {}),
+            ...(config.categoryImages || {}),
+            ...(localObj.categoryImages || {})
+          },
+          categoryBanners: {
+            ...(fallback.categoryBanners || {}),
+            ...(config.categoryBanners || {}),
+            ...(localObj.categoryBanners || {})
+          },
+          categoryNames: {
+            ...(fallback.categoryNames || {}),
+            ...(config.categoryNames || {}),
+            ...(localObj.categoryNames || {})
+          },
+          ...(localObj || {})
+        };
+      }
+      return { ...fallback, ...localObj };
     } catch {
-      const saved = localStorage.getItem("mango_lover_site_config");
-      return saved ? { ...fallback, ...JSON.parse(saved) } : fallback;
+      return { ...fallback, ...localObj };
     }
   },
   updateSiteConfig: async (config: SiteConfig): Promise<SiteConfig> => {
@@ -290,6 +325,77 @@ export const api = {
       });
     } catch {
       return config;
+    }
+  },
+
+  // --- COMPLAINTS & CRM ---
+  getComplaints: async (fallback: Complaint[] = []): Promise<Complaint[]> => {
+    try {
+      const list = await apiRequest<Complaint[]>("/api/complaints");
+      return Array.isArray(list) ? list : fallback;
+    } catch (e) {
+      console.warn("API getComplaints failed, falling back to local:", e);
+      const saved = localStorage.getItem("ml_complaints");
+      return saved ? JSON.parse(saved) : fallback;
+    }
+  },
+  createComplaint: async (complaint: Partial<Complaint>): Promise<Complaint> => {
+    try {
+      return await apiRequest<Complaint>("/api/complaints", {
+        method: "POST",
+        body: JSON.stringify(complaint),
+      });
+    } catch (e) {
+      console.warn("API createComplaint failed, using local:", e);
+      const newC: Complaint = {
+        id: complaint.id || 'CMP-' + Math.floor(100000 + Math.random() * 900000),
+        orderId: complaint.orderId,
+        customerName: complaint.customerName || 'গ্রাহক',
+        customerPhone: complaint.customerPhone || '',
+        customerAddress: complaint.customerAddress,
+        issueCategory: complaint.issueCategory || 'other',
+        issueCategoryLabel: complaint.issueCategoryLabel || 'সাধারণ সমস্যা',
+        description: complaint.description || '',
+        priority: complaint.priority || 'normal',
+        status: complaint.status || 'pending',
+        createdAt: complaint.createdAt || new Date().toLocaleDateString("bn-BD"),
+        createdBy: complaint.createdBy || 'অ্যাডমিন',
+        callLogs: complaint.callLogs || []
+      };
+      return newC;
+    }
+  },
+  updateComplaint: async (complaint: Complaint): Promise<Complaint> => {
+    try {
+      return await apiRequest<Complaint>(`/api/complaints/${complaint.id}`, {
+        method: "PUT",
+        body: JSON.stringify(complaint),
+      });
+    } catch (e) {
+      console.warn("API updateComplaint failed:", e);
+      return complaint;
+    }
+  },
+  addComplaintCallLog: async (complaintId: string, logData: { representativeName: string; notes: string; customerResponse?: string }): Promise<Complaint> => {
+    try {
+      return await apiRequest<Complaint>(`/api/complaints/${complaintId}/call-log`, {
+        method: "POST",
+        body: JSON.stringify(logData),
+      });
+    } catch (e) {
+      console.warn("API addComplaintCallLog failed:", e);
+      throw e;
+    }
+  },
+  deleteComplaint: async (id: string): Promise<boolean> => {
+    try {
+      await apiRequest<{ success: boolean }>(`/api/complaints/${id}`, {
+        method: "DELETE",
+      });
+      return true;
+    } catch (e) {
+      console.warn("API deleteComplaint failed:", e);
+      return false;
     }
   },
 };

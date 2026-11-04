@@ -13,7 +13,8 @@ export const inMemoryStore: Record<string, any[]> = {
   SiteConfig: [],
   WithdrawRequest: [],
   ProductRequest: [],
-  ChatSession: []
+  ChatSession: [],
+  Complaint: []
 };
 
 function saveStoreToDisk() {
@@ -140,8 +141,8 @@ function findOneAndUpdateMock(modelName: string, filter: any, update: any) {
   let doc = arr.find(item => matchesFilter(item, filter));
   
   if (!doc) {
-    if (modelName === 'SiteConfig') {
-      doc = JSON.parse(JSON.stringify(update));
+    if (modelName === 'SiteConfig' || modelName === 'Product') {
+      doc = JSON.parse(JSON.stringify({ ...filter, ...update }));
       arr.push(doc);
       saveStoreToDisk();
       return wrapDoc(modelName, doc);

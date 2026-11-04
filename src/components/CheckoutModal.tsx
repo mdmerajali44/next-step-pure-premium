@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CartItem, Order, OrderStatus } from '../types';
 import { DISTRICTS } from '../data';
-import { X, Phone, User, MapPin, CheckCircle, Copy, Check, ShoppingBag, CreditCard, Lock } from 'lucide-react';
+import { X, Phone, User, MapPin, CheckCircle, Copy, Check, ShoppingBag, CreditCard, Lock, ShieldCheck, AlertCircle, AlertTriangle, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface CheckoutModalProps {
@@ -30,6 +30,7 @@ interface CheckoutModalProps {
   siteConfig?: any;
   currentUser?: any;
   orders?: Order[];
+  onAddComplaint?: (complaint: any) => Promise<any>;
 }
 
 
@@ -140,6 +141,7 @@ export default function CheckoutModal({
   siteConfig,
   currentUser,
   orders = [],
+  onAddComplaint,
 }: CheckoutModalProps) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -162,16 +164,38 @@ export default function CheckoutModal({
   const [trxId, setTrxId] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // Success screen state
+  // Success screen state & Complaint in Memo state
   const [orderSuccess, setOrderSuccess] = useState<Order | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showComplaintModal, setShowComplaintModal] = useState(false);
+  const [complaintCategory, setComplaintCategory] = useState<'damage' | 'delay' | 'wrong_item' | 'quality' | 'price' | 'behavior' | 'other'>('damage');
+  const [complaintPriority, setComplaintPriority] = useState<'normal' | 'high' | 'urgent'>('normal');
+  const [complaintDescription, setComplaintDescription] = useState('');
+  const [complaintSubmitting, setComplaintSubmitting] = useState(false);
+  const [complaintSuccessNotice, setComplaintSuccessNotice] = useState<string | null>(null);
 
   // Form validation errors
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  const deliveryCharge = shippingArea === 'inside_dhaka' ? 60 : 120;
+  // Dynamic delivery charge configured from Admin Panel
+  const chargeInside = siteConfig?.deliveryChargeInsideDhaka !== undefined && siteConfig?.deliveryChargeInsideDhaka !== null && siteConfig?.deliveryChargeInsideDhaka !== ''
+    ? Number(siteConfig.deliveryChargeInsideDhaka)
+    : 60;
+  const chargeOutside = siteConfig?.deliveryChargeOutsideDhaka !== undefined && siteConfig?.deliveryChargeOutsideDhaka !== null && siteConfig?.deliveryChargeOutsideDhaka !== ''
+    ? Number(siteConfig.deliveryChargeOutsideDhaka)
+    : 120;
+  const deliveryCharge = shippingArea === 'inside_dhaka' ? chargeInside : chargeOutside;
   const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const total = Math.max(0, subtotal - discount + deliveryCharge);
+
+  // Auto-sync shippingArea based on selected district and division
+  useEffect(() => {
+    if (selectedDivision === 'ঢাকা' && selectedDistrict === 'ঢাকা') {
+      setShippingArea('inside_dhaka');
+    } else {
+      setShippingArea('outside_dhaka');
+    }
+  }, [selectedDivision, selectedDistrict]);
 
   const handleApplyCoupon = () => {
     const code = couponCode.trim().toUpperCase();
@@ -393,25 +417,28 @@ export default function CheckoutModal({
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-2 md:p-6 bg-black/60 backdrop-blur-xs">
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={orderSuccess ? handleClose : onClose}
-            className="fixed inset-0 cursor-pointer"
-          />
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <div key="checkout-modal-root" className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-2 md:p-6 bg-black/60 backdrop-blur-xs">
+            {/* Backdrop */}
+            <motion.div
+              key="checkout-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={orderSuccess ? handleClose : onClose}
+              className="fixed inset-0 cursor-pointer"
+            />
 
-          {/* Modal Container */}
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 15 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 15 }}
-            className="bg-[#f7f8fa] w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[95vh]"
-            id="checkout-modal-panel"
+            {/* Modal Container */}
+            <motion.div
+              key="checkout-panel"
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              className="bg-[#f7f8fa] w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[95vh]"
+              id="checkout-modal-panel"
           >
             {/* Close Button */}
             <button
@@ -430,7 +457,7 @@ export default function CheckoutModal({
                     <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-2 border-orange-100 shadow-xs mb-3">
                       <img 
                         src="/src/assets/images/mango_lover_logo_1782453485561.jpg" 
-                        alt="Satkhira Premium Logo" 
+                        alt="Mango Lover Logo" 
                         className="w-full h-full object-cover scale-105"
                         referrerPolicy="no-referrer"
                       />
@@ -600,19 +627,24 @@ export default function CheckoutModal({
 
                       {/* Grid for Shipping and Payment Method dropdowns */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                        {/* 9. Shipping (Dropdown) */}
+                        {/* 9. Shipping (Dropdown - auto-locked by district) */}
                         <div>
-                          <label className="block text-xs md:text-sm font-bold text-gray-700 mb-1.5">
-                            Shipping <span className="text-red-500">*</span>
+                          <label className="block text-xs md:text-sm font-bold text-gray-700 mb-1.5 flex items-center justify-between">
+                            <span>Shipping (শিপিং এলাকা) <span className="text-red-500">*</span></span>
+                            <span className="text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-black">অটো-লক</span>
                           </label>
                           <select
+                            disabled={true}
                             value={shippingArea}
-                            onChange={(e) => setShippingArea(e.target.value as 'inside_dhaka' | 'outside_dhaka')}
-                            className={`${inputClasses}`}
+                            className={`${inputClasses} bg-slate-100/90 text-slate-700 cursor-not-allowed border-slate-300 font-bold opacity-90`}
                           >
-                            <option value="inside_dhaka">ঢাকার ভিতরে</option>
-                            <option value="outside_dhaka">ঢাকার বাহিরে</option>
+                            <option value="inside_dhaka">ঢাকার ভিতরে ({chargeInside}৳)</option>
+                            <option value="outside_dhaka">ঢাকার বাহিরে ({chargeOutside}৳)</option>
                           </select>
+                          <p className="text-[10px] text-emerald-700 font-bold mt-1 flex items-center gap-1">
+                            <Lock className="w-3 h-3 text-emerald-600 inline shrink-0" />
+                            <span>ঠিকানা অনুযায়ী স্বয়ংক্রিয় নির্ধারিত (পরিবর্তনযোগ্য নয়)</span>
+                          </p>
                         </div>
 
                         {/* 10. Payment Method (Dropdown) */}
@@ -740,7 +772,7 @@ export default function CheckoutModal({
                           </div>
                         )}
 
-                        {/* Apply Discount Code Section (লাল মার্ক করা জায়গায় যুক্ত করা হলো) */}
+                        {/* Apply Discount Code Section */}
                         <div className="mt-4">
                           <label className="block text-xs font-bold text-slate-700 mb-1.5">Apply Discount Code</label>
                           <div className="flex gap-2">
@@ -760,6 +792,24 @@ export default function CheckoutModal({
                             </button>
                           </div>
                           {errors.coupon && <p className="text-red-500 text-[10px] mt-1">{errors.coupon}</p>}
+                        </div>
+
+                        {/* Beautiful guarantee badge box with icon and border matching website theme */}
+                        <div className="mt-4 p-3.5 rounded-xl border-2 border-emerald-500/40 bg-gradient-to-r from-emerald-50/80 via-emerald-50/40 to-amber-50/50 shadow-xs relative overflow-hidden">
+                          <div className="flex items-start gap-2.5 text-left">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                              <ShieldCheck className="w-4.5 h-4.5 stroke-[2.2]" />
+                            </div>
+                            <div className="flex-1 space-y-0.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs font-black text-emerald-950">১০০% ক্যাশ অন ডেলিভারি ও গুণমান নিশ্চয়তা</span>
+                                <span className="text-[9px] bg-emerald-200/80 text-emerald-900 border border-emerald-300 px-1.5 py-0.2 rounded font-black uppercase">প্রিমিয়াম গ্যারান্টি</span>
+                              </div>
+                              <p className="text-[11px] text-emerald-900 font-semibold leading-relaxed">
+                                {siteConfig?.checkoutGuaranteeText || "পণ্য হাতে পেয়ে চেক করে দেখে মূল্য পরিশোধ করুন। শতভাগ খাঁটি ও ফ্রেশ কোয়ালিটির সম্পূর্ণ নিশ্চয়তা!"}
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -859,6 +909,22 @@ export default function CheckoutModal({
                       <span>মোট পরিশোধিত:</span>
                       <span>{orderSuccess.totalAmount}৳</span>
                     </div>
+
+                    {/* Complaint Button on Memo */}
+                    <div className="pt-2 border-t border-dashed border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setComplaintDescription('');
+                          setComplaintSuccessNotice(null);
+                          setShowComplaintModal(true);
+                        }}
+                        className="w-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-extrabold py-2.5 px-3 rounded-xl transition-all cursor-pointer text-xs flex items-center justify-center gap-2 shadow-2xs"
+                      >
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>এই অর্ডারে কোনো সমস্যা? অভিযোগ / কম্পেলেইন জমা দিন</span>
+                      </button>
+                    </div>
                   </div>
 
                   <button
@@ -874,5 +940,209 @@ export default function CheckoutModal({
         </div>
       )}
     </AnimatePresence>
+
+    {/* Complaint Submission Modal (Opened from Memo) */}
+    <AnimatePresence>
+      {showComplaintModal && orderSuccess && (
+        <div key="checkout-complaint-modal-root" className="fixed inset-0 z-60 overflow-y-auto flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <motion.div
+            key="complaint-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowComplaintModal(false)}
+            className="fixed inset-0 bg-black/40"
+          />
+          <motion.div
+            key="complaint-modal-panel"
+            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 15 }}
+            className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl relative z-10 border border-orange-200 max-h-[90vh] overflow-y-auto text-left"
+          >
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shadow-xs">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-black text-gray-900">অভিযোগ / কম্পেলেইন জমা দিন</h4>
+                    <p className="text-[11px] text-gray-400 font-bold">অর্ডার #{orderSuccess.id} এর বিপরীতে অভিযোগ নথিভুক্ত করুন</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowComplaintModal(false)}
+                  className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {complaintSuccessNotice ? (
+                <div className="py-6 text-center space-y-3">
+                  <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-md">
+                    <CheckCircle className="w-8 h-8" />
+                  </div>
+                  <h5 className="font-black text-slate-800 text-base">অভিযোগ জমা সম্পন্ন হয়েছে!</h5>
+                  <p className="text-xs text-gray-600 font-bold max-w-xs mx-auto leading-relaxed">{complaintSuccessNotice}</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowComplaintModal(false)}
+                    className="bg-slate-800 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer hover:bg-slate-900 mt-2"
+                  >
+                    ঠিক আছে
+                  </button>
+                </div>
+              ) : (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!complaintDescription.trim()) {
+                      setErrors(prev => ({ ...prev, complaint: 'অনুগ্রহ করে সমস্যার বিস্তারিত বিবরণ লিখুন' }));
+                      return;
+                    }
+                    setComplaintSubmitting(true);
+                    try {
+                      const categoryLabels: Record<string, string> = {
+                        damage: 'পণ্য ক্ষতিগ্রস্থ / নষ্ট',
+                        delay: 'ডেলিভারি বিলম্ব',
+                        wrong_item: 'ভুল বা কম পণ্য প্রাপ্তি',
+                        quality: 'পণ্যের গুণমান নিয়ে আপত্তি',
+                        price: 'বিল / মূল্য বা পেমেন্ট সংক্রান্ত',
+                        behavior: 'ডেলিভারি ম্যান বা আচরণ সংক্রান্ত',
+                        other: 'অন্যান্য সমস্যা'
+                      };
+
+                      if (onAddComplaint) {
+                        await onAddComplaint({
+                          orderId: orderSuccess.id,
+                          customerName: orderSuccess.customerName,
+                          customerPhone: orderSuccess.customerPhone,
+                          customerAddress: `${orderSuccess.deliveryAddress}, ${orderSuccess.area}, ${orderSuccess.district}`,
+                          issueCategory: complaintCategory,
+                          issueCategoryLabel: categoryLabels[complaintCategory] || 'সাধারণ সমস্যা',
+                          priority: complaintPriority,
+                          description: complaintDescription.trim(),
+                          createdBy: 'গ্রাহক (অনলাইন মেমো)'
+                        });
+                      }
+                      setComplaintSuccessNotice('আপনার অভিযোগটি সফলভাবে নথিভুক্ত হয়েছে! কাস্টমার কেয়ার টিম দ্রুত আপনার সাথে যোগাযোগ করে প্রয়োজনীয় পদক্ষেপ গ্রহণ করবে।');
+                    } catch (err: any) {
+                      setErrors(prev => ({ ...prev, complaint: err?.message || 'অভিযোগ জমা করতে ব্যর্থ হয়েছে' }));
+                    } finally {
+                      setComplaintSubmitting(false);
+                    }
+                  }}
+                  className="space-y-3.5 text-xs"
+                >
+                  {/* Auto-filled Read-only details from Memo */}
+                  <div className="bg-slate-50 border border-slate-200/70 rounded-2xl p-3.5 space-y-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">অটো-লোড হওয়া অর্ডারের বিবরণ</span>
+                    <div className="grid grid-cols-2 gap-2 text-slate-700 font-semibold">
+                      <div>
+                        <span className="text-gray-400 block text-[10px]">গ্রাহকের নাম:</span>
+                        <span className="font-black text-slate-800">{orderSuccess.customerName}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block text-[10px]">মোবাইল নম্বর *:</span>
+                        <span className="font-mono font-black text-slate-800">{orderSuccess.customerPhone}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block text-[10px]">অর্ডার আইডি:</span>
+                        <span className="font-mono font-black text-orange-600">#{orderSuccess.id}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block text-[10px]">ঠিকানা:</span>
+                        <span className="truncate block" title={orderSuccess.deliveryAddress}>
+                          {orderSuccess.deliveryAddress}, {orderSuccess.area}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Issue Category */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      সমস্যার ধরন (Issue Category) <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={complaintCategory}
+                      onChange={(e) => setComplaintCategory(e.target.value as any)}
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-800 focus:outline-hidden focus:border-orange-500"
+                    >
+                      <option value="damage">পণ্য ক্ষতিগ্রস্থ / নষ্ট</option>
+                      <option value="delay">ডেলিভারি বিলম্ব</option>
+                      <option value="wrong_item">ভুল বা কম পণ্য প্রাপ্তি</option>
+                      <option value="quality">পণ্যের গুণমান নিয়ে আপত্তি</option>
+                      <option value="price">বিল / মূল্য বা পেমেন্ট সংক্রান্ত</option>
+                      <option value="behavior">ডেলিভারি ম্যান বা আচরণ সংক্রান্ত</option>
+                      <option value="other">অন্যান্য সমস্যা</option>
+                    </select>
+                  </div>
+
+                  {/* Priority */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      অগ্রাধিকার (Priority)
+                    </label>
+                    <select
+                      value={complaintPriority}
+                      onChange={(e) => setComplaintPriority(e.target.value as any)}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-800 focus:outline-hidden focus:border-orange-500"
+                    >
+                      <option value="normal">সাধারণ (Normal)</option>
+                      <option value="high">জরুরি (High)</option>
+                      <option value="urgent">অতি জরুরি (Urgent)</option>
+                    </select>
+                  </div>
+
+                  {/* Detailed Description / Reason */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      অভিযোগের কারণ বা বিস্তারিত বিবরণ <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="আপনার সমস্যাটি বিস্তারিত লিখুন (যেমন: কী ধরণের ক্ষতি হয়েছে বা কী সাহায্য চান)..."
+                      value={complaintDescription}
+                      onChange={(e) => {
+                        setComplaintDescription(e.target.value);
+                        if (errors.complaint) {
+                          setErrors(prev => {
+                            const { complaint, ...rest } = prev;
+                            return rest;
+                          });
+                        }
+                      }}
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-hidden focus:border-orange-500 resize-none text-xs"
+                    />
+                    {errors.complaint && <p className="text-red-500 text-[10px] mt-1 font-bold">{errors.complaint}</p>}
+                  </div>
+
+                  <div className="flex gap-2.5 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowComplaintModal(false)}
+                      className="flex-1 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold text-xs cursor-pointer transition-colors"
+                    >
+                      বাতিল
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={complaintSubmitting}
+                      className="flex-1 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{complaintSubmitting ? 'জমা হচ্ছে...' : 'অভিযোগ জমা দিন'}</span>
+                    </button>
+                  </div>
+                </form>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

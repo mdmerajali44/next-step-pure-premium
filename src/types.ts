@@ -19,7 +19,7 @@ export interface Product {
   reviewsCount: number;
   sku?: string;
   sizes?: string[];
-  sizePrices?: Record<string, { price: number; originalPrice?: number }>;
+  sizePrices?: Record<string, { price: number; originalPrice?: number; offerPrice?: number }>;
   reorderLevel?: number;
   addedBy?: string;
   status?: string;
@@ -35,6 +35,9 @@ export interface Product {
   sellerId?: string;
   sellerName?: string;
   sellerProductStatus?: 'pending' | 'approved' | 'rejected';
+  isBestSeller?: boolean;
+  isOffer?: boolean;
+  offerPrice?: number;
 }
 
 export interface Review {
@@ -82,6 +85,55 @@ export interface Order {
   createdAt: string;
   couponCode?: string;
   discountAmount?: number;
+  customerNotes?: OrderCustomerNote[];
+  complaintIds?: string[];
+  isTalked?: boolean;
+  callStatus?: string;
+}
+
+export interface OrderCustomerNote {
+  id: string;
+  author: string;
+  text: string;
+  createdAt: string;
+  type?: 'general' | 'call' | 'issue';
+}
+
+export interface ComplaintCallLog {
+  id: string;
+  representativeName: string;
+  callDate: string;
+  notes: string;
+  callNumber: number;
+  customerResponse?: 'satisfied' | 'neutral' | 'unhappy' | 'followup_needed';
+}
+
+export interface ComplaintResolution {
+  resolvedAt: string;
+  resolvedBy: string;
+  actionTaken: 'replacement' | 'refund' | 'partial_refund' | 'discount_coupon' | 'reshipped' | 'explained' | 'other';
+  actionTakenLabel: string;
+  resolutionNotes: string;
+  isCustomerSatisfied: boolean;
+  refundAmount?: number;
+}
+
+export interface Complaint {
+  id: string;
+  orderId?: string;
+  customerName: string;
+  customerPhone: string;
+  customerAddress?: string;
+  issueCategory: 'damage' | 'delay' | 'wrong_item' | 'quality' | 'price' | 'behavior' | 'other';
+  issueCategoryLabel: string;
+  description: string;
+  priority: 'normal' | 'high' | 'urgent';
+  status: 'pending' | 'in_progress' | 'resolved' | 'cancelled';
+  createdAt: string;
+  updatedAt?: string;
+  createdBy: string;
+  callLogs: ComplaintCallLog[];
+  resolution?: ComplaintResolution;
 }
 
 export interface Category {
@@ -152,6 +204,9 @@ export interface SiteConfig {
   sellerSystemActive?: boolean;
   commissionPercentage?: number;
   allowAdminsToDeleteOrders?: boolean;
+  deliveryChargeInsideDhaka?: number;
+  deliveryChargeOutsideDhaka?: number;
+  checkoutGuaranteeText?: string;
 }
 
 export interface Coupon {

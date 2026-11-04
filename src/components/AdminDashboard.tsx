@@ -4,13 +4,14 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Product, Order, OrderStatus, SiteConfig, ProductRequest, User, Coupon, Category, matchesSearchWithNumerals, sortProductSizes, WithdrawRequest } from '../types';
+import { Product, Order, OrderStatus, SiteConfig, ProductRequest, User, Coupon, Category, matchesSearchWithNumerals, sortProductSizes, WithdrawRequest, Complaint, OrderCustomerNote } from '../types';
 import { DISTRICTS } from '../data';
 import { 
   Plus, Edit, Trash2, Check, Copy, X, ShieldAlert, DollarSign, CreditCard,
   Package, ShoppingCart, TrendingUp, Search, Eye, Filter, RefreshCw,
   Image as ImageIcon, Palette, Sliders, Volume2, Upload, MessageSquare, Printer,
-  Users, Key, Shield, ShieldCheck, Mail, Phone, MapPin, UserCheck, Share2, Facebook, Instagram, Youtube, HelpCircle, ChevronDown, Store, Star
+  Users, Key, Shield, ShieldCheck, Mail, Phone, MapPin, UserCheck, Share2, Facebook, Instagram, Youtube, HelpCircle, ChevronDown, Store, Star,
+  PhoneCall, AlertTriangle, CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { compressImageFile as compressAndSetImage } from '../utils/storage';
@@ -21,6 +22,7 @@ import RequestsTab from './admin/RequestsTab';
 import PaymentsTab from './admin/PaymentsTab';
 import MarketingTab from './admin/MarketingTab';
 import ReviewsTab from './admin/ReviewsTab';
+import ComplaintsTab, { ISSUE_CATEGORIES, ACTION_OPTIONS } from './admin/ComplaintsTab';
 
 const PRESET_IMAGES = [
   { name: 'আখের জুস পাউডার', path: '/src/assets/images/juice_powder_1782456192648.jpg' },
@@ -36,8 +38,13 @@ const PRESET_IMAGES = [
   { name: 'সুন্দরবনের মধু বোতল', path: '/src/assets/images/sundarban_honey_jar_1782453470122.jpg' },
   { name: 'আম্রপালি আম', path: '/src/assets/images/green_mangoes_1_1782466276525.jpg' },
   { name: 'আমবাগান চাষী', path: '/src/assets/images/mango_farmer_orchard_1782453455911.jpg' },
-  { name: 'ম্যাংগো লাভার লোগো', path: '/src/assets/images/mango_lover_logo_1782453485561.jpg' },
 ];
+
+const toBn = (num: number | string | undefined | null): string => {
+  if (num === undefined || num === null) return '০';
+  const bnDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return num.toString().replace(/\d/g, d => bnDigits[parseInt(d, 10)]);
+};
 
 interface AdminDashboardProps {
   products: Product[];
@@ -65,7 +72,12 @@ interface AdminDashboardProps {
   loggedInUser?: User | null;
   withdrawRequests?: WithdrawRequest[];
   onUpdateWithdrawRequest?: (id: string, status: 'pending' | 'completed' | 'rejected') => void;
-  initialTab?: 'overview' | 'products' | 'orders' | 'marketing' | 'chats' | 'payments' | 'requests' | 'users' | 'sellers' | 'reviews';
+  complaints?: Complaint[];
+  onAddComplaint?: (complaint: Partial<Complaint>) => Promise<Complaint>;
+  onUpdateComplaint?: (complaint: Complaint) => Promise<Complaint>;
+  onDeleteComplaint?: (id: string) => Promise<boolean>;
+  onAddComplaintCallLog?: (complaintId: string, log: { representativeName: string; notes: string; customerResponse?: string }) => Promise<Complaint>;
+  initialTab?: 'overview' | 'products' | 'orders' | 'complaints' | 'marketing' | 'chats' | 'payments' | 'requests' | 'users' | 'sellers' | 'reviews';
   initialSearchQuery?: string;
 }
 
@@ -73,6 +85,7 @@ export const AVAILABLE_PERMISSIONS = [
   { id: 'overview', name: 'ড্যাশবোর্ড ওভারভিউ', desc: 'আয়, বিক্রয় গ্রাফ ও ড্যাশবোর্ড ওভারভিউ দেখার এক্সেস।' },
   { id: 'products', name: 'পণ্য ব্যবস্থাপনা', desc: 'নতুন পণ্য যোগ, এডিটিং, ডিলিট এবং ক্যাটাগরি ও স্টক পরিবর্তনের এক্সেস।' },
   { id: 'orders', name: 'অর্ডার ব্যবস্থাপনা', desc: 'অর্ডার লিস্ট দেখা, ডেলিভারি স্ট্যাটাস পরিবর্তন এবং অর্ডার প্রসেসিংয়ের এক্সেস।' },
+  { id: 'complaints', name: 'কাস্টমার কেয়ার ও কম্পেলেইন', desc: 'গ্রাহকের সমস্যা সমাধান, অভিযোগ তালিকা, কল লগ ও রেজুলেশন ট্র্যাকিং।' },
   { id: 'payments', name: 'পেমেন্ট ভেরিফিকেশন', desc: 'ম্যানুয়াল পেমেন্ট (বিকাশ/নগদ/রকেট) ট্রানজেকশন অ্যাপ্রুভাল ও ভেরিফিকেশনের এক্সেস।' },
   { id: 'marketing', name: 'মার্কেটিং ও নোটিশ', desc: 'স্ক্রলিং নোটিশ টিকেট, ডিসকাউন্ট কুপন কোড এবং ব্যানার পরিবর্তনের এক্সেস।' },
   { id: 'requests', name: 'গ্রাহক রিকুয়েস্ট', desc: 'স্টক-আউট পণ্য সমূহের জন্য কাস্টমার রিকুয়েস্ট তালিকা ও যোগাযোগের স্ট্যাটাস এক্সেস।' },
@@ -363,6 +376,11 @@ export default function AdminDashboard({
   loggedInUser,
   withdrawRequests = [],
   onUpdateWithdrawRequest,
+  complaints = [],
+  onAddComplaint = async (c) => c as Complaint,
+  onUpdateComplaint = async (c) => c,
+  onDeleteComplaint = async () => true,
+  onAddComplaintCallLog = async (id, log) => ({ id } as Complaint),
   initialTab,
   initialSearchQuery,
 }: AdminDashboardProps) {
@@ -370,11 +388,12 @@ export default function AdminDashboard({
     if (!loggedInUser) return true;
     if (loggedInUser.role !== 'admin') return false;
     let perms = loggedInUser.permissions;
-    // Auto-migrate stale permission arrays that don't have 'sellers'
-    if (perms && !perms.includes('sellers')) {
-      perms = [...perms, 'sellers'];
+    // Auto-migrate stale permission arrays that don't have 'sellers' or 'complaints'
+    if (perms) {
+      if (!perms.includes('sellers')) perms = [...perms, 'sellers'];
+      if (!perms.includes('complaints')) perms = [...perms, 'complaints'];
     }
-    const finalPerms = perms || ['overview', 'products', 'orders', 'payments', 'marketing', 'requests', 'users', 'sellers'];
+    const finalPerms = perms || ['overview', 'products', 'orders', 'complaints', 'payments', 'marketing', 'requests', 'users', 'sellers', 'reviews'];
     return finalPerms.includes(permissionId);
   };
 
@@ -391,15 +410,19 @@ export default function AdminDashboard({
     return siteConfig.allowAdminsToDeleteOrders !== false;
   };
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'marketing' | 'chats' | 'payments' | 'requests' | 'users' | 'sellers' | 'reviews'>(() => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'complaints' | 'marketing' | 'chats' | 'payments' | 'requests' | 'users' | 'sellers' | 'reviews'>(() => {
+    if (initialTab) return initialTab;
     if (!loggedInUser) return 'overview';
-    const tabs = ['overview', 'products', 'orders', 'payments', 'marketing', 'requests', 'users', 'sellers', 'reviews'] as const;
+    const tabs = ['overview', 'products', 'orders', 'complaints', 'payments', 'marketing', 'requests', 'users', 'sellers', 'reviews'] as const;
     for (const t of tabs) {
       let perms = loggedInUser.permissions;
       if (perms && !perms.includes('reviews')) {
         perms = [...perms, 'reviews'];
       }
-      const finalPerms = perms || ['overview', 'products', 'orders', 'payments', 'marketing', 'requests', 'users', 'sellers', 'reviews'];
+      if (perms && !perms.includes('complaints')) {
+        perms = [...perms, 'complaints'];
+      }
+      const finalPerms = perms || ['overview', 'products', 'orders', 'complaints', 'payments', 'marketing', 'requests', 'users', 'sellers', 'reviews'];
       if (finalPerms.includes(t)) return t;
     }
     return 'overview';
@@ -978,7 +1001,7 @@ export default function AdminDashboard({
   const [pTagline, setPTagline] = useState('');
   const [pDetailedTitle, setPDetailedTitle] = useState('');
   const [pDescriptionBullets, setPDescriptionBullets] = useState('');
-  const [pManufacturer, setPManufacturer] = useState('ম্যাংগো লাভার (MangoLover)');
+  const [pManufacturer, setPManufacturer] = useState('সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)');
   const [pSourceArea, setPSourceArea] = useState('সাতক্ষীরা ও শ্যামনগর, বাংলাদেশ');
   const [pShelfLife, setPShelfLife] = useState('১২ মাস (শুকনো ও ঠাণ্ডা জায়গায় সংরক্ষণ করুন)');
   const [pOrganicCertificate, setPOrganicCertificate] = useState('১০০% প্রাকৃতিক ও কেমিক্যালমুক্ত পরীক্ষিত');
@@ -989,8 +1012,14 @@ export default function AdminDashboard({
     size: string;
     price: number;
     originalPrice?: number;
+    offerPrice?: number;
   }
   const [pSizesList, setPSizesList] = useState<SizePriceItem[]>([]);
+
+  // New product best seller & offer
+  const [pIsBestSeller, setPIsBestSeller] = useState(false);
+  const [pIsOffer, setPIsOffer] = useState(false);
+  const [pOfferPrice, setPOfferPrice] = useState<number | ''>('');
 
   // Edit product form inputs (Modal popup)
   const [editName, setEditName] = useState('');
@@ -1005,6 +1034,38 @@ export default function AdminDashboard({
   const [editReorderLevel, setEditReorderLevel] = useState<number>(5);
   const [editStatus, setEditStatus] = useState('Active');
   const [editBadge, setEditBadge] = useState<'none' | 'new' | 'restocked'>('none');
+  const [editIsBestSeller, setEditIsBestSeller] = useState(false);
+  const [editIsOffer, setEditIsOffer] = useState(false);
+  const [editOfferPrice, setEditOfferPrice] = useState<number | ''>('');
+
+  // Orders quick actions state
+  const [quickNoteInputs, setQuickNoteInputs] = useState<Record<string, string>>({});
+  const [activeNoteOrderId, setActiveNoteOrderId] = useState<string | null>(null);
+
+  const handleQuickToggleTalked = (order: Order) => {
+    if (!onUpdateOrder) return;
+    const updated = { ...order, isTalked: !order.isTalked };
+    onUpdateOrder(updated);
+    notify(`অর্ডার #${order.id} এর কল স্ট্যাটাস আপডেট করা হয়েছে!`, 'success');
+  };
+
+  const handleQuickAddNoteSubmit = (order: Order) => {
+    const text = quickNoteInputs[order.id]?.trim();
+    if (!text || !onUpdateOrder) return;
+    const newNote: OrderCustomerNote = {
+      id: Date.now().toString(),
+      author: loggedInUser?.name || 'অ্যাডমিন',
+      text,
+      createdAt: new Date().toISOString(),
+      type: 'call'
+    };
+    const updatedNotes = [...(order.customerNotes || []), newNote];
+    const updated = { ...order, customerNotes: updatedNotes };
+    onUpdateOrder(updated);
+    setQuickNoteInputs(prev => ({ ...prev, [order.id]: '' }));
+    setActiveNoteOrderId(null);
+    notify(`অর্ডার #${order.id}-এ নতুন নোট যোগ করা হয়েছে!`, 'success');
+  };
   const [editImages, setEditImages] = useState<string[]>(['', '', '', '', '']);
   const editImage = editImages[0] || '';
   const setEditImage = (val: string) => {
@@ -1019,7 +1080,7 @@ export default function AdminDashboard({
   const [editTagline, setEditTagline] = useState('');
   const [editDetailedTitle, setEditDetailedTitle] = useState('');
   const [editDescriptionBullets, setEditDescriptionBullets] = useState('');
-  const [editManufacturer, setEditManufacturer] = useState('ম্যাংগো লাভার (MangoLover)');
+  const [editManufacturer, setEditManufacturer] = useState('সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)');
   const [editSourceArea, setEditSourceArea] = useState('সাতক্ষীরা ও শ্যামনগর, বাংলাদেশ');
   const [editShelfLife, setEditShelfLife] = useState('১২ মাস (শুকনো ও ঠাণ্ডা জায়গায় সংরক্ষণ করুন)');
   const [editOrganicCertificate, setEditOrganicCertificate] = useState('১০০% প্রাকৃতিক ও কেমিক্যালমুক্ত পরীক্ষিত');
@@ -1041,7 +1102,7 @@ export default function AdminDashboard({
   const [cfgPromoLink, setCfgPromoLink] = useState<string>(siteConfig?.promoLink || '');
 
   // Marketing Config Form inputs
-  const [cfgStoreName, setCfgStoreName] = useState(siteConfig?.storeName || 'ম্যাংগো লাভার');
+  const [cfgStoreName, setCfgStoreName] = useState(siteConfig?.storeName || 'সাতক্ষীরা প্রিমিয়াম');
   const [cfgStoreSlogan, setCfgStoreSlogan] = useState(siteConfig?.storeSlogan || 'Pure & Organic Food');
   const [cfgStoreLogo, setCfgStoreLogo] = useState(siteConfig?.storeLogo || '/src/assets/images/mango_lover_logo_1782453485561.jpg');
   const [cfgStoreNameImage, setCfgStoreNameImage] = useState(siteConfig?.storeNameImage || '');
@@ -1073,12 +1134,12 @@ export default function AdminDashboard({
 
   // Custom pages editable state
   const [cfgAboutTitle, setCfgAboutTitle] = useState(siteConfig?.aboutTitle || 'আমাদের সম্পর্কে?');
-  const [cfgAboutSubtitle, setCfgAboutSubtitle] = useState(siteConfig?.aboutSubtitle || 'এই যে আপনি আজ আমাদের সম্পর্কে জানতে চাচ্ছেন, এই পথটা সহজ ছিল না। অনেক চড়াই-উতরাই পেরিয়ে আজকের অবস্থানে আপনাদের পছন্দের এই ম্যাংগো লাভার। আমাদের এই পথচলায় সকল প্রিয় গ্রাহক ও শুভাকাঙ্ক্ষীদের কাছে আমরা চিরকৃতজ্ঞ।');
+  const [cfgAboutSubtitle, setCfgAboutSubtitle] = useState(siteConfig?.aboutSubtitle || 'এই যে আপনি আজ আমাদের সম্পর্কে জানতে চাচ্ছেন, এই পথটা সহজ ছিল না। অনেক চড়াই-উতরাই পেরিয়ে আজকের অবস্থানে আপনাদের পছন্দের এই সাতক্ষীরা প্রিমিয়াম। আমাদের এই পথচলায় সকল প্রিয় গ্রাহক ও শুভাকাঙ্ক্ষীদের কাছে আমরা চিরকৃতজ্ঞ।');
   const [cfgAboutOwnerImage, setCfgAboutOwnerImage] = useState(siteConfig?.aboutOwnerImage || siteConfig?.leftBannerImage || '/src/assets/images/mango_farmer_orchard_1782453455911.jpg');
   const [cfgAboutHighlightText, setCfgAboutHighlightText] = useState(siteConfig?.aboutHighlightText || 'নোয়াখালী বিজ্ঞান ও প্রযুক্তি বিশ্ববিদ্যালয়ের পুষ্টি বিভাগ থেকে স্নাতক সম্পন্ন করা এক তরুণ - নাম তার মেহেদী হাসান।');
   const [cfgAboutParagraph1, setCfgAboutParagraph1] = useState(siteConfig?.aboutParagraph1 || 'যার শৈশব ও বেড়ে ওঠা নিভৃত পল্লীগাঁয়ে। উচ্চশিক্ষার উদ্দেশ্যে গ্রাম ছেড়ে তিনি পাড়ি জমান নোয়াখালীতে। সেখানে গিয়ে নিজের প্রয়োজনে কেনা খেজুরের গুড়, ঘি কিংবা আম - সবকিছুতেই কৃত্রিমতার ছাপ লক্ষ্য করেন। যেহেতু তার শৈশব কেটেছে গ্রামে, তাই খাঁটি খাদ্যদ্রব্য চিনতে তার ভুল হওয়ার কথা নয়; তার ওপর নিজের পড়াশোনাও ছিল \'নিরাপদ খাদ্য\' নিয়ে।');
   const [cfgAboutParagraph2, setCfgAboutParagraph2] = useState(siteConfig?.aboutParagraph2 || 'ক্যাম্পাসে পরিচিতদের জন্য গুড় ও ঘি এনে প্রশংসা পাওয়ার পর তার মনে হয়েছিল—নিজে উদ্যোক্তা হয়ে দেশজুড়ে মানুষের কাছে খাঁটি খাদ্য পৌঁছে দিলে কেমন হয়? সেই ভাবনা থেকেই পরিবারের দেওয়া সামান্য আর্থিক পুঁজি নিয়ে তিনি এই সংকল্পে নামলেন যে - যতটুকু সম্ভব, ততটুকুই খাঁটি জিনিস তিনি গ্রাহকদের কাছে পৌঁছে দেবেন। অনেক নির্ঘুম রাত আর অক্লান্ত পরিশ্রমে তিনি নিজের প্রচেষ্টা অব্যাহত রেখে প্রমাণ করলেন যে, একাগ্রতা থাকলে সবই সম্ভব। কোনো কিছু অর্জন করতে হলে আগে সেটি দৃঢ়ভাবে চাইতে হয়।');
-  const [cfgAboutParagraph3, setCfgAboutParagraph3] = useState(siteConfig?.aboutParagraph3 || 'পরবর্তীতে কয়েক লক্ষ গ্রাহকের দোরগোড়ায় তিনি পৌঁছে দিয়েছেন তার এই \'ম্যাংগো লাভার\'-এর পণ্য। তৈরি হয়েছে বিশাল এক অনুগত গ্রাহক শ্রেণি। সেই সঙ্গে নিরবিচ্ছিন্ন সেবা নিশ্চিত করতে তিনি গড়ে তুলেছেন দক্ষ সাপোর্ট টিম। আজ ৬০ জনেরও বেশি কর্মী নিয়ে তিনি সফলতার সাথে এগিয়ে যাচ্ছেন।');
+  const [cfgAboutParagraph3, setCfgAboutParagraph3] = useState(siteConfig?.aboutParagraph3 || 'পরবর্তীতে কয়েক লক্ষ গ্রাহকের দোরগোড়ায় তিনি পৌঁছে দিয়েছেন তার এই \'সাতক্ষীরা প্রিমিয়াম\'-এর পণ্য। তৈরি হয়েছে বিশাল এক অনুগত গ্রাহক শ্রেণি। সেই সঙ্গে নিরবিচ্ছিন্ন সেবা নিশ্চিত করতে তিনি গড়ে তুলেছেন দক্ষ সাপোর্ট টিম। আজ ৬০ জনেরও বেশি কর্মী নিয়ে তিনি সফলতার সাথে এগিয়ে যাচ্ছেন।');
   const [cfgAboutFacebookLink, setCfgAboutFacebookLink] = useState(siteConfig?.aboutFacebookLink || 'https://facebook.com');
   const [cfgMessengerLink, setCfgMessengerLink] = useState(siteConfig?.messengerLink || 'https://m.me/61556942953282');
   const [cfgFacebookLink, setCfgFacebookLink] = useState(siteConfig?.facebookLink || 'https://facebook.com');
@@ -1087,13 +1148,13 @@ export default function AdminDashboard({
 
   const [cfgContactOffice, setCfgContactOffice] = useState(siteConfig?.contactOffice || 'Shyamnagar, Satkhira, Bangladesh');
   const [cfgContactPhone, setCfgContactPhone] = useState(siteConfig?.contactPhone || '+880 1837-587551');
-  const [cfgContactEmail, setCfgContactEmail] = useState(siteConfig?.contactEmail || 'info AT mangolover.com.bd');
+  const [cfgContactEmail, setCfgContactEmail] = useState(siteConfig?.contactEmail || 'info AT satkhirapremium.com.bd');
   const [cfgGoogleMapUrl, setCfgGoogleMapUrl] = useState(siteConfig?.googleMapUrl || 'https://www.openstreetmap.org/export/embed.html?bbox=88.5800%2C24.3600%2C88.6200%2C24.3900&amp;layer=mapnik&amp;marker=24.3750%2C88.6010');
 
   const [selectedRequestDetails, setSelectedRequestDetails] = useState<ProductRequest | null>(null);
 
   const [cfgRefundPolicyText, setCfgRefundPolicyText] = useState(siteConfig?.refundPolicyText || 'আমাদের মূল লক্ষ্য গ্রাহকের সন্তুষ্টি। যদি কোনো কারণে আপনি পণ্য পেয়ে অসন্তুষ্ট হন, তবে নিম্নলিখিত নীতি অনুযায়ী আমরা পণ্য পরিবর্তন বা মূল্য ফেরত দিয়ে থাকি:\n\n১. ডেলিভারির সময় পণ্য দেখে নেওয়ার সুযোগ রয়েছে। কোনো প্রকার ক্রটি থাকলে ডেলিভারি ম্যানের কাছেই ফেরত দিতে পারবেন।\n\n২. আমরা সাতক্ষীরা ও শ্যামনগর থেকে সরাসরি তাজা পণ্য পাঠাই। পরিবহণকালীন ক্ষয়ক্ষতির জন্য আমরা ১০০% দায়বদ্ধ।\n\n৩. রিটার্ন করার পর ৩ কার্যদিবসের মধ্যে আপনার বিকাশ/রকেট/নগদ অথবা ব্যাংক অ্যাকাউন্টে টাকা রিফান্ড করা হবে।');
-  const [cfgPrivacyPolicyText, setCfgPrivacyPolicyText] = useState(siteConfig?.privacyPolicyText || 'আপনার গোপনীয়তা আমাদের কাছে অত্যন্ত গুরুত্বপূর্ণ। ম্যাংগো লাভার গ্রাহকদের ব্যক্তিগত তথ্যের সর্বোচ্চ নিরাপত্তা নিশ্চিত করে:\n\n১. আমরা শুধুমাত্র অর্ডার প্রসেসিং এবং পণ্য ডেলিভারির সুবিধার্থে গ্রাহকের নাম, মোবাইল নম্বর এবং ঠিকানা সংগ্রহ করি।\n\n২. সংগৃহীত তথ্য কোনো তৃতীয় পক্ষের কাছে বিক্রয় বা হস্তান্তর করা হয় না।\n\n৩. আমাদের ওয়েবসাইট এবং গ্রাহক ডেটাবেজ সুরক্ষিত রাখতে আমরা আধুনিক সিকিউরিটি প্রোটোকল ব্যবহার করি।');
+  const [cfgPrivacyPolicyText, setCfgPrivacyPolicyText] = useState(siteConfig?.privacyPolicyText || 'আপনার গোপনীয়তা আমাদের কাছে অত্যন্ত গুরুত্বপূর্ণ। সাতক্ষীরা প্রিমিয়াম গ্রাহকদের ব্যক্তিগত তথ্যের সর্বোচ্চ নিরাপত্তা নিশ্চিত করে:\n\n১. আমরা শুধুমাত্র অর্ডার প্রসেসিং এবং পণ্য ডেলিভারির সুবিধার্থে গ্রাহকের নাম, মোবাইল নম্বর এবং ঠিকানা সংগ্রহ করি।\n\n২. সংগৃহীত তথ্য কোনো তৃতীয় পক্ষের কাছে বিক্রয় বা হস্তান্তর করা হয় না।\n\n৩. আমাদের ওয়েবসাইট এবং গ্রাহক ডেটাবেজ সুরক্ষিত রাখতে আমরা আধুনিক সিকিউরিটি প্রোটোকল ব্যবহার করি।');
 
   const [cfgFaqItems, setCfgFaqItems] = useState<{ question: string; answer: string }[]>(siteConfig?.faqItems || [
     {
@@ -1102,7 +1163,7 @@ export default function AdminDashboard({
     },
     {
       question: 'আম কি সম্পূর্ণ কেমিক্যাল ও ফরমালিন মুক্ত?',
-      answer: 'হ্যাঁ, ম্যাংগো লাভার-এর প্রতিটি আম সাতক্ষীরা ও শ্যামনগরের বাগান থেকে শতভাগ কেমিক্যাল ও ফরমালিন ছাড়াই প্রাকৃতিকভাবে পাকানো অবস্থায় গাছ থেকে পেড়ে সরাসরি পাঠানো হয়।'
+      answer: 'হ্যাঁ, সাতক্ষীরা প্রিমিয়াম-এর প্রতিটি আম সাতক্ষীরা ও শ্যামনগরের বাগান থেকে শতভাগ কেমিক্যাল ও ফরমালিন ছাড়াই প্রাকৃতিকভাবে পাকানো অবস্থায় গাছ থেকে পেড়ে সরাসরি পাঠানো হয়।'
     },
     {
       question: 'ডেলিভারি পাওয়ার পর আম বা অন্য পণ্য নষ্ট বের হলে কী করণীয়?',
@@ -1201,11 +1262,126 @@ export default function AdminDashboard({
   const [orderEditBackup, setOrderEditBackup] = useState<Order | null>(null);
   const [selectedProductToAdd, setSelectedProductToAdd] = useState<string>('');
 
+  // In-order Complaint & Call Tracking states
+  const [showOrderComplaintsPanel, setShowOrderComplaintsPanel] = useState(true);
+  const [showAddComplaintFromOrder, setShowAddComplaintFromOrder] = useState(false);
+  const [orderComplaintCategory, setOrderComplaintCategory] = useState<'damage' | 'delay' | 'wrong_item' | 'quality' | 'price' | 'behavior' | 'other'>('damage');
+  const [orderComplaintPriority, setOrderComplaintPriority] = useState<'normal' | 'high' | 'urgent'>('normal');
+  const [orderComplaintDesc, setOrderComplaintDesc] = useState('');
+  const [orderComplaintSubmitting, setOrderComplaintSubmitting] = useState(false);
+  
+  // In-order Call log state
+  const [activeCallLogComplaintId, setActiveCallLogComplaintId] = useState<string | null>(null);
+  const [orderCallRepName, setOrderCallRepName] = useState(loggedInUser?.name || 'কাস্টমার সাপোর্ট');
+  const [orderCallNotes, setOrderCallNotes] = useState('');
+  const [orderCallResponse, setOrderCallResponse] = useState<'satisfied' | 'neutral' | 'unhappy' | 'followup_needed'>('satisfied');
+
+  // In-order Resolution state
+  const [activeResolveComplaintId, setActiveResolveComplaintId] = useState<string | null>(null);
+  const [orderResolveAction, setOrderResolveAction] = useState('replacement');
+  const [orderResolveNotes, setOrderResolveNotes] = useState('');
+  const [orderResolveRepName, setOrderResolveRepName] = useState(loggedInUser?.name || 'কাস্টমার ম্যানেজার');
+  const [orderResolveRefund, setOrderResolveRefund] = useState<number | ''>('');
+  const [orderResolveSatisfied, setOrderResolveSatisfied] = useState(true);
+
   useEffect(() => {
     setIsEditingOrder(false);
     setOrderEditBackup(null);
     setSelectedProductToAdd('');
+    setShowAddComplaintFromOrder(false);
+    setActiveCallLogComplaintId(null);
+    setActiveResolveComplaintId(null);
   }, [selectedOrderDetails?.id]);
+
+  const handleAddComplaintFromOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrderDetails) return;
+    if (!orderComplaintDesc.trim()) {
+      notify('অনুগ্রহ করে অভিযোগ বা সমস্যার বিবরণ লিখুন', 'error');
+      return;
+    }
+    setOrderComplaintSubmitting(true);
+    try {
+      const catObj = ISSUE_CATEGORIES.find(c => c.id === orderComplaintCategory);
+      if (onAddComplaint) {
+        await onAddComplaint({
+          orderId: selectedOrderDetails.id,
+          customerName: selectedOrderDetails.customerName,
+          customerPhone: selectedOrderDetails.customerPhone,
+          customerAddress: `${selectedOrderDetails.deliveryAddress}, ${selectedOrderDetails.area}, ${selectedOrderDetails.district}`,
+          issueCategory: orderComplaintCategory,
+          issueCategoryLabel: catObj ? catObj.label : 'সাধারণ সমস্যা',
+          priority: orderComplaintPriority,
+          description: orderComplaintDesc.trim(),
+          createdBy: loggedInUser?.name || 'অ্যাডমিন সাপোর্ট',
+          callLogs: []
+        });
+        notify('অভিযোগটি সফলভাবে নথিভুক্ত হয়েছে!', 'success');
+        setShowAddComplaintFromOrder(false);
+        setOrderComplaintDesc('');
+        setShowOrderComplaintsPanel(true);
+      }
+    } catch (err: any) {
+      notify(err?.message || 'অভিযোগ সংরক্ষণ ব্যর্থ হয়েছে', 'error');
+    } finally {
+      setOrderComplaintSubmitting(false);
+    }
+  };
+
+  const handleAddCallLogFromOrder = async (complaintId: string, e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orderCallNotes.trim()) {
+      notify('অনুগ্রহ করে আলোচনার সারসংক্ষেপ লিখুন', 'error');
+      return;
+    }
+    try {
+      if (onAddComplaintCallLog) {
+        await onAddComplaintCallLog(complaintId, {
+          representativeName: orderCallRepName.trim() || loggedInUser?.name || 'কাস্টমার সাপোর্ট',
+          notes: orderCallNotes.trim(),
+          customerResponse: orderCallResponse
+        });
+        notify('নতুন কল রেকর্ড সফলভাবে যোগ করা হয়েছে!', 'success');
+        setActiveCallLogComplaintId(null);
+        setOrderCallNotes('');
+      }
+    } catch (err: any) {
+      notify(err?.message || 'কল রেকর্ড যোগ করা যায়নি', 'error');
+    }
+  };
+
+  const handleResolveComplaintFromOrder = async (complaint: Complaint, e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orderResolveNotes.trim()) {
+      notify('অনুগ্রহ করে সমাধান নোট লিখুন', 'error');
+      return;
+    }
+    try {
+      const actionObj = ACTION_OPTIONS.find(a => a.id === orderResolveAction);
+      const updated: Complaint = {
+        ...complaint,
+        status: 'resolved',
+        updatedAt: new Date().toLocaleDateString('bn-BD') + ' ' + new Date().toLocaleTimeString('bn-BD'),
+        resolution: {
+          resolvedAt: new Date().toLocaleDateString('bn-BD') + ' ' + new Date().toLocaleTimeString('bn-BD'),
+          resolvedBy: orderResolveRepName.trim() || loggedInUser?.name || 'কাস্টমার ম্যানেজার',
+          actionTaken: orderResolveAction as any,
+          actionTakenLabel: actionObj ? actionObj.label : 'সমাধান সম্পন্ন',
+          resolutionNotes: orderResolveNotes.trim(),
+          isCustomerSatisfied: orderResolveSatisfied,
+          refundAmount: typeof orderResolveRefund === 'number' ? orderResolveRefund : undefined
+        }
+      };
+      if (onUpdateComplaint) {
+        await onUpdateComplaint(updated);
+        notify('অভিযোগটি সফলভাবে সমাধান হিসেবে চিহ্নিত হয়েছে!', 'success');
+        setActiveResolveComplaintId(null);
+        setOrderResolveNotes('');
+      }
+    } catch (err: any) {
+      notify(err?.message || 'সমাধান সংরক্ষণ ব্যর্থ হয়েছে', 'error');
+    }
+  };
 
   const recalculateOrderTotals = (items: Order['items'], deliveryCharge: number, discountAmount: number): number => {
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -1393,6 +1569,14 @@ export default function AdminDashboard({
     setEditReorderLevel(product.reorderLevel ?? 5);
     setEditStatus(product.status || 'Active');
     setEditBadge(product.badge || 'none');
+    setEditIsBestSeller(!!product.isBestSeller);
+    setEditIsOffer(!!product.isOffer);
+    let resolvedOfferPrice: any = product.offerPrice !== undefined && product.offerPrice !== null ? product.offerPrice : '';
+    if (resolvedOfferPrice === '' && product.sizePrices) {
+      const spOffer = Object.values(product.sizePrices).find(sp => sp.offerPrice && sp.offerPrice > 0)?.offerPrice;
+      if (spOffer) resolvedOfferPrice = spOffer;
+    }
+    setEditOfferPrice(resolvedOfferPrice);
     
     // Detailed tabs custom states
     const defaultDetailsMap: Record<string, { title: string; tagline: string; bullets: string[] }> = {
@@ -1493,7 +1677,7 @@ export default function AdminDashboard({
     setEditTagline(product.tagline || details.tagline);
     setEditDetailedTitle(product.detailedTitle || details.title);
     setEditDescriptionBullets(product.descriptionBullets ? product.descriptionBullets.join('\n') : details.bullets.join('\n'));
-    setEditManufacturer(product.manufacturer || 'ম্যাংগো লাভার (MangoLover)');
+    setEditManufacturer(product.manufacturer || 'সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)');
     setEditSourceArea(product.sourceArea || (product.category === 'মধু' ? 'সুন্দরবন গভীর অরণ্য' : 'সাতক্ষীরা ও শ্যামনগর, বাংলাদেশ'));
     setEditShelfLife(product.shelfLife || '১২ মাস (শুকনো ও ঠাণ্ডা জায়গায় সংরক্ষণ করুন)');
     setEditOrganicCertificate(product.organicCertificate || '১০০% প্রাকৃতিক ও কেমিক্যালমুক্ত পরীক্ষিত');
@@ -1541,7 +1725,8 @@ export default function AdminDashboard({
     const initialSizesList = initialSizes.map(sz => ({
       size: sz,
       price: product.sizePrices?.[sz]?.price ?? product.price,
-      originalPrice: product.sizePrices?.[sz]?.originalPrice ?? product.originalPrice
+      originalPrice: product.sizePrices?.[sz]?.originalPrice ?? product.originalPrice,
+      offerPrice: product.sizePrices?.[sz]?.offerPrice
     }));
 
     setEditSizesList(initialSizesList);
@@ -1558,6 +1743,18 @@ export default function AdminDashboard({
     const finalImages = pImages.filter(Boolean);
     const primaryImg = finalImages[0] || 'https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&w=600&q=80';
 
+    let computedAddOfferPrice: number | undefined = undefined;
+    if (pIsOffer) {
+      if (pOfferPrice !== '' && pOfferPrice !== undefined && pOfferPrice !== null) {
+        computedAddOfferPrice = Number(pOfferPrice);
+      } else if (pHasMultipleSizes && pSizesList.length > 0) {
+        const found = pSizesList.find(item => item.offerPrice !== undefined && item.offerPrice !== null && (item.offerPrice as any) !== '');
+        if (found && found.offerPrice) {
+          computedAddOfferPrice = Number(found.offerPrice);
+        }
+      }
+    }
+
     const payload = {
       name: pName,
       sku: pSKU || undefined,
@@ -1571,6 +1768,9 @@ export default function AdminDashboard({
       reorderLevel: pReorderLevel,
       status: pStatus,
       badge: pBadge,
+      isBestSeller: pIsBestSeller,
+      isOffer: pIsOffer,
+      offerPrice: computedAddOfferPrice,
       addedBy: 'Owner',
       image: primaryImg,
       images: finalImages,
@@ -1582,7 +1782,14 @@ export default function AdminDashboard({
       shelfLife: pShelfLife || undefined,
       organicCertificate: pOrganicCertificate || undefined,
       sizes: pHasMultipleSizes ? sortProductSizes(pSizesList.map(item => item.size)) : undefined,
-      sizePrices: pHasMultipleSizes ? pSizesList.reduce((acc, item) => ({ ...acc, [item.size]: { price: Number(item.price), originalPrice: item.originalPrice ? Number(item.originalPrice) : undefined } }), {}) : undefined,
+      sizePrices: pHasMultipleSizes ? pSizesList.reduce((acc, item) => ({
+        ...acc,
+        [item.size]: {
+          price: Number(item.price),
+          originalPrice: item.originalPrice ? Number(item.originalPrice) : undefined,
+          offerPrice: (pIsOffer && item.offerPrice !== undefined && item.offerPrice !== null && (item.offerPrice as any) !== '') ? Number(item.offerPrice) : undefined
+        }
+      }), {}) : undefined,
     };
 
     onAddProduct(payload);
@@ -1600,10 +1807,13 @@ export default function AdminDashboard({
     setPReorderLevel(5);
     setPStatus('Active');
     setPBadge('none');
+    setPIsBestSeller(false);
+    setPIsOffer(false);
+    setPOfferPrice('');
     setPTagline('');
     setPDetailedTitle('');
     setPDescriptionBullets('');
-    setPManufacturer('ম্যাংগো লাভার (MangoLover)');
+    setPManufacturer('সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)');
     setPSourceArea('সাতক্ষীরা ও শ্যামনগর, বাংলাদেশ');
     setPShelfLife('১২ মাস (শুকনো ও ঠাণ্ডা জায়গায় সংরক্ষণ করুন)');
     setPOrganicCertificate('১০০% প্রাকৃতিক ও কেমিক্যালমুক্ত পরীক্ষিত');
@@ -1624,6 +1834,18 @@ export default function AdminDashboard({
     const finalImages = editImages.filter(Boolean);
     const primaryImg = finalImages[0] || 'https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&w=600&q=80';
 
+    let computedEditOfferPrice: number | undefined = undefined;
+    if (editIsOffer) {
+      if (editOfferPrice !== '' && editOfferPrice !== undefined && editOfferPrice !== null) {
+        computedEditOfferPrice = Number(editOfferPrice);
+      } else if (editHasMultipleSizes && editSizesList.length > 0) {
+        const found = editSizesList.find(item => item.offerPrice !== undefined && item.offerPrice !== null && (item.offerPrice as any) !== '');
+        if (found && found.offerPrice) {
+          computedEditOfferPrice = Number(found.offerPrice);
+        }
+      }
+    }
+
     onEditProduct({
       ...editingProduct,
       name: editName,
@@ -1638,6 +1860,9 @@ export default function AdminDashboard({
       reorderLevel: editReorderLevel,
       status: editStatus,
       badge: editBadge,
+      isBestSeller: editIsBestSeller,
+      isOffer: editIsOffer,
+      offerPrice: computedEditOfferPrice,
       addedBy: editingProduct.sellerId ? (editingProduct.addedBy || 'Seller') : 'Owner',
       image: primaryImg,
       images: finalImages,
@@ -1649,7 +1874,14 @@ export default function AdminDashboard({
       shelfLife: editShelfLife || undefined,
       organicCertificate: editOrganicCertificate || undefined,
       sizes: editHasMultipleSizes ? sortProductSizes(editSizesList.map(item => item.size)) : undefined,
-      sizePrices: editHasMultipleSizes ? editSizesList.reduce((acc, item) => ({ ...acc, [item.size]: { price: Number(item.price), originalPrice: item.originalPrice ? Number(item.originalPrice) : undefined } }), {}) : undefined,
+      sizePrices: editHasMultipleSizes ? editSizesList.reduce((acc, item) => ({
+        ...acc,
+        [item.size]: {
+          price: Number(item.price),
+          originalPrice: item.originalPrice ? Number(item.originalPrice) : undefined,
+          offerPrice: (editIsOffer && item.offerPrice !== undefined && item.offerPrice !== null && (item.offerPrice as any) !== '') ? Number(item.offerPrice) : undefined
+        }
+      }), {}) : undefined,
     });
 
     setEditingProduct(null);
@@ -1783,7 +2015,7 @@ export default function AdminDashboard({
             <ShieldAlert className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-extrabold text-base md:text-lg tracking-tight">ম্যাংগো লাভার - কন্ট্রোল প্যানেল</h1>
+            <h1 className="font-extrabold text-base md:text-lg tracking-tight">সাতক্ষীরা প্রিমিয়াম - কন্ট্রোল প্যানেল</h1>
             <p className="text-xs text-slate-400 font-medium">অ্যাডমিন ড্যাশবোর্ড</p>
           </div>
         </div>
@@ -1845,6 +2077,27 @@ export default function AdminDashboard({
               {pendingOrdersCount > 0 && (
                 <span className="ml-auto bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full animate-bounce">
                   {pendingOrdersCount}
+                </span>
+              )}
+            </button>
+          )}
+          {hasPermission('complaints') && (
+            <button
+              onClick={() => {
+                setActiveTab('complaints');
+                setSelectedOrderDetails(null);
+              }}
+              className={`w-full text-left px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2.5 cursor-pointer ${
+                activeTab === 'complaints'
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <ShieldAlert className="w-4.5 h-4.5" />
+              <span>কম্পেলেইন ও গ্রাহক সেবা ({complaints.length})</span>
+              {complaints.filter(c => c.status === 'pending').length > 0 && (
+                <span className="ml-auto bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full animate-pulse">
+                  {complaints.filter(c => c.status === 'pending').length}
                 </span>
               )}
             </button>
@@ -2318,7 +2571,7 @@ export default function AdminDashboard({
                           <label className="block text-[10px] font-bold text-gray-600 mb-1">প্রস্তুতকারক (Manufacturer)</label>
                           <input
                             type="text"
-                            placeholder="ম্যাংগো লাভার (MangoLover)"
+                            placeholder="সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)"
                             value={pManufacturer}
                             onChange={(e) => setPManufacturer(e.target.value)}
                             className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 focus:outline-hidden focus:border-emerald-600 font-medium bg-white"
@@ -2604,7 +2857,7 @@ export default function AdminDashboard({
                           setPTagline('');
                           setPDetailedTitle('');
                           setPDescriptionBullets('');
-                          setPManufacturer('ম্যাংগো লাভার (MangoLover)');
+                          setPManufacturer('সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)');
                           setPSourceArea('সাতক্ষীরা ও শ্যামনগর, বাংলাদেশ');
                           setPShelfLife('১২ মাস (শুকনো ও ঠাণ্ডা জায়গায় সংরক্ষণ করুন)');
                           setPOrganicCertificate('১০০% প্রাকৃতিক ও কেমিক্যালমুক্ত পরীক্ষিত');
@@ -2935,13 +3188,64 @@ export default function AdminDashboard({
                     {/* Left Column: Management Panel */}
                     <div className="space-y-4 text-xs no-print">
                       <div className="bg-orange-50/50 p-4 rounded-xl border border-orange-100 space-y-3">
-                        <h5 className="font-bold text-orange-800 text-xs uppercase tracking-wider border-b border-orange-100 pb-1.5">১. গ্রাহকের তথ্য</h5>
+                        <h5 className="font-bold text-orange-800 text-xs uppercase tracking-wider border-b border-orange-100 pb-1.5 flex items-center justify-between">
+                          <span>১. গ্রাহকের তথ্য ও যোগাযোগ</span>
+                          <div className="flex items-center gap-1.5">
+                            <a
+                              href={`tel:${selectedOrderDetails.customerPhone}`}
+                              className="px-2 py-0.5 bg-emerald-100 hover:bg-emerald-600 text-emerald-800 hover:text-white rounded-md font-bold transition-all flex items-center gap-1 text-[11px]"
+                              title="সরাসরি কল দিন"
+                            >
+                              <PhoneCall className="w-3 h-3" />
+                              <span>কল দিন</span>
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOrderComplaintDesc('');
+                                setShowAddComplaintFromOrder(true);
+                              }}
+                              className="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 active:scale-95 text-white rounded-md font-bold transition-all flex items-center gap-1 text-[11px] cursor-pointer shadow-3xs"
+                            >
+                              <ShieldAlert className="w-3 h-3" />
+                              <span>কম্পেলেইন জমা দিন</span>
+                            </button>
+                          </div>
+                        </h5>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-700">
                           <p><span className="font-bold text-gray-400">গ্রাহকের নাম:</span> <strong className="text-gray-900">{selectedOrderDetails.customerName}</strong></p>
                           <p><span className="font-bold text-gray-400">মোবাইল নম্বর:</span> <strong className="text-gray-900 font-sans">{selectedOrderDetails.customerPhone}</strong></p>
                           <p className="sm:col-span-2"><span className="font-bold text-gray-400">ডেলিভারি ঠিকানা:</span> <strong className="text-gray-800">{selectedOrderDetails.deliveryAddress}, {selectedOrderDetails.area}, {selectedOrderDetails.district}</strong></p>
                           <p><span className="font-bold text-gray-400">অর্ডার সময়:</span> <strong className="text-gray-800">{selectedOrderDetails.createdAt}</strong></p>
                         </div>
+
+                        {/* If this customer has existing complaints, show alert badge */}
+                        {(() => {
+                          const custComplaints = complaints ? complaints.filter(c => 
+                            (c.orderId && c.orderId === selectedOrderDetails.id) ||
+                            (c.customerPhone && c.customerPhone === selectedOrderDetails.customerPhone)
+                          ) : [];
+                          if (custComplaints.length === 0) return null;
+                          return (
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-center justify-between text-[11px] text-amber-900 mt-2">
+                              <span className="font-extrabold flex items-center gap-1.5">
+                                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                                <span>এই গ্রাহকের মোট <strong className="text-orange-700 font-sans">{custComplaints.length}টি</strong> অভিযোগ নথিভুক্ত আছে</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowOrderComplaintsPanel(true);
+                                  const el = document.getElementById('order-complaints-section');
+                                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                }}
+                                className="px-2 py-0.5 bg-amber-200/80 hover:bg-amber-300 text-amber-900 rounded font-black text-[10px] cursor-pointer transition-colors"
+                              >
+                                নিচে দেখুন ↓
+                              </button>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       <div className="space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
@@ -3031,6 +3335,531 @@ export default function AdminDashboard({
                           </div>
                         </div>
                       </div>
+
+                      {/* 3. COMPLAINTS, CALL TRACKING & RESOLUTION WORKFLOW (Embedded in Order Modal) */}
+                      <div id="order-complaints-section" className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3.5">
+                        <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center font-bold">
+                              <ShieldAlert className="w-3.5 h-3.5" />
+                            </div>
+                            <div>
+                              <h5 className="font-extrabold text-slate-900 text-xs tracking-tight">
+                                ৩. অভিযোগ, কল হিস্ট্রি ও সমাধান ট্র্যাকার
+                              </h5>
+                              <p className="text-[10px] text-gray-500 font-medium">
+                                এই অর্ডারের গ্রাহক সমস্যা, প্রতিনিধির সাথে কথোপকথন ও সমাধান রেকর্ড
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOrderComplaintDesc('');
+                                setShowAddComplaintFromOrder(true);
+                              }}
+                              className="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-all shadow-3xs"
+                            >
+                              <Plus className="w-3 h-3 stroke-[3]" />
+                              <span>অভিযোগ যোগ করুন</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowOrderComplaintsPanel(!showOrderComplaintsPanel)}
+                              className="p-1 hover:bg-slate-200 rounded text-slate-500 cursor-pointer transition-colors"
+                              title={showOrderComplaintsPanel ? 'সংকুচিত করুন' : 'প্রসারিত করুন'}
+                            >
+                              <ChevronDown className={`w-4 h-4 transition-transform ${showOrderComplaintsPanel ? 'rotate-180' : ''}`} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {showOrderComplaintsPanel && (() => {
+                          const thisOrderComplaints = complaints ? complaints.filter(c => 
+                            (c.orderId && c.orderId === selectedOrderDetails.id) ||
+                            (c.customerPhone && c.customerPhone === selectedOrderDetails.customerPhone)
+                          ) : [];
+
+                          if (thisOrderComplaints.length === 0) {
+                            return (
+                              <div className="bg-white p-4 rounded-xl border border-dashed border-gray-200 text-center space-y-2">
+                                <p className="text-gray-400 text-xs font-semibold">
+                                  এই অর্ডারের জন্য এখন পর্যন্ত কোনো অভিযোগ বা সমস্যা নথিভুক্ত হয়নি।
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOrderComplaintDesc('');
+                                    setShowAddComplaintFromOrder(true);
+                                  }}
+                                  className="text-orange-600 hover:text-orange-700 font-bold text-xs inline-flex items-center gap-1 cursor-pointer hover:underline"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span>+ নতুন অভিযোগ নথিভুক্ত করুন</span>
+                                </button>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="space-y-3">
+                              {thisOrderComplaints.map((c) => {
+                                const catObj = ISSUE_CATEGORIES.find(item => item.id === c.issueCategory);
+                                const callCount = c.callLogs?.length || 0;
+                                const isThisOrderExact = c.orderId === selectedOrderDetails.id;
+                                const isCallFormOpen = activeCallLogComplaintId === c.id;
+                                const isResolveFormOpen = activeResolveComplaintId === c.id;
+
+                                return (
+                                  <div
+                                    key={c.id}
+                                    className={`bg-white rounded-xl border p-3.5 space-y-3 shadow-3xs ${
+                                      c.status === 'resolved'
+                                        ? 'border-emerald-200 bg-emerald-50/15'
+                                        : c.status === 'in_progress'
+                                        ? 'border-sky-200 bg-sky-50/15'
+                                        : 'border-orange-200'
+                                    }`}
+                                  >
+                                    {/* Complaint Header */}
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="font-mono font-bold text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-800">
+                                            #{c.id}
+                                          </span>
+                                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                                            c.status === 'resolved' ? 'bg-emerald-100 text-emerald-800' :
+                                            c.status === 'in_progress' ? 'bg-sky-100 text-sky-800' :
+                                            'bg-amber-100 text-amber-800'
+                                          }`}>
+                                            {c.status === 'resolved' ? '✓ সমাধান সম্পন্ন' :
+                                             c.status === 'in_progress' ? '● আলোচনা চলছে' :
+                                             '⏳ অপেক্ষমাণ'}
+                                          </span>
+                                          {c.priority === 'urgent' && (
+                                            <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-red-100 text-red-700 animate-pulse">
+                                              অতি জরুরি
+                                            </span>
+                                          )}
+                                          {!isThisOrderExact && c.orderId && (
+                                            <span className="text-[9px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                              পূর্বের অর্ডার: #{c.orderId}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="text-[10px] text-gray-400">
+                                          তারিখ: <span className="font-semibold text-gray-600">{c.createdAt}</span> | এন্ট্রি: <span className="font-semibold text-gray-700">{c.createdBy}</span>
+                                        </p>
+                                      </div>
+
+                                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-lg border ${catObj ? catObj.color : 'bg-gray-50 text-gray-700 border-gray-200'}`}>
+                                        {c.issueCategoryLabel || catObj?.label || 'সমস্যা'}
+                                      </span>
+                                    </div>
+
+                                    {/* Complaint Description / Note */}
+                                    <div className="bg-orange-50/40 border border-orange-100 rounded-lg p-2.5 text-xs text-gray-800 font-medium leading-relaxed">
+                                      <span className="text-[10px] font-bold text-orange-900 block mb-0.5">অভিযোগের কারণ / সমস্যা:</span>
+                                      {c.description}
+                                    </div>
+
+                                    {/* CALL TRACKING SECTION (কল রেকর্ড ও প্রতিনিধির তথ্য) */}
+                                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2">
+                                      <div className="flex items-center justify-between text-xs">
+                                        <div className="flex items-center gap-1.5">
+                                          <PhoneCall className="w-3.5 h-3.5 text-orange-600" />
+                                          <span className="font-extrabold text-slate-800">
+                                            কথোপকথন রেকর্ড ({toBn(callCount)} বার কথা হয়েছে)
+                                          </span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (activeCallLogComplaintId === c.id) {
+                                              setActiveCallLogComplaintId(null);
+                                            } else {
+                                              setActiveCallLogComplaintId(c.id);
+                                              setOrderCallNotes('');
+                                              setOrderCallRepName(loggedInUser?.name || 'কাস্টমার সাপোর্ট');
+                                            }
+                                          }}
+                                          className="text-orange-700 hover:text-orange-800 bg-white hover:bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-md font-extrabold text-[10px] flex items-center gap-1 cursor-pointer transition-colors"
+                                        >
+                                          <Plus className="w-3 h-3" />
+                                          <span>{isCallFormOpen ? 'ফর্ম বন্ধ করুন' : '+ নতুন কল রেকর্ড যোগ করুন'}</span>
+                                        </button>
+                                      </div>
+
+                                      {/* Call Logs list */}
+                                      {callCount > 0 ? (
+                                        <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                                          {c.callLogs.map((log) => (
+                                            <div key={log.id} className="bg-white p-2 rounded-lg border border-gray-100 text-[11px] space-y-1">
+                                              <div className="flex items-center justify-between text-gray-500">
+                                                <span className="font-extrabold text-gray-800">
+                                                  {toBn(log.callNumber)}ম কল - <strong className="text-orange-700 font-black">{log.representativeName}</strong>
+                                                </span>
+                                                <span className="text-[10px] text-gray-400 font-sans">{log.callDate}</span>
+                                              </div>
+                                              <p className="text-gray-700 font-medium leading-tight">
+                                                {log.notes}
+                                              </p>
+                                              {log.customerResponse && (
+                                                <div className="flex items-center gap-1 text-[10px]">
+                                                  <span className="text-gray-400">কাস্টমারের প্রতিক্রিয়া:</span>
+                                                  <span className={`font-bold px-1.5 py-0.2 rounded ${
+                                                    log.customerResponse === 'satisfied' ? 'bg-emerald-50 text-emerald-700' :
+                                                    log.customerResponse === 'unhappy' ? 'bg-rose-50 text-rose-700' :
+                                                    log.customerResponse === 'followup_needed' ? 'bg-amber-50 text-amber-700' :
+                                                    'bg-gray-100 text-gray-700'
+                                                  }`}>
+                                                    {log.customerResponse === 'satisfied' ? '✓ সন্তুষ্ট' :
+                                                     log.customerResponse === 'unhappy' ? '✕ অসন্তুষ্ট' :
+                                                     log.customerResponse === 'followup_needed' ? '⚠ ফলো-আপ প্রয়োজন' : 'সাধারণ'}
+                                                  </span>
+                                                </div>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <p className="text-[10px] text-gray-400 italic">এখনো গ্রাহকের সাথে কোনো কলের তথ্য যুক্ত করা হয়নি।</p>
+                                      )}
+
+                                      {/* Inline Call Record Entry Form */}
+                                      {isCallFormOpen && (
+                                        <form
+                                          onSubmit={(e) => handleAddCallLogFromOrder(c.id, e)}
+                                          className="bg-orange-50/50 border border-orange-200 rounded-xl p-3 space-y-2 mt-2 text-xs"
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <span className="font-bold text-orange-900 text-[11px]">
+                                              {toBn(callCount + 1)}ম কলের বিস্তারিত তথ্য:
+                                            </span>
+                                            <span className="text-[10px] text-gray-500">স্বয়ংক্রিয় কাউন্টার</span>
+                                          </div>
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            <div>
+                                              <label className="block text-[10px] font-bold text-gray-700 mb-0.5">কোন প্রতিনিধি কথা বলেছেন?</label>
+                                              <input
+                                                type="text"
+                                                required
+                                                value={orderCallRepName}
+                                                onChange={(e) => setOrderCallRepName(e.target.value)}
+                                                className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white font-bold text-gray-800"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-[10px] font-bold text-gray-700 mb-0.5">কাস্টমারের সন্তুষ্টি / প্রতিক্রিয়া</label>
+                                              <select
+                                                value={orderCallResponse}
+                                                onChange={(e) => setOrderCallResponse(e.target.value as any)}
+                                                className="w-full px-2 py-1.5 border border-gray-200 rounded-lg bg-white font-bold text-gray-800"
+                                              >
+                                                <option value="satisfied">সন্তুষ্ট (Satisfied)</option>
+                                                <option value="neutral">সাধারণ (Neutral)</option>
+                                                <option value="unhappy">অসন্তুষ্ট (Unhappy)</option>
+                                                <option value="followup_needed">পুনরায় যোগাযোগ প্রয়োজন (Follow-up)</option>
+                                              </select>
+                                            </div>
+                                          </div>
+                                          <div>
+                                            <label className="block text-[10px] font-bold text-gray-700 mb-0.5">আলোচনার সারসংক্ষেপ ও কাস্টমারের কথা *</label>
+                                            <textarea
+                                              required
+                                              rows={2}
+                                              placeholder="গ্রাহকের সাথে কি বিষয়ে কথা হলো এবং গ্রাহক কী চাইলেন..."
+                                              value={orderCallNotes}
+                                              onChange={(e) => setOrderCallNotes(e.target.value)}
+                                              className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white font-medium text-xs resize-none"
+                                            />
+                                          </div>
+                                          <div className="flex justify-end gap-2 pt-1">
+                                            <button
+                                              type="button"
+                                              onClick={() => setActiveCallLogComplaintId(null)}
+                                              className="px-2.5 py-1 rounded-lg bg-gray-200 text-gray-700 font-bold text-[10px] cursor-pointer"
+                                            >
+                                              বাতিল
+                                            </button>
+                                            <button
+                                              type="submit"
+                                              className="px-3 py-1 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-[10px] cursor-pointer shadow-3xs"
+                                            >
+                                              কল রেকর্ড সংরক্ষণ করুন
+                                            </button>
+                                          </div>
+                                        </form>
+                                      )}
+                                    </div>
+
+                                    {/* RESOLUTION WORKFLOW SECTION (সমাধান) */}
+                                    <div className="border-t border-gray-100 pt-2.5">
+                                      {c.resolution ? (
+                                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-950 space-y-1.5">
+                                          <div className="flex items-center justify-between">
+                                            <span className="font-black text-emerald-900 flex items-center gap-1.5">
+                                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                              <span>গৃহীত পদক্ষেপ: {c.resolution.actionTakenLabel}</span>
+                                            </span>
+                                            {typeof c.resolution.refundAmount === 'number' && c.resolution.refundAmount > 0 && (
+                                              <span className="font-extrabold bg-emerald-200/80 px-2 py-0.5 rounded-full text-[10px] text-emerald-900">
+                                                রিফান্ড: ৳{c.resolution.refundAmount}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <p className="text-[11px] text-emerald-800 font-medium leading-relaxed bg-white/70 p-2 rounded-lg border border-emerald-100">
+                                            {c.resolution.resolutionNotes}
+                                          </p>
+                                          <div className="flex items-center justify-between text-[10px] text-emerald-700 pt-0.5 font-semibold">
+                                            <span>সমাধানকারী: <strong>{c.resolution.resolvedBy}</strong></span>
+                                            <span>তারিখ: {c.resolution.resolvedAt}</span>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div>
+                                          {!isResolveFormOpen ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setActiveResolveComplaintId(c.id);
+                                                setOrderResolveNotes('');
+                                                setOrderResolveRefund('');
+                                                setOrderResolveRepName(loggedInUser?.name || 'কাস্টমার ম্যানেজার');
+                                              }}
+                                              className="w-full py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                                            >
+                                              <Check className="w-3.5 h-3.5" />
+                                              <span>✓ সমস্যার সমাধান নথিভুক্ত করুন (Resolution Workflow)</span>
+                                            </button>
+                                          ) : (
+                                            <form
+                                              onSubmit={(e) => handleResolveComplaintFromOrder(c, e)}
+                                              className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 space-y-2.5 text-xs text-left"
+                                            >
+                                              <div className="flex items-center justify-between border-b border-emerald-200/80 pb-1.5">
+                                                <span className="font-black text-emerald-900 text-xs">
+                                                  অভিযোগের সমাধান ও গৃহীত পদক্ষেপ:
+                                                </span>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setActiveResolveComplaintId(null)}
+                                                  className="text-gray-400 hover:text-gray-600 text-xs font-bold"
+                                                >
+                                                  ✕
+                                                </button>
+                                              </div>
+
+                                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                <div>
+                                                  <label className="block text-[10px] font-bold text-gray-700 mb-0.5">কী পদক্ষেপ নেওয়া হলো? *</label>
+                                                  <select
+                                                    value={orderResolveAction}
+                                                    onChange={(e) => setOrderResolveAction(e.target.value)}
+                                                    className="w-full px-2 py-1.5 border border-gray-200 rounded-lg bg-white font-bold text-gray-800"
+                                                  >
+                                                    {ACTION_OPTIONS.map(a => (
+                                                      <option key={a.id} value={a.id}>{a.label}</option>
+                                                    ))}
+                                                  </select>
+                                                </div>
+                                                <div>
+                                                  <label className="block text-[10px] font-bold text-gray-700 mb-0.5">রিফান্ড টাকার পরিমাণ (যদি থাকে, ৳)</label>
+                                                  <input
+                                                    type="number"
+                                                    min="0"
+                                                    placeholder="যেমন: 500"
+                                                    value={orderResolveRefund}
+                                                    onChange={(e) => setOrderResolveRefund(e.target.value === '' ? '' : Number(e.target.value))}
+                                                    className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white font-mono font-bold"
+                                                  />
+                                                </div>
+                                              </div>
+
+                                              <div>
+                                                <label className="block text-[10px] font-bold text-gray-700 mb-0.5">বিস্তারিত রেজুলেশন নোট *</label>
+                                                <textarea
+                                                  required
+                                                  rows={2}
+                                                  placeholder="কীভাবে নিষ্পত্তি হলো, কাস্টমারকে কী বলা হলো বিস্তারিত লিখুন..."
+                                                  value={orderResolveNotes}
+                                                  onChange={(e) => setOrderResolveNotes(e.target.value)}
+                                                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white font-medium text-xs resize-none"
+                                                />
+                                              </div>
+
+                                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                                                <div>
+                                                  <label className="block text-[10px] font-bold text-gray-700 mb-0.5">সমাধানকারী প্রতিনিধির নাম</label>
+                                                  <input
+                                                    type="text"
+                                                    required
+                                                    value={orderResolveRepName}
+                                                    onChange={(e) => setOrderResolveRepName(e.target.value)}
+                                                    className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white font-bold"
+                                                  />
+                                                </div>
+                                                <div className="pt-3">
+                                                  <label className="flex items-center gap-1.5 text-xs font-bold text-emerald-950 cursor-pointer">
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={orderResolveSatisfied}
+                                                      onChange={(e) => setOrderResolveSatisfied(e.target.checked)}
+                                                      className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                                                    />
+                                                    <span>কাস্টমার সমাধানে সন্তুষ্ট হয়েছেন</span>
+                                                  </label>
+                                                </div>
+                                              </div>
+
+                                              <div className="flex justify-end gap-2 pt-1 border-t border-emerald-200/60">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setActiveResolveComplaintId(null)}
+                                                  className="px-2.5 py-1 rounded-lg bg-gray-200 text-gray-700 font-bold text-[10px] cursor-pointer"
+                                                >
+                                                  বাতিল
+                                                </button>
+                                                <button
+                                                  type="submit"
+                                                  className="px-3.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] cursor-pointer shadow-3xs"
+                                                >
+                                                  সমাধান নিশ্চিত করুন
+                                                </button>
+                                              </div>
+                                            </form>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Modal for adding a new complaint from within the order */}
+                      {showAddComplaintFromOrder && (
+                        <div className="fixed inset-0 z-70 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+                          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto text-left border border-orange-200">
+                            <button
+                              type="button"
+                              onClick={() => setShowAddComplaintFromOrder(false)}
+                              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full cursor-pointer transition-all"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+
+                            <div className="space-y-1 border-b border-gray-100 pb-3">
+                              <h4 className="text-base font-black text-gray-900 flex items-center gap-2">
+                                <ShieldAlert className="w-5 h-5 text-orange-600" />
+                                <span>নতুন কম্পেলেইন এন্ট্রি</span>
+                              </h4>
+                              <p className="text-xs text-gray-400">
+                                অর্ডার #{selectedOrderDetails.id} এর বিপরীতে তথ্যসমূহ স্বয়ংক্রিয়ভাবে লোড হয়েছে।
+                              </p>
+                            </div>
+
+                            <form onSubmit={handleAddComplaintFromOrder} className="space-y-3.5 text-xs">
+                              {/* Readonly Auto-filled Box */}
+                              <div className="bg-slate-50 border border-slate-200/70 rounded-2xl p-3.5 space-y-2">
+                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                                  অটো-লোড হওয়া গ্রাহকের বিবরণ
+                                </span>
+                                <div className="grid grid-cols-2 gap-2 text-slate-700 font-semibold">
+                                  <div>
+                                    <span className="text-gray-400 block text-[10px]">গ্রাহকের নাম:</span>
+                                    <span className="font-black text-slate-900">{selectedOrderDetails.customerName}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-400 block text-[10px]">মোবাইল নম্বর *:</span>
+                                    <span className="font-mono font-black text-slate-900">{selectedOrderDetails.customerPhone}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-400 block text-[10px]">অর্ডার আইডি:</span>
+                                    <span className="font-mono font-black text-orange-600">#{selectedOrderDetails.id}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-400 block text-[10px]">ঠিকানা:</span>
+                                    <span className="truncate block" title={selectedOrderDetails.deliveryAddress}>
+                                      {selectedOrderDetails.deliveryAddress}, {selectedOrderDetails.area}, {selectedOrderDetails.district}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Problem Category & Priority */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block font-bold text-gray-700 mb-1">
+                                    সমস্যার ধরন (Issue Category) <span className="text-red-500">*</span>
+                                  </label>
+                                  <select
+                                    value={orderComplaintCategory}
+                                    onChange={(e) => setOrderComplaintCategory(e.target.value as any)}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold bg-white focus:outline-hidden focus:border-orange-500 cursor-pointer"
+                                  >
+                                    {ISSUE_CATEGORIES.map(c => (
+                                      <option key={c.id} value={c.id}>{c.label}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block font-bold text-gray-700 mb-1">
+                                    অগ্রাধিকার (Priority)
+                                  </label>
+                                  <select
+                                    value={orderComplaintPriority}
+                                    onChange={(e) => setOrderComplaintPriority(e.target.value as any)}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold bg-white focus:outline-hidden focus:border-orange-500 cursor-pointer"
+                                  >
+                                    <option value="normal">সাধারণ (Normal)</option>
+                                    <option value="high">জরুরি (High)</option>
+                                    <option value="urgent">অতি জরুরি (Urgent)</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              {/* Description / Reason */}
+                              <div>
+                                <label className="block font-bold text-gray-700 mb-1">
+                                  অভিযোগের কারণ ও বিস্তারিত নোট <span className="text-red-500">*</span>
+                                </label>
+                                <textarea
+                                  required
+                                  rows={4}
+                                  placeholder="গ্রাহকের কী ধরণের ক্ষতি হয়েছে বা সমস্যা বিস্তারিত লিখুন (যেমন: বোতল ভেঙে গেছে, পণ্য কম বা ভুল এসেছে)..."
+                                  value={orderComplaintDesc}
+                                  onChange={(e) => setOrderComplaintDesc(e.target.value)}
+                                  className="w-full p-3 border border-gray-200 rounded-xl font-medium focus:outline-hidden focus:border-orange-500 leading-relaxed resize-none"
+                                />
+                              </div>
+
+                              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                                <button
+                                  type="button"
+                                  onClick={() => setShowAddComplaintFromOrder(false)}
+                                  className="px-4 py-2 border border-gray-200 rounded-xl text-gray-600 font-bold hover:bg-gray-50 cursor-pointer"
+                                >
+                                  বাতিল
+                                </button>
+                                <button
+                                  type="submit"
+                                  disabled={orderComplaintSubmitting}
+                                  className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold px-5 py-2 rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
+                                >
+                                  {orderComplaintSubmitting ? 'জমা হচ্ছে...' : 'অভিযোগ নথিভুক্ত করুন'}
+                                </button>
+                              </div>
+                            </form>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Items list */}
                       <div className="border border-gray-100 p-4 rounded-xl space-y-2 animate-none">
@@ -3386,6 +4215,18 @@ export default function AdminDashboard({
                           <button
                             type="button"
                             onClick={() => {
+                              setShowOrderComplaintsPanel(true);
+                              setShowAddComplaintFromOrder(true);
+                            }}
+                            className="bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs font-extrabold px-3 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-3xs"
+                            title="অভিযোগ ও নোট নথিভুক্ত করুন"
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            <span>কম্পেলেইন জমা দিন</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
                               handlePrint('printable-thermal-memo', `POS Invoice #${selectedOrderDetails.id}`);
                             }}
                             className="bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white text-xs font-extrabold px-3 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-3xs"
@@ -3447,7 +4288,7 @@ export default function AdminDashboard({
                               referrerPolicy="no-referrer"
                             />
                           ) : (
-                            <h2 className="text-3xl font-black uppercase tracking-widest">{siteConfig.storeName || "ম্যাংগো লাভার"}</h2>
+                            <h2 className="text-3xl font-black uppercase tracking-widest">{siteConfig.storeName || "সাতক্ষীরা প্রিমিয়াম"}</h2>
                           )}
                           {siteConfig.storeSloganImage && (
                             <img 
@@ -3493,7 +4334,7 @@ export default function AdminDashboard({
                             />
                           ) : (
                             <>
-                              <h1 className="text-2xl font-black text-slate-950">{siteConfig.storeName || "ম্যাংগো লাভার"}</h1>
+                              <h1 className="text-2xl font-black text-slate-950">{siteConfig.storeName || "সাতক্ষীরা প্রিমিয়াম"}</h1>
                               {siteConfig.storeSloganImage ? (
                                 <img 
                                   src={siteConfig.storeSloganImage} 
@@ -3507,7 +4348,7 @@ export default function AdminDashboard({
                             </>
                           )}
                           <p className="text-[10px] text-slate-500 font-semibold mt-1">অফিস: {siteConfig.contactOffice || "Shyamnagar, Satkhira"}</p>
-                          <p className="text-[10px] text-slate-500 font-semibold font-sans">মোবাইল: {siteConfig.contactPhone || "01837-587551"} | ইমেইল: {siteConfig.contactEmail || "info@mangolover.com.bd"}</p>
+                          <p className="text-[10px] text-slate-500 font-semibold font-sans">মোবাইল: {siteConfig.contactPhone || "01837-587551"} | ইমেইল: {siteConfig.contactEmail || "info@satkhirapremium.com.bd"}</p>
                         </div>
 
                         <div className="text-center py-1 relative z-10">
@@ -3586,7 +4427,7 @@ export default function AdminDashboard({
 
                         {/* Message */}
                         <div className="text-center pt-6 text-[11px] font-bold text-slate-500 italic relative z-10">
-                          "আমাদের থেকে পণ্য ক্রয়ের জন্য আপনাকে আন্তরিক ধন্যবাদ। ম্যাংগো লাভার-এর সাথে থাকুন!"
+                          "আমাদের থেকে পণ্য ক্রয়ের জন্য আপনাকে আন্তরিক ধন্যবাদ। সাতক্ষীরা প্রিমিয়াম-এর সাথে থাকুন!"
                         </div>
 
                         {/* Barcode Graphic */}
@@ -3625,7 +4466,7 @@ export default function AdminDashboard({
                             />
                           )}
                           <h1 className="shop-name" style={{ fontSize: '14px', fontWeight: 'bold', margin: '0' }}>
-                            {siteConfig.storeName || "ম্যাংগো লাভার"}
+                            {siteConfig.storeName || "সাতক্ষীরা প্রিমিয়াম"}
                           </h1>
                           <p className="shop-meta" style={{ fontSize: '9px', margin: '0' }}>
                             {siteConfig.contactOffice || "Shyamnagar, Satkhira"}
@@ -3709,7 +4550,7 @@ export default function AdminDashboard({
 
                         {/* Footer */}
                         <div className="footer" style={{ marginTop: '8px', textAlign: 'center', fontSize: '9px', borderTop: '1px dotted #ccc', paddingTop: '4px' }}>
-                          <p>আমাদের থেকে পণ্য ক্রয়ের জন্য আপনাকে আন্তরিক ধন্যবাদ। ম্যাংগো লাভার-এর সাথে থাকুন!</p>
+                          <p>আমাদের থেকে পণ্য ক্রয়ের জন্য আপনাকে আন্তরিক ধন্যবাদ। সাতক্ষীরা প্রিমিয়াম-এর সাথে থাকুন!</p>
                           <p style={{ fontSize: '8px', color: '#666' }}>Sold by: {selectedOrderDetails.items[0]?.addedBy || "মেহেদী হাসান"}</p>
                         </div>
                       </div>
@@ -4103,6 +4944,8 @@ export default function AdminDashboard({
                           <th className="p-4">মোট টাকা</th>
                           <th className="p-4">পেমেন্ট</th>
                           <th className="p-4">স্ট্যাটাস</th>
+                          <th className="p-4 text-center">কথা হয়েছে কিনা</th>
+                          <th className="p-4 text-center">দ্রুত নোট</th>
                           <th className="p-4 text-center">বিশদ বিবরণ</th>
                         </tr>
                       </thead>
@@ -4153,6 +4996,67 @@ export default function AdminDashboard({
                             </td>
                             <td className="p-4 text-center">
                               <button
+                                type="button"
+                                onClick={() => handleQuickToggleTalked(order)}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-black cursor-pointer transition-all shadow-3xs ${
+                                  order.isTalked ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200' : 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200'
+                                }`}
+                                title="কথা হয়েছে কিনা পরিবর্তন করতে ক্লিক করুন"
+                              >
+                                {order.isTalked ? 'কথা হয়েছে ✅' : 'কল হয়নি ⏳'}
+                              </button>
+                            </td>
+                            <td className="p-4 text-center relative">
+                              <button
+                                type="button"
+                                onClick={() => setActiveNoteOrderId(activeNoteOrderId === order.id ? null : order.id)}
+                                className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center gap-1 cursor-pointer mx-auto shadow-3xs"
+                                title="নোট দেখুন ও যোগ করুন"
+                              >
+                                <span>💬 {order.customerNotes?.length || 0} নোট</span>
+                              </button>
+                              {activeNoteOrderId === order.id && (
+                                <div className="absolute right-0 top-full mt-1.5 w-64 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-30 space-y-2 text-left">
+                                  <div className="flex items-center justify-between border-b pb-1.5">
+                                    <span className="text-[11px] font-black text-slate-800">দ্রুত নোট ও যোগাযোগ</span>
+                                    <button type="button" onClick={() => setActiveNoteOrderId(null)} className="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+                                  </div>
+                                  {order.customerNotes && order.customerNotes.length > 0 ? (
+                                    <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1">
+                                      {order.customerNotes.map(note => (
+                                        <div key={note.id} className="bg-gray-50 p-2 rounded-lg text-[10px] space-y-0.5">
+                                          <div className="flex justify-between font-bold text-gray-500">
+                                            <span>{note.author}</span>
+                                            <span>{new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                          </div>
+                                          <p className="text-gray-800 font-medium">{note.text}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-[10px] text-gray-400">কোনো নোট নেই।</p>
+                                  )}
+                                  <div className="flex gap-1.5 pt-1">
+                                    <input
+                                      type="text"
+                                      placeholder="নোট লিখুন..."
+                                      value={quickNoteInputs[order.id] || ''}
+                                      onChange={(e) => setQuickNoteInputs({ ...quickNoteInputs, [order.id]: e.target.value })}
+                                      className="flex-1 px-2 py-1 text-[11px] border border-gray-200 rounded-lg focus:outline-hidden bg-white text-gray-800"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleQuickAddNoteSubmit(order)}
+                                      className="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-[10px] font-black cursor-pointer shrink-0"
+                                    >
+                                      যোগ
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-4 text-center">
+                              <button
                                 onClick={() => setSelectedOrderDetails(order)}
                                 className="p-1.5 bg-gray-100 hover:bg-orange-50 text-gray-600 hover:text-orange-600 rounded-lg transition-colors cursor-pointer"
                                 title="অর্ডার বিবরণ"
@@ -4168,6 +5072,24 @@ export default function AdminDashboard({
                 )}
               </div>
             </div>
+          )}
+
+          {/* TAB: COMPLAINTS & CRM SUPPORT */}
+          {hasPermission('complaints') && activeTab === 'complaints' && (
+            <ComplaintsTab
+              complaints={complaints}
+              orders={orders}
+              loggedInUser={loggedInUser}
+              onAddComplaint={onAddComplaint}
+              onUpdateComplaint={onUpdateComplaint}
+              onDeleteComplaint={onDeleteComplaint}
+              onAddCallLog={onAddComplaintCallLog}
+              onViewOrderDetails={(order) => {
+                setSelectedOrderDetails(order);
+                setActiveTab('orders');
+              }}
+              notify={notify}
+            />
           )}
 
           {/* TAB: MARKETING & BRANDING */}
@@ -8189,7 +9111,7 @@ export default function AdminDashboard({
                     />
                   ) : (
                     <>
-                      <h1 className="text-xl font-black text-slate-950">{siteConfig.storeName || "ম্যাংগো লাভার"}</h1>
+                      <h1 className="text-xl font-black text-slate-950">{siteConfig.storeName || "সাতক্ষীরা প্রিমিয়াম"}</h1>
                       {siteConfig.storeSloganImage ? (
                         <img 
                           src={siteConfig.storeSloganImage} 
@@ -8569,6 +9491,111 @@ export default function AdminDashboard({
                 </div>
               </div>
 
+              {/* Best Seller & Offer Section Settings */}
+              <div className="bg-orange-50/50 p-4 rounded-xl border border-orange-200 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="edit-is-bestseller"
+                      checked={editIsBestSeller}
+                      onChange={(e) => setEditIsBestSeller(e.target.checked)}
+                      className="w-4 h-4 text-orange-600 rounded border-orange-300 focus:ring-orange-500 cursor-pointer"
+                    />
+                    <label htmlFor="edit-is-bestseller" className="text-xs font-bold text-gray-800 cursor-pointer">
+                      🔥 বেস্ট সেলিং প্রোডাক্ট হিসেবে দেখাও (Best Seller)
+                    </label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="edit-is-offer"
+                        checked={editIsOffer}
+                        onChange={(e) => setEditIsOffer(e.target.checked)}
+                        className="w-4 h-4 text-orange-600 rounded border-orange-300 focus:ring-orange-500 cursor-pointer"
+                      />
+                      <label htmlFor="edit-is-offer" className="text-xs font-bold text-gray-800 cursor-pointer">
+                        ⭐ ওয়েবসাইটে বিশেষ অফার সেকশনে দেখাও
+                      </label>
+                    </div>
+                    {editIsOffer && (!editHasMultipleSizes || editSizesList.length === 0) && (
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-600 mb-1">অফার মূল্য (৳)</label>
+                        <input
+                          type="number"
+                          min={1}
+                          placeholder="যেমন: ৮৫০"
+                          value={editOfferPrice}
+                          onChange={(e) => setEditOfferPrice(e.target.value !== '' ? Number(e.target.value) : '')}
+                          className="w-full px-3 py-1.5 text-xs rounded-lg border border-orange-200 focus:outline-hidden font-bold text-gray-800 bg-white"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Size-wise Offer Pricing Box when multiple sizes exist */}
+                {editIsOffer && editHasMultipleSizes && editSizesList.length > 0 && (
+                  <div className="mt-3 p-3.5 bg-amber-100/70 rounded-xl border-2 border-amber-300 space-y-2.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                        <span>🏷️ পরিমাণ অনুযায়ী আলাদা আলাদা অফার মূল্য নির্ধারণ করুন:</span>
+                      </span>
+                      <span className="text-[10px] font-black text-amber-900 bg-white px-2 py-0.5 rounded-full border border-amber-300 shadow-3xs self-start sm:self-auto">
+                        প্রতিটি সাইজের জন্য আলাদা রেট
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-900 font-medium leading-relaxed">
+                      এখানে ৫০০ গ্রাম, ১ কেজি ইত্যাদি পরিমাণের জন্য আলাদা অফার মূল্য দিন (যেমন: ৫০০ গ্রাম অফার মূল্য ৩৯৯৳ এবং ১ কেজি অফার মূল্য ৭৫০৳)। এর ফলে ওয়েবসাইটে প্রতিটি সাইজের সঠিক অফার মূল্য ও ডিসকাউন্ট আলাদাভাবে শো করবে।
+                    </p>
+
+                    <div className="space-y-2 pt-1 max-h-56 overflow-y-auto pr-1">
+                      {editSizesList.map((item, idx) => (
+                        <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-2.5 rounded-xl border border-amber-300 shadow-2xs gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-amber-950 bg-amber-100 px-3 py-1 rounded-lg text-xs">
+                              {item.size}
+                            </span>
+                            <span className="text-xs text-gray-600 font-bold">
+                              রেগুলার: ৳{item.price}
+                            </span>
+                            {item.originalPrice ? (
+                              <span className="text-[10px] text-red-500 line-through font-semibold">
+                                পূর্বের: ৳{item.originalPrice}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end sm:self-auto">
+                            <label className="text-xs font-bold text-amber-950 whitespace-nowrap">
+                              অফার মূল্য:
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min={1}
+                                placeholder="অফার ৳"
+                                value={item.offerPrice !== undefined && item.offerPrice !== null ? item.offerPrice : ''}
+                                onChange={(e) => {
+                                  const val = e.target.value !== '' ? Number(e.target.value) : undefined;
+                                  const updated = [...editSizesList];
+                                  updated[idx] = { ...updated[idx], offerPrice: val };
+                                  setEditSizesList(updated);
+                                }}
+                                className="w-28 px-3 py-1.5 text-xs font-black rounded-lg border-2 border-amber-400 focus:outline-none focus:border-amber-600 bg-amber-50/50 text-gray-900 shadow-inner"
+                              />
+                              <span className="absolute right-2.5 top-1.5 text-xs font-black text-amber-700 pointer-events-none">৳</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* ক্রয় ও বিক্রয় মূল্যের স্পষ্টীকরণ নোট */}
               <div className="bg-amber-50/70 border border-amber-100 rounded-lg p-2.5 text-[11px] text-amber-800 font-medium leading-relaxed">
                 💡 <strong>একক মূল্য নোট:</strong> এখানে দেয়া ক্রয় ও বিক্রয় মূল্যটি প্রতি <strong>১ {editUnit || 'একক'}</strong> এর জন্য প্রযোজ্য। গ্রাহক কার্টে বেশি পরিমাণ অর্ডার করলে এই মূল্য দিয়েই গুণ করে সর্বমোট মূল্য হিসাব করা হবে এবং হোয়াটসঅ্যাপ মেসেজেও সঠিক হিসাব চলে যাবে।
@@ -8613,24 +9640,29 @@ export default function AdminDashboard({
                 {editHasMultipleSizes && (
                   <div className="space-y-3.5">
                     <span className="block text-xs text-red-800 font-semibold leading-normal">
-                      এখানে আপনি এই পণ্যের বিভিন্ন ওজনের (যেমন: 0.5 KG, 1 KG) জন্য আলাদা বিক্রয় মূল্য ও পূর্বের মূল্য সেট করতে পারেন।
+                      এখানে আপনি এই পণ্যের বিভিন্ন ওজনের (যেমন: 0.5 KG, 1 KG) জন্য আলাদা বিক্রয় মূল্য, পূর্বের মূল্য ও অফার রেট সেট করতে পারেন।
                     </span>
                     
                     {/* Sizes List */}
                     {editSizesList.length > 0 && (
                       <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                         {editSizesList.map((item, idx) => (
-                          <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-xl border border-red-100 text-xs font-bold text-gray-700 shadow-xs">
+                          <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-xl border border-red-100 text-xs font-bold text-gray-700 shadow-xs flex-wrap gap-2">
                             <span className="font-extrabold text-red-800 bg-red-50 px-2.5 py-1 rounded-lg shrink-0 text-xs">{item.size}</span>
-                            <div className="flex items-center gap-2.5 ml-auto">
+                            <div className="flex items-center gap-2.5 ml-auto flex-wrap">
                               <span className="text-gray-900 font-bold">বিক্রয়: ৳{item.price}</span>
                               {item.originalPrice ? (
                                 <span className="text-red-500 line-through text-[11px]">পূর্বের: ৳{item.originalPrice}</span>
                               ) : null}
+                              {item.offerPrice ? (
+                                <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-black text-xs">
+                                  ⚡ অফার: ৳{item.offerPrice}
+                                </span>
+                              ) : null}
                               <button
                                 type="button"
                                 onClick={() => setEditSizesList(editSizesList.filter((_, i) => i !== idx))}
-                                className="text-red-500 hover:text-red-700 p-1 ml-1.5 font-bold text-sm"
+                                className="text-red-500 hover:text-red-700 p-1 ml-1.5 font-bold text-sm cursor-pointer"
                                 title="মুছে ফেলুন"
                               >
                                 ✕
@@ -8643,7 +9675,7 @@ export default function AdminDashboard({
 
                     {/* Add New Size-Price Form */}
                     <div className="bg-white p-3.5 rounded-xl border border-red-200 space-y-3 shadow-xs">
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                         <div>
                           <label className="block text-[11px] font-bold text-gray-600 mb-1">ওজন/সাইজ</label>
                           <input
@@ -8671,6 +9703,15 @@ export default function AdminDashboard({
                             className="w-full px-2.5 py-2 text-xs md:text-sm rounded-lg border border-gray-200 focus:outline-hidden font-bold text-gray-800 bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
                           />
                         </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-600 mb-1">অফার মূল্য (ঐচ্ছিক ৳)</label>
+                          <input
+                            type="number"
+                            id="edit-size-offer-price"
+                            placeholder="যেমন: ৮৫০"
+                            className="w-full px-2.5 py-2 text-xs md:text-sm rounded-lg border border-amber-300 focus:outline-hidden font-bold text-gray-800 bg-amber-50/40 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                          />
+                        </div>
                       </div>
                       <button
                         type="button"
@@ -8678,10 +9719,12 @@ export default function AdminDashboard({
                           const sizeInp = document.getElementById('edit-size-name') as HTMLInputElement;
                           const priceInp = document.getElementById('edit-size-price') as HTMLInputElement;
                           const origInp = document.getElementById('edit-size-orig-price') as HTMLInputElement;
+                          const offerInp = document.getElementById('edit-size-offer-price') as HTMLInputElement;
                           
                           const sizeVal = sizeInp?.value?.trim();
                           const priceVal = Number(priceInp?.value);
                           const origVal = origInp?.value ? Number(origInp.value) : undefined;
+                          const offerVal = offerInp?.value ? Number(offerInp.value) : undefined;
                           
                           if (!sizeVal || !priceVal || priceVal <= 0) {
                             notify('ওজন এবং বিক্রয় মূল্য সঠিকভাবে লিখুন!', 'error');
@@ -8693,16 +9736,17 @@ export default function AdminDashboard({
                             return;
                           }
                           
-                          setEditSizesList([...editSizesList, { size: sizeVal, price: priceVal, originalPrice: origVal }]);
+                          setEditSizesList([...editSizesList, { size: sizeVal, price: priceVal, originalPrice: origVal, offerPrice: offerVal }]);
                           
                           // Clear inputs
                           if (sizeInp) sizeInp.value = '';
                           if (priceInp) priceInp.value = '';
                           if (origInp) origInp.value = '';
+                          if (offerInp) offerInp.value = '';
                         }}
                         className="w-full bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-extrabold py-2 px-3 rounded-lg text-xs md:text-sm transition-all shadow-xs cursor-pointer"
                       >
-                        + এই ওজন ও দাম যোগ করুন
+                        + ওজন ও মূল্য তালিকায় যুক্ত করুন
                       </button>
                     </div>
                   </div>
@@ -8766,7 +9810,7 @@ export default function AdminDashboard({
                     <label className="block text-[10px] font-bold text-gray-600 mb-1">প্রস্তুতকারক (Manufacturer)</label>
                     <input
                       type="text"
-                      placeholder="ম্যাংগো লাভার (MangoLover)"
+                      placeholder="সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)"
                       value={editManufacturer}
                       onChange={(e) => setEditManufacturer(e.target.value)}
                       className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 focus:outline-hidden focus:border-red-700 font-medium bg-white"
@@ -9085,6 +10129,111 @@ export default function AdminDashboard({
                 </div>
               </div>
 
+              {/* Best Seller & Offer Section Settings for Add Product */}
+              <div className="bg-orange-50/50 p-4 rounded-xl border border-orange-200 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="add-is-bestseller"
+                      checked={pIsBestSeller}
+                      onChange={(e) => setPIsBestSeller(e.target.checked)}
+                      className="w-4 h-4 text-orange-600 rounded border-orange-300 focus:ring-orange-500 cursor-pointer"
+                    />
+                    <label htmlFor="add-is-bestseller" className="text-xs font-bold text-gray-800 cursor-pointer">
+                      🔥 বেস্ট সেলিং প্রোডাক্ট হিসেবে দেখাও (Best Seller)
+                    </label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="add-is-offer"
+                        checked={pIsOffer}
+                        onChange={(e) => setPIsOffer(e.target.checked)}
+                        className="w-4 h-4 text-orange-600 rounded border-orange-300 focus:ring-orange-500 cursor-pointer"
+                      />
+                      <label htmlFor="add-is-offer" className="text-xs font-bold text-gray-800 cursor-pointer">
+                        ⭐ ওয়েবসাইটে বিশেষ অফার সেকশনে দেখাও
+                      </label>
+                    </div>
+                    {pIsOffer && (!pHasMultipleSizes || pSizesList.length === 0) && (
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-600 mb-1">অফার মূল্য (৳)</label>
+                        <input
+                          type="number"
+                          min={1}
+                          placeholder="যেমন: ৮৫০"
+                          value={pOfferPrice}
+                          onChange={(e) => setPOfferPrice(e.target.value !== '' ? Number(e.target.value) : '')}
+                          className="w-full px-3 py-1.5 text-xs rounded-lg border border-orange-200 focus:outline-hidden font-bold text-gray-800 bg-white"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Size-wise Offer Pricing Box when multiple sizes exist */}
+                {pIsOffer && pHasMultipleSizes && pSizesList.length > 0 && (
+                  <div className="mt-3 p-3.5 bg-amber-100/70 rounded-xl border-2 border-amber-300 space-y-2.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                        <span>🏷️ পরিমাণ অনুযায়ী আলাদা আলাদা অফার মূল্য নির্ধারণ করুন:</span>
+                      </span>
+                      <span className="text-[10px] font-black text-amber-900 bg-white px-2 py-0.5 rounded-full border border-amber-300 shadow-3xs self-start sm:self-auto">
+                        প্রতিটি সাইজের জন্য আলাদা রেট
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-900 font-medium leading-relaxed">
+                      এখানে ৫০০ গ্রাম, ১ কেজি ইত্যাদি পরিমাণের জন্য আলাদা অফার মূল্য দিন (যেমন: ৫০০ গ্রাম অফার মূল্য ৩৯৯৳ এবং ১ কেজি অফার মূল্য ৭৫০৳)।
+                    </p>
+
+                    <div className="space-y-2 pt-1 max-h-56 overflow-y-auto pr-1">
+                      {pSizesList.map((item, idx) => (
+                        <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-2.5 rounded-xl border border-amber-300 shadow-2xs gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-amber-950 bg-amber-100 px-3 py-1 rounded-lg text-xs">
+                              {item.size}
+                            </span>
+                            <span className="text-xs text-gray-600 font-bold">
+                              রেগুলার: ৳{item.price}
+                            </span>
+                            {item.originalPrice ? (
+                              <span className="text-[10px] text-red-500 line-through font-semibold">
+                                পূর্বের: ৳{item.originalPrice}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end sm:self-auto">
+                            <label className="text-xs font-bold text-amber-950 whitespace-nowrap">
+                              অফার মূল্য:
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min={1}
+                                placeholder="অফার ৳"
+                                value={item.offerPrice !== undefined && item.offerPrice !== null ? item.offerPrice : ''}
+                                onChange={(e) => {
+                                  const val = e.target.value !== '' ? Number(e.target.value) : undefined;
+                                  const updated = [...pSizesList];
+                                  updated[idx] = { ...updated[idx], offerPrice: val };
+                                  setPSizesList(updated);
+                                }}
+                                className="w-28 px-3 py-1.5 text-xs font-black rounded-lg border-2 border-amber-400 focus:outline-none focus:border-amber-600 bg-amber-50/50 text-gray-900 shadow-inner"
+                              />
+                              <span className="absolute right-2.5 top-1.5 text-xs font-black text-amber-700 pointer-events-none">৳</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* ক্রয় ও বিক্রয় মূল্যের স্পষ্টীকরণ নোট */}
               <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-[11px] text-emerald-800 font-medium leading-relaxed">
                 💡 <strong>একক মূল্য নোট:</strong> এখানে দেয়া ক্রয় ও বিক্রয় মূল্যটি প্রতি <strong>১ {pUnit || 'একক'}</strong> এর জন্য প্রযোজ্য। গ্রাহক কার্টে বা ডিরেক্ট অর্ডারে বেশি পরিমাণ পছন্দ করলে এই মূল্য দিয়েই গুণ করে সর্বমোট মূল্য হিসাব করা হবে এবং হোয়াটসঅ্যাপ মেসেজেও সঠিক হিসাব চলে যাবে।
@@ -9214,19 +10363,24 @@ export default function AdminDashboard({
                 {pHasMultipleSizes && (
                   <div className="space-y-3.5">
                     <span className="block text-xs text-emerald-800 font-semibold leading-normal">
-                      এখানে আপনি পণ্যের বিভিন্ন ওজনের (যেমন: 0.5 KG, 1 KG) জন্য আলাদা বিক্রয় মূল্য ও পূর্বের মূল্য সেট করতে পারেন।
+                      এখানে আপনি পণ্যের বিভিন্ন ওজনের (যেমন: 0.5 KG, 1 KG) জন্য আলাদা বিক্রয় মূল্য, পূর্বের মূল্য ও অফার রেট সেট করতে পারেন।
                     </span>
                     
                     {/* Sizes List view */}
                     {pSizesList.length > 0 && (
                       <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                         {pSizesList.map((item, idx) => (
-                          <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-xl border border-emerald-100 text-xs font-bold text-gray-700 shadow-xs">
+                          <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-xl border border-emerald-100 text-xs font-bold text-gray-700 shadow-xs flex-wrap gap-2">
                             <span className="font-extrabold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg shrink-0 text-xs">{item.size}</span>
-                            <div className="flex items-center gap-2.5 ml-auto">
+                            <div className="flex items-center gap-2.5 ml-auto flex-wrap">
                               <span className="text-gray-900 font-bold">বিক্রয়: ৳{item.price}</span>
                               {item.originalPrice ? (
                                 <span className="text-red-500 line-through text-[11px]">পূর্বের: ৳{item.originalPrice}</span>
+                              ) : null}
+                              {item.offerPrice ? (
+                                <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-black text-xs">
+                                  ⚡ অফার: ৳{item.offerPrice}
+                                </span>
                               ) : null}
                               <button
                                 type="button"
@@ -9244,7 +10398,7 @@ export default function AdminDashboard({
 
                     {/* Add New Size-Price Form */}
                     <div className="bg-white p-3.5 rounded-xl border border-emerald-200 space-y-3 shadow-xs">
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                         <div>
                           <label className="block text-[11px] font-bold text-gray-600 mb-1">ওজন/সাইজ</label>
                           <input
@@ -9272,6 +10426,15 @@ export default function AdminDashboard({
                             className="w-full px-2.5 py-2 text-xs md:text-sm rounded-lg border border-gray-200 focus:outline-hidden font-bold text-gray-800 bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                           />
                         </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-600 mb-1">অফার মূল্য (ঐচ্ছিক ৳)</label>
+                          <input
+                            type="number"
+                            id="add-size-offer-price-modal"
+                            placeholder="যেমন: ৮৫০"
+                            className="w-full px-2.5 py-2 text-xs md:text-sm rounded-lg border border-amber-300 focus:outline-hidden font-bold text-gray-800 bg-amber-50/40 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                          />
+                        </div>
                       </div>
                       <button
                         type="button"
@@ -9279,9 +10442,11 @@ export default function AdminDashboard({
                           const sizeInp = document.getElementById('add-size-name-modal') as HTMLInputElement;
                           const priceInp = document.getElementById('add-size-price-modal') as HTMLInputElement;
                           const origInp = document.getElementById('add-size-orig-price-modal') as HTMLInputElement;
+                          const offerInp = document.getElementById('add-size-offer-price-modal') as HTMLInputElement;
                           const sVal = sizeInp?.value.trim();
                           const pVal = priceInp?.value.trim();
                           const oVal = origInp?.value.trim();
+                          const offVal = offerInp?.value ? Number(offerInp.value) : undefined;
                           if (!sVal || !pVal || Number(pVal) <= 0) {
                             notify('সাইজের নাম ও সঠিক বিক্রয় মূল্য দিতে হবে!', 'error');
                             return;
@@ -9289,12 +10454,14 @@ export default function AdminDashboard({
                           const item: SizePriceItem = {
                             size: sVal,
                             price: Number(pVal),
-                            originalPrice: oVal ? Number(oVal) : undefined
+                            originalPrice: oVal ? Number(oVal) : undefined,
+                            offerPrice: offVal
                           };
                           setPSizesList([...pSizesList, item]);
                           if (sizeInp) sizeInp.value = '';
                           if (priceInp) priceInp.value = '';
                           if (origInp) origInp.value = '';
+                          if (offerInp) offerInp.value = '';
                         }}
                         className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold py-2 px-3 rounded-lg text-xs md:text-sm transition-all shadow-xs cursor-pointer"
                       >
@@ -9907,7 +11074,7 @@ export function FaqSection({ siteConfig }: FaqSectionProps) {
     },
     {
       question: 'আম কি সম্পূর্ণ কেমিক্যাল ও ফরমালিন মুক্ত?',
-      answer: 'হ্যাঁ, ম্যাংগো লাভার-এর প্রতিটি আম সাতক্ষীরা ও শ্যামনগরের বাগান থেকে শতভাগ কেমিক্যাল ও ফরমালিন ছাড়াই প্রাকৃতিকভাবে পাকানো অবস্থায় গাছ থেকে পেড়ে সরাসরি পাঠানো হয়।'
+      answer: 'হ্যাঁ, সাতক্ষীরা প্রিমিয়াম-এর প্রতিটি আম সাতক্ষীরা ও শ্যামনগরের বাগান থেকে শতভাগ কেমিক্যাল ও ফরমালিন ছাড়াই প্রাকৃতিকভাবে পাকানো অবস্থায় গাছ থেকে পেড়ে সরাসরি পাঠানো হয়।'
     },
     {
       question: 'ডেলিভারি পাওয়ার পর আম বা অন্য পণ্য নষ্ট বের হলে কী করণীয়?',

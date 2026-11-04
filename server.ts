@@ -21,7 +21,8 @@ import {
   SiteConfig, 
   WithdrawRequest, 
   ProductRequest, 
-  ChatSession 
+  ChatSession,
+  Complaint 
 } from "./server/models";
 
 dotenv.config();
@@ -51,7 +52,8 @@ async function startServer() {
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"]
   }));
-  app.use(express.json({ limit: "15mb" }));
+  app.use(express.json({ limit: "50mb" }));
+  app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
   // --- API ROUTES ---
 
@@ -184,12 +186,13 @@ async function startServer() {
       if (!updateData.originalPrice) {
         updateData.originalPrice = null;
       }
-      const updatedProduct = await Product.findOneAndUpdate({ id }, updateData, { new: true });
+      let updatedProduct = await Product.findOneAndUpdate({ id }, updateData, { new: true });
       if (!updatedProduct) {
-        return res.status(404).json({ error: "পণ্যটি খুঁজে পাওয়া যায়নি।" });
+        updatedProduct = await Product.create({ ...updateData, id });
       }
       res.json(updatedProduct);
-    } catch (err) {
+    } catch (err: any) {
+      console.error("Product update error:", err?.message || err);
       res.status(500).json({ error: "পণ্য আপডেট করতে ব্যর্থ হয়েছে।" });
     }
   });
@@ -223,8 +226,14 @@ async function startServer() {
       if (!categoryData.id) {
         categoryData.id = 'cat-' + Math.random().toString(36).substring(2, 9);
       }
-      const newCategory = await Category.create(categoryData);
-      res.status(201).json(newCategory);
+      const existing = await Category.findOne({ id: categoryData.id });
+      let category;
+      if (existing) {
+        category = await Category.findOneAndUpdate({ id: categoryData.id }, categoryData, { new: true });
+      } else {
+        category = await Category.create(categoryData);
+      }
+      res.status(200).json(category);
     } catch (err) {
       res.status(500).json({ error: "ক্যাটাগরি তৈরি করতে ব্যর্থ হয়েছে।" });
     }
@@ -407,7 +416,109 @@ async function startServer() {
     }
   });
 
-  // 8. Site Config APIs
+  // 8. Complaints & Customer Support APIs
+  app.get("/api/complaints", async (req, res) => {
+    try {
+      const complaints = await Complaint.find().sort({ createdAt: -1 });
+      res.json(complaints);
+    } catch (err) {
+      res.status(500).json({ error: "অভিযোগ সমূহ লোড করতে ব্যর্থ হয়েছে।" });
+    }
+  });
+
+  app.post("/api/complaints", async (req, res) => {
+    try {
+      const complaintData = req.body;
+      if (!complaintData.id) {
+        complaintData.id = 'CMP-' + Math.floor(100000 + Math.random() * 900000);
+      }
+      if (!complaintData.createdAt) {
+        complaintData.createdAt = new Date().toLocaleDateString("bn-BD") + " " + new Date().toLocaleTimeString("bn-BD");
+      }
+      if (!complaintData.callLogs) {
+        complaintData.callLogs = [];
+      }
+      const newComplaint = await Complaint.create(complaintData);
+
+      // If linked with an order, optionally attach complaint ID to the order
+      if (complaintData.orderId) {
+        try {
+          const ord = await Order.findOne({ id: complaintData.orderId });
+          if (ord) {
+            const complaintIds = ord.complaintIds || [];
+            if (!complaintIds.includes(newComplaint.id)) {
+              complaintIds.push(newComplaint.id);
+              await Order.findOneAndUpdate({ id: complaintData.orderId }, { complaintIds });
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to update order with complaint id:", e);
+        }
+      }
+
+      res.status(201).json(newComplaint);
+    } catch (err) {
+      console.error("Create complaint error:", err);
+      res.status(500).json({ error: "কম্পেলেইন জমা দিতে ব্যর্থ হয়েছে।" });
+    }
+  });
+
+  app.put("/api/complaints/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updatedComplaint = await Complaint.findOneAndUpdate({ id }, { ...req.body, updatedAt: new Date().toLocaleDateString("bn-BD") + " " + new Date().toLocaleTimeString("bn-BD") }, { new: true });
+      if (!updatedComplaint) {
+        return res.status(404).json({ error: "কম্পেলেইন খুঁজে পাওয়া যায়নি।" });
+      }
+      res.json(updatedComplaint);
+    } catch (err) {
+      res.status(500).json({ error: "কম্পেলেইন আপডেট করতে ব্যর্থ হয়েছে।" });
+    }
+  });
+
+  app.post("/api/complaints/:id/call-log", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { representativeName, notes, customerResponse } = req.body;
+      const complaint = await Complaint.findOne({ id });
+      if (!complaint) {
+        return res.status(404).json({ error: "কম্পেলেইন খুঁজে পাওয়া যায়নি।" });
+      }
+
+      const callLogs = complaint.callLogs || [];
+      const newCallLog = {
+        id: 'CALL-' + Date.now(),
+        representativeName: representativeName || 'প্রতিনিধি',
+        callDate: new Date().toLocaleDateString("bn-BD") + " " + new Date().toLocaleTimeString("bn-BD"),
+        notes: notes || '',
+        callNumber: callLogs.length + 1,
+        customerResponse: customerResponse || 'satisfied'
+      };
+
+      callLogs.push(newCallLog);
+      complaint.callLogs = callLogs;
+      complaint.updatedAt = newCallLog.callDate;
+      const updated = await Complaint.findOneAndUpdate({ id }, { callLogs, updatedAt: complaint.updatedAt }, { new: true });
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ error: "কল লগ সংরক্ষণ করতে ব্যর্থ হয়েছে।" });
+    }
+  });
+
+  app.delete("/api/complaints/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await Complaint.findOneAndDelete({ id });
+      if (!result) {
+        return res.status(404).json({ error: "কম্পেলেইন খুঁজে পাওয়া যায়নি।" });
+      }
+      res.json({ success: true, message: "কম্পেলেইন মুছে ফেলা হয়েছে।" });
+    } catch (err) {
+      res.status(500).json({ error: "কম্পেলেইন ডিলিট করতে ব্যর্থ হয়েছে।" });
+    }
+  });
+
+  // 9. Site Config APIs
   app.get("/api/siteconfig", async (req, res) => {
     try {
       const config = await SiteConfig.findOne();
@@ -422,12 +533,15 @@ async function startServer() {
       const existing = await SiteConfig.findOne();
       let updated;
       if (existing) {
-        updated = await SiteConfig.findOneAndUpdate({}, req.body, { new: true });
+        const existingObj = typeof existing.toObject === 'function' ? existing.toObject() : existing;
+        const mergedData = { ...existingObj, ...req.body };
+        updated = await SiteConfig.findOneAndUpdate({}, mergedData, { new: true, upsert: true });
       } else {
         updated = await SiteConfig.create(req.body);
       }
       res.json(updated);
     } catch (err) {
+      console.error("Error saving site config:", err);
       res.status(500).json({ error: "সাইট কনফিগারেশন সংরক্ষণ করতে ব্যর্থ হয়েছে।" });
     }
   });
@@ -515,10 +629,10 @@ async function startServer() {
       const activeSessionId = sessionId || "default-session";
       const activeCustomerName = customerName || `কাস্টমার #${activeSessionId.substring(0, 5)}`;
 
-      const storeName = siteConfig?.storeName || "সাতক্ষীরা প্রিমিয়াম";
+      const storeName = siteConfig?.storeName || "ম্যাংগো লাভার";
       const contactPhone = siteConfig?.contactPhone || "+880 1837-587551";
       const contactOffice = siteConfig?.contactOffice || "Shyamnagar, Satkhira, Bangladesh";
-      const contactEmail = siteConfig?.contactEmail || "info@SatkhiraPremium.com.bd";
+      const contactEmail = siteConfig?.contactEmail || "info@mangolover.com.bd";
 
       const fallbackReply = `আসসালামু আলাইকুম! আমাদের সাথে যোগাযোগের জন্য ধন্যবাদ। আমাদের একজন প্রতিনিধি খুব শীঘ্রই আপনার সাথে যোগাযোগ করবেন। জরুরী প্রয়োজনে আমাদের কাস্টমার কেয়ার নম্বরে কল করুন: ${contactPhone}।`;
 
@@ -580,8 +694,8 @@ async function startServer() {
         const isRefundInquiry = cleanMsg.includes("রিফান্ড") || cleanMsg.includes("ফেরত") || cleanMsg.includes("রিটার্ন") || cleanMsg.includes("নীতি") ||
           cleanMsg.includes("refund") || cleanMsg.includes("ferot") || cleanMsg.includes("return") || cleanMsg.includes("policy");
 
-        const isAboutInquiry = cleanMsg.includes("সম্পর্কে") || cleanMsg.includes("শপ") || cleanMsg.includes("কেমন") || cleanMsg.includes("সাতক্ষীরা প্রিমিয়াম") ||
-          cleanMsg.includes("somporke") || cleanMsg.includes("about") || cleanMsg.includes("shop") || cleanMsg.includes("shopp") || cleanMsg.includes("Satkhira Premium");
+        const isAboutInquiry = cleanMsg.includes("সম্পর্কে") || cleanMsg.includes("শপ") || cleanMsg.includes("কেমন") || cleanMsg.includes("ম্যাংগো লাভার") ||
+          cleanMsg.includes("somporke") || cleanMsg.includes("about") || cleanMsg.includes("shop") || cleanMsg.includes("shopp") || cleanMsg.includes("mango lover");
 
         const isGreetingInquiry = cleanMsg.includes("হ্যালো") || cleanMsg.includes("hello") || cleanMsg.includes("hi") || cleanMsg.includes("হাই") || cleanMsg.includes("কেমন আছেন") || cleanMsg.includes("সালাম") || cleanMsg.includes("আসসালামু আলাইকুম") || cleanMsg.includes("আসসালামুআলাইকুম") ||
           cleanMsg.includes("salam") || cleanMsg.includes("slm") || cleanMsg.includes("hlw") || cleanMsg.includes("helo") || cleanMsg.includes("assalamualaikum") || cleanMsg.includes("kemon aso") || cleanMsg.includes("kemon achen") || cleanMsg.includes("kemon asen") || cleanMsg.includes("valoni") || cleanMsg.includes("valo");
@@ -712,7 +826,7 @@ async function startServer() {
 
       const sysInstruction = `
 You are the official AI Live Chat Assistant of the online shop "${storeName}". 
-Your name is "Satkhira Premium Assistant". You must converse politely, warm, and strictly in Bengali.
+Your name is "Mango Lover Assistant". You must converse politely, warm, and strictly in Bengali.
 
 CRITICAL INSTRUCTION ON USER INPUTS:
 - The user may type their message in standard Bengali script OR in Banglish (Bengali written with the English alphabet, e.g., "apnadr thikana ki?", "dam koto?", "delivery fee koto?", "khejur ache?", "hello kemon achen?").
