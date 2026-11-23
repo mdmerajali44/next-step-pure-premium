@@ -1061,6 +1061,11 @@ export default function AdminDashboard({
     }
   };
 
+  // Always scroll to the very top when entering Admin Dashboard so the menu & header options are immediately visible
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, []);
+
   // Auto-select first permitted sub-view when switching tabs or updating logged-in admin permissions
   useEffect(() => {
     if (activeTab === 'products') {
@@ -1967,13 +1972,14 @@ export default function AdminDashboard({
     setEditShelfLife(product.shelfLife || '১২ মাস (শুকনো ও ঠাণ্ডা জায়গায় সংরক্ষণ করুন)');
     setEditOrganicCertificate(product.organicCertificate || '১০০% প্রাকৃতিক ও কেমিক্যালমুক্ত পরীক্ষিত');
     
-    // Populate 5 slots
+    // Populate 5 slots (exclude placeholder image so only actual uploaded images are shown in edit slots)
     const initialImages = Array(5).fill('');
     if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-      for (let i = 0; i < Math.min(5, product.images.length); i++) {
-        initialImages[i] = product.images[i];
+      const realImgs = product.images.filter((img) => img && img !== DEFAULT_PRODUCT_PLACEHOLDER);
+      for (let i = 0; i < Math.min(5, realImgs.length); i++) {
+        initialImages[i] = realImgs[i];
       }
-    } else if (product.image) {
+    } else if (product.image && product.image !== DEFAULT_PRODUCT_PLACEHOLDER) {
       initialImages[0] = product.image;
     }
     setEditImages(initialImages);
@@ -2339,7 +2345,7 @@ export default function AdminDashboard({
       {/* Main Body Grid */}
       <div className="flex-grow max-w-[1600px] w-full mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Navigation Rail / Sidebar with Accordion Dropdowns */}
-        <div className="md:col-span-3 bg-white p-4 rounded-2xl border border-gray-200 h-fit space-y-1.5 shadow-3xs">
+        <div className="md:col-span-3 bg-white p-4 rounded-2xl border border-gray-200 h-fit md:sticky md:top-20 md:self-start md:max-h-[calc(100vh-6rem)] md:overflow-y-auto space-y-1.5 shadow-3xs">
           <h3 className="text-xs font-extrabold text-gray-400 uppercase tracking-wider px-3 mb-2">মেনু</h3>
           
           {/* 1. Overview (direct item without dropdown sub-options) */}

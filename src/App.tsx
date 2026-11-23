@@ -1287,6 +1287,12 @@ export default function App() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isTrackOrderOpen, setIsTrackOrderOpen] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false);
+
+  useEffect(() => {
+    if (isAdminMode) {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [isAdminMode]);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [adminInitialTab, setAdminInitialTab] = useState<'overview' | 'products' | 'orders' | 'marketing' | 'chats' | 'payments' | 'requests' | 'users' | 'sellers'>('overview');
@@ -4592,51 +4598,63 @@ export default function App() {
 
                 {/* Left Column: Image Box */}
                 {(() => {
-                  const activeImages = selectedProduct.images && selectedProduct.images.length > 0 
-                    ? selectedProduct.images 
-                    : [selectedProduct.image];
-                  const currentImg = activeImages[quickViewImageIndex] || selectedProduct.image;
+                  const uniqueImages: string[] = [];
+                  if (selectedProduct.image && typeof selectedProduct.image === 'string') {
+                    const img0 = selectedProduct.image.trim();
+                    if (img0 && img0 !== DEFAULT_PRODUCT_PLACEHOLDER && !img0.includes('placeholder')) {
+                      uniqueImages.push(img0);
+                    }
+                  }
+                  if (selectedProduct.images && Array.isArray(selectedProduct.images)) {
+                    selectedProduct.images.forEach((raw) => {
+                      if (typeof raw === 'string') {
+                        const trimmed = raw.trim();
+                        if (trimmed && trimmed !== DEFAULT_PRODUCT_PLACEHOLDER && !trimmed.includes('placeholder') && !uniqueImages.includes(trimmed)) {
+                          uniqueImages.push(trimmed);
+                        }
+                      }
+                    });
+                  }
+                  const activeImages = uniqueImages.length > 0 ? uniqueImages : [DEFAULT_PRODUCT_PLACEHOLDER];
+                  const currentImg = activeImages[quickViewImageIndex] || activeImages[0];
                   return (
                     <div className="group relative bg-[#f7f8f9] flex flex-col items-center justify-center p-6 border-b md:border-b-0 md:border-r border-gray-100 min-h-[250px] md:min-h-[400px] pb-16 overflow-hidden select-none">
                       {/* Image Display */}
                       <div className="w-full h-full flex items-center justify-center min-h-[180px] md:min-h-[280px]">
                         <img
-                          src={currentImg}
+                          src={getValidImageSrc(currentImg)}
                           alt={selectedProduct.name}
                           className="max-h-56 max-w-full md:max-h-80 object-contain mx-auto mix-blend-multiply transition-all duration-300"
                           referrerPolicy="no-referrer"
+                          onError={handleImageError}
                         />
                       </div>
 
-                      {/* Navigation Arrows */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (activeImages.length > 1) {
-                            setQuickViewImageIndex((prev) => (prev - 1 + activeImages.length) % activeImages.length);
-                          }
-                        }}
-                        className={`absolute left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 bg-white border border-gray-100 rounded-full flex items-center justify-center shadow-xs hover:bg-gray-50 active:scale-95 transition-all cursor-pointer text-slate-800 ${
-                          activeImages.length <= 1 ? 'opacity-40 cursor-not-allowed' : ''
-                        }`}
-                        title="Previous Image"
-                      >
-                        <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (activeImages.length > 1) {
-                            setQuickViewImageIndex((prev) => (prev + 1) % activeImages.length);
-                          }
-                        }}
-                        className={`absolute right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 bg-white border border-gray-100 rounded-full flex items-center justify-center shadow-xs hover:bg-gray-50 active:scale-95 transition-all cursor-pointer text-slate-800 ${
-                          activeImages.length <= 1 ? 'opacity-40 cursor-not-allowed' : ''
-                        }`}
-                        title="Next Image"
-                      >
-                        <ChevronRight className="w-5 h-5 stroke-[2.5]" />
-                      </button>
+                      {/* Navigation Arrows (only if more than 1 image) */}
+                      {activeImages.length > 1 && (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setQuickViewImageIndex((prev) => (prev - 1 + activeImages.length) % activeImages.length);
+                            }}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 bg-white border border-gray-100 rounded-full flex items-center justify-center shadow-xs hover:bg-gray-50 active:scale-95 transition-all cursor-pointer text-slate-800"
+                            title="Previous Image"
+                          >
+                            <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setQuickViewImageIndex((prev) => (prev + 1) % activeImages.length);
+                            }}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 bg-white border border-gray-100 rounded-full flex items-center justify-center shadow-xs hover:bg-gray-50 active:scale-95 transition-all cursor-pointer text-slate-800"
+                            title="Next Image"
+                          >
+                            <ChevronRight className="w-5 h-5 stroke-[2.5]" />
+                          </button>
+                        </>
+                      )}
 
                       {/* Dot indicators */}
                       {activeImages.length > 1 && (
@@ -4682,16 +4700,25 @@ export default function App() {
                       <span className="text-xl md:text-2xl font-black text-orange-600">
                         {(() => {
                           const sp = quickViewSize ? selectedProduct.sizePrices?.[quickViewSize] : undefined;
-                          if (selectedProduct.isOffer && sp?.offerPrice) return sp.offerPrice;
-                          if (selectedProduct.isOffer && selectedProduct.offerPrice) return selectedProduct.offerPrice;
-                          return sp ? sp.price : selectedProduct.price;
+                          if (sp) {
+                            if (selectedProduct.isOffer && sp.offerPrice && sp.offerPrice > 0) return sp.offerPrice;
+                            return sp.price;
+                          }
+                          if (selectedProduct.isOffer && selectedProduct.offerPrice && selectedProduct.offerPrice > 0) {
+                            return selectedProduct.offerPrice;
+                          }
+                          return selectedProduct.price;
                         })()}৳
                       </span>
                       {(() => {
                         const sp = quickViewSize ? selectedProduct.sizePrices?.[quickViewSize] : undefined;
-                        const orig = (selectedProduct.isOffer && sp?.offerPrice)
-                          ? (sp.originalPrice || sp.price)
-                          : (sp?.originalPrice !== undefined ? sp.originalPrice : selectedProduct.originalPrice);
+                        const orig = sp
+                          ? ((selectedProduct.isOffer && sp.offerPrice && sp.offerPrice > 0)
+                              ? (sp.originalPrice || sp.price)
+                              : sp.originalPrice)
+                          : ((selectedProduct.isOffer && selectedProduct.offerPrice && selectedProduct.offerPrice > 0)
+                              ? (selectedProduct.originalPrice || selectedProduct.price)
+                              : selectedProduct.originalPrice);
                         return orig !== undefined ? (
                           <span className="text-xs md:text-sm text-red-500 line-through font-medium">
                             {orig}৳

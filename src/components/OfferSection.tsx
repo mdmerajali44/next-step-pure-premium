@@ -73,9 +73,6 @@ export const OfferSection: React.FC<OfferSectionProps> = ({
             if (sp.offerPrice && sp.offerPrice > 0) {
               offerPrice = sp.offerPrice;
               origPrice = sp.originalPrice || sp.price;
-            } else if (product.offerPrice && product.offerPrice > 0) {
-              offerPrice = product.offerPrice;
-              origPrice = sp.originalPrice || sp.price;
             } else {
               offerPrice = sp.price;
               origPrice = sp.originalPrice || sp.price;
@@ -148,10 +145,6 @@ export const OfferSection: React.FC<OfferSectionProps> = ({
                     <div className="flex flex-wrap gap-1.5">
                       {product.sizes.map((sz) => {
                         const isSelected = sz === currentSize;
-                        const szPriceInfo = product.sizePrices?.[sz];
-                        const szPrice = (szPriceInfo?.offerPrice && szPriceInfo.offerPrice > 0)
-                          ? szPriceInfo.offerPrice
-                          : (product.offerPrice && product.offerPrice > 0 ? product.offerPrice : (szPriceInfo?.price ?? offerPrice));
                         return (
                           <button
                             key={sz}
@@ -164,9 +157,6 @@ export const OfferSection: React.FC<OfferSectionProps> = ({
                             }`}
                           >
                             <span>{sz}</span>
-                            <span className={`text-[10px] ${isSelected ? 'text-amber-100' : 'text-emerald-700 font-black'}`}>
-                              ৳{toBengaliNumber(szPrice)}
-                            </span>
                             {isSelected && <Check className="w-3 h-3 ml-0.5" />}
                           </button>
                         );

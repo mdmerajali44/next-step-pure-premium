@@ -26,8 +26,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Store,
-  Share2
+  Store
 } from 'lucide-react';
 
 const maskPhone = (phone: string): string => {
@@ -248,104 +247,36 @@ const getDetailedContent = (product: Product) => {
   return map[product.id] || { title: defaultTitle, tagline: defaultTagline, bullets: defaultBullets };
 };
 
-const defaultImages: Record<string, string[]> = {
-  'p1': [
-    '/src/assets/images/juice_powder_1782456192648.jpg',
-    'https://images.unsplash.com/photo-1541432901042-2d8bd64b4a9b?auto=format&fit=crop&w=600&q=80',
-    'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=600&q=80'
-  ],
-    'p2': [
-      '/src/assets/images/akher_gur_1782456206623.jpg',
-      'https://images.unsplash.com/photo-1608686207856-001b95cf60ca?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p3': [
-      '/src/assets/images/amsotto_achar_1782456219512.jpg',
-      'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p4': [
-      '/src/assets/images/gawa_ghee_1782456236375.jpg',
-      'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1631451095765-2c91616fc9e6?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p5': [
-      '/src/assets/images/mustard_oil_1782456250479.jpg',
-      'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p6': [
-      '/src/assets/images/laccha_semai_1782456263350.jpg',
-      'https://images.unsplash.com/photo-1612966608997-30d411b48230?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p6_alt': [
-      'https://images.unsplash.com/photo-1612966608997-30d411b48230?auto=format&fit=crop&w=600&q=80',
-      '/src/assets/images/laccha_semai_1782456263350.jpg',
-      'https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p7': [
-      'https://images.unsplash.com/photo-1608686207856-001b95cf60ca?auto=format&fit=crop&w=600&q=80',
-      '/src/assets/images/akher_gur_1782456206623.jpg',
-      'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p8': [
-      'https://images.unsplash.com/photo-1511117461117-573522c1b4ec?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=600&q=80'
-    ],
-    'p9': [
-      'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1511117461117-573522c1b4ec?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&w=600&q=80'
-    ],
-    'h1': [
-      '/src/assets/images/kalojira_honey_1782465866977.jpg',
-      'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=600&q=80'
-    ],
-    'h2': [
-      '/src/assets/images/lychee_honey_1782465883260.jpg',
-      'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=600&q=80'
-    ],
-    'h3': [
-      '/src/assets/images/mustard_honey_1782465897931.jpg',
-      'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=600&q=80'
-    ],
-    'h4': [
-      '/src/assets/images/sundarban_honey_1782465914163.jpg',
-      'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=600&q=80'
-    ],
-    'm1': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
-    'm2': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
-    'm3': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
-    'm4': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
-    'm5': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
-    'm6': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
-  };
+const isPlaceholderImageUrl = (src: string): boolean => {
+  const lower = src.toLowerCase();
+  return (
+    !src ||
+    lower === 'null' ||
+    lower.includes('placeholder') ||
+    lower.includes('undefined') ||
+    lower.includes('image_17ba70eb.png') ||
+    lower.includes('photo-1553279768-865429fa0078') ||
+    src === DEFAULT_PRODUCT_PLACEHOLDER
+  );
+};
 
 const getProductImages = (product: Product): string[] => {
   const list: string[] = [];
-  if (product.images && Array.isArray(product.images)) {
-    const valid = product.images.map(img => typeof img === 'string' ? img.trim() : '').filter(Boolean);
-    if (valid.length > 0) {
-      list.push(...valid);
-    }
-  }
-  if (product.image && typeof product.image === 'string' && product.image.trim() !== '') {
-    if (!list.includes(product.image.trim())) {
-      list.unshift(product.image.trim());
+
+  if (product.image && typeof product.image === 'string') {
+    const trimmed = product.image.trim();
+    if (trimmed && !isPlaceholderImageUrl(trimmed)) {
+      list.push(trimmed);
     }
   }
 
-  const defaults = defaultImages[product.id];
-  if (defaults && Array.isArray(defaults)) {
-    defaults.forEach(defImg => {
-      if (!list.includes(defImg)) {
-        list.push(defImg);
+  if (product.images && Array.isArray(product.images)) {
+    product.images.forEach((raw) => {
+      if (typeof raw === 'string') {
+        const trimmed = raw.trim();
+        if (trimmed && !isPlaceholderImageUrl(trimmed) && !list.includes(trimmed)) {
+          list.push(trimmed);
+        }
       }
     });
   }
@@ -354,7 +285,7 @@ const getProductImages = (product: Product): string[] => {
     return list;
   }
 
-  // Fallback to official brand logo when product has no image
+  // Fallback to single draft placeholder image when product has no images
   return [DEFAULT_PRODUCT_PLACEHOLDER];
 };
 
@@ -425,17 +356,21 @@ export default function ProductDetails({
   const details = getDetailedContent(product);
 
   const selectedSizeInfo = selectedSize ? product.sizePrices?.[selectedSize] : undefined;
-  const currentActivePrice = (product.isOffer && selectedSizeInfo?.offerPrice && selectedSizeInfo.offerPrice > 0)
-    ? selectedSizeInfo.offerPrice
-    : (product.isOffer && product.offerPrice && product.offerPrice > 0)
-      ? product.offerPrice
-      : (selectedSizeInfo ? selectedSizeInfo.price : product.price);
+  const currentActivePrice = selectedSizeInfo
+    ? ((product.isOffer && selectedSizeInfo.offerPrice && selectedSizeInfo.offerPrice > 0)
+        ? selectedSizeInfo.offerPrice
+        : selectedSizeInfo.price)
+    : ((product.isOffer && product.offerPrice && product.offerPrice > 0)
+        ? product.offerPrice
+        : product.price);
 
-  const currentOrigPrice = (product.isOffer && selectedSizeInfo?.offerPrice && selectedSizeInfo.offerPrice > 0)
-    ? (selectedSizeInfo.originalPrice || selectedSizeInfo.price)
-    : (product.isOffer && product.offerPrice && product.offerPrice > 0)
-      ? (product.originalPrice || product.price)
-      : (selectedSizeInfo?.originalPrice !== undefined ? selectedSizeInfo.originalPrice : product.originalPrice);
+  const currentOrigPrice = selectedSizeInfo
+    ? ((product.isOffer && selectedSizeInfo.offerPrice && selectedSizeInfo.offerPrice > 0)
+        ? (selectedSizeInfo.originalPrice || selectedSizeInfo.price)
+        : selectedSizeInfo.originalPrice)
+    : ((product.isOffer && product.offerPrice && product.offerPrice > 0)
+        ? (product.originalPrice || product.price)
+        : product.originalPrice);
 
   const discountedPct = (currentOrigPrice && Number(currentOrigPrice) > Number(currentActivePrice))
     ? Math.round(((currentOrigPrice - currentActivePrice) / currentOrigPrice) * 100)
@@ -634,8 +569,7 @@ export default function ProductDetails({
           {/* Right/Center Area: Main Large Product Image with overlay arrows matching screenshot image_908db5b6.png */}
           <div 
             onClick={() => onViewImage?.(images[activeImageIndex])}
-            className="relative flex-1 bg-white rounded-2xl flex items-center justify-center p-3 sm:p-5 border border-gray-200/90 overflow-hidden h-full select-none cursor-zoom-in group/mainimg"
-            title="ছবি জুম করতে ক্লিক করুন"
+            className="relative flex-1 bg-white rounded-2xl flex items-center justify-center p-3 sm:p-5 border border-gray-200/90 overflow-hidden h-full select-none cursor-pointer group/mainimg"
           >
             {/* Discount Badge */}
             {product.stock === 0 ? (
@@ -698,15 +632,6 @@ export default function ProductDetails({
                 onError={handleImageError}
               />
             </div>
-
-            {/* Interactive Zoom Overlay indicator */}
-            <div className="absolute inset-0 bg-black/0 group-hover/mainimg:bg-black/5 transition-colors duration-250 flex items-center justify-center pointer-events-none z-10">
-              <div className="bg-black/60 text-white rounded-full p-3 opacity-0 scale-90 group-hover/mainimg:opacity-100 group-hover/mainimg:scale-100 transition-all duration-250 flex items-center justify-center shadow-lg">
-                <svg className="w-6 h-6 text-white stroke-[2.5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
-                </svg>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -762,10 +687,6 @@ export default function ProductDetails({
               <div className="flex flex-wrap gap-2">
                 {sizes.map((size) => {
                   const isActive = selectedSize === size;
-                  const szInfo = product.sizePrices?.[size];
-                  const szPrice = (product.isOffer && szInfo?.offerPrice && szInfo.offerPrice > 0)
-                    ? szInfo.offerPrice
-                    : (szInfo?.price ?? product.price);
                   return (
                     <motion.button
                       key={size}
@@ -779,11 +700,6 @@ export default function ProductDetails({
                       }`}
                     >
                       <span>{size}</span>
-                      {szInfo && (
-                        <span className={`text-[10px] ${isActive ? 'text-emerald-700 font-black' : 'text-gray-500'}`}>
-                          (৳{szPrice})
-                        </span>
-                      )}
                     </motion.button>
                   );
                 })}
@@ -858,19 +774,6 @@ export default function ProductDetails({
               )}
             </div>
           </div>
-
-          {/* Share / Copy Product Link Button */}
-          <button
-            onClick={() => {
-              const link = `${window.location.origin}/#product-${product.id}`;
-              navigator.clipboard.writeText(link);
-              alert("পণ্যের ডাইরেক্ট লিংক কপি করা হয়েছে! এখন ফেসবুকে বা হোয়াটসঅ্যাপে শেয়ার করতে পারেন।");
-            }}
-            className="w-full bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-bold text-xs md:text-sm py-2.5 px-4 rounded-md transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-3xs"
-          >
-            <Share2 className="w-4 h-4 text-amber-700" />
-            <span>শেয়ারযোগ্য ডাইরেক্ট প্রোডাক্ট লিংক কপি করুন (Copy Product Link)</span>
-          </button>
 
           {/* Social Order Quick Hotlines */}
           <div className="grid grid-cols-2 gap-3">
