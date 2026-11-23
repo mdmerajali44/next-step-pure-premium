@@ -14,14 +14,23 @@ export const inMemoryStore: Record<string, any[]> = {
   WithdrawRequest: [],
   ProductRequest: [],
   ChatSession: [],
-  Complaint: []
+  Complaint: [],
+  Expense: [],
+  AuditLog: []
 };
 
 function saveStoreToDisk() {
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(inMemoryStore, null, 2), "utf-8");
+    const serialized = JSON.stringify(inMemoryStore, null, 2);
+    const tmpFile = `${DATA_FILE}.tmp`;
+    fs.writeFileSync(tmpFile, serialized, "utf-8");
+    fs.renameSync(tmpFile, DATA_FILE);
   } catch (err) {
-    console.error("Failed to save fallback store to disk:", err);
+    try {
+      fs.writeFileSync(DATA_FILE, JSON.stringify(inMemoryStore, null, 2), "utf-8");
+    } catch (innerErr) {
+      console.error("Failed to save fallback store to disk:", innerErr);
+    }
   }
 }
 
@@ -52,24 +61,34 @@ export function populateFallbackStore(
   categories: any[],
   products: any[],
   users: any[],
-  siteConfig: any
+  siteConfig: any,
+  orders: any[] = []
 ) {
   const loaded = loadStoreFromDisk();
+  let updated = !loaded;
 
   if (inMemoryStore.Category.length === 0) {
     inMemoryStore.Category = JSON.parse(JSON.stringify(categories));
+    updated = true;
   }
   if (inMemoryStore.Product.length === 0) {
     inMemoryStore.Product = JSON.parse(JSON.stringify(products));
+    updated = true;
   }
   if (inMemoryStore.User.length === 0) {
     inMemoryStore.User = JSON.parse(JSON.stringify(users));
+    updated = true;
   }
   if (inMemoryStore.SiteConfig.length === 0) {
     inMemoryStore.SiteConfig = [JSON.parse(JSON.stringify(siteConfig))];
+    updated = true;
+  }
+  if (inMemoryStore.Order.length === 0 && Array.isArray(orders) && orders.length > 0) {
+    inMemoryStore.Order = JSON.parse(JSON.stringify(orders));
+    updated = true;
   }
 
-  if (!loaded) {
+  if (updated) {
     saveStoreToDisk();
   }
 }

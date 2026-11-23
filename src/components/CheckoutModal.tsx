@@ -8,6 +8,7 @@ import { CartItem, Order, OrderStatus } from '../types';
 import { DISTRICTS } from '../data';
 import { X, Phone, User, MapPin, CheckCircle, Copy, Check, ShoppingBag, CreditCard, Lock, ShieldCheck, AlertCircle, AlertTriangle, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { getValidImageSrc, handleImageError } from '../utils/imageUtils';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -631,7 +632,6 @@ export default function CheckoutModal({
                         <div>
                           <label className="block text-xs md:text-sm font-bold text-gray-700 mb-1.5 flex items-center justify-between">
                             <span>Shipping (শিপিং এলাকা) <span className="text-red-500">*</span></span>
-                            <span className="text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-black">অটো-লক</span>
                           </label>
                           <select
                             disabled={true}
@@ -642,8 +642,7 @@ export default function CheckoutModal({
                             <option value="outside_dhaka">ঢাকার বাহিরে ({chargeOutside}৳)</option>
                           </select>
                           <p className="text-[10px] text-emerald-700 font-bold mt-1 flex items-center gap-1">
-                            <Lock className="w-3 h-3 text-emerald-600 inline shrink-0" />
-                            <span>ঠিকানা অনুযায়ী স্বয়ংক্রিয় নির্ধারিত (পরিবর্তনযোগ্য নয়)</span>
+                            <span>ঠিকানা অনুযায়ী স্বয়ংক্রিয় নির্ধারিত</span>
                           </p>
                         </div>
 
@@ -724,10 +723,11 @@ export default function CheckoutModal({
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className="w-12 h-12 rounded-md border border-gray-100 bg-[#f7f8f9] flex items-center justify-center p-1 shrink-0 overflow-hidden">
                                   <img 
-                                    src={item.product.image} 
+                                    src={getValidImageSrc(item.product.image)} 
                                     alt={item.product.name} 
                                     className="max-w-full max-h-full object-contain" 
                                     referrerPolicy="no-referrer" 
+                                    onError={handleImageError}
                                   />
                                 </div>
                                 <div className="truncate pr-2">
@@ -802,11 +802,11 @@ export default function CheckoutModal({
                             </div>
                             <div className="flex-1 space-y-0.5">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs font-black text-emerald-950">১০০% ক্যাশ অন ডেলিভারি ও গুণমান নিশ্চয়তা</span>
-                                <span className="text-[9px] bg-emerald-200/80 text-emerald-900 border border-emerald-300 px-1.5 py-0.2 rounded font-black uppercase">প্রিমিয়াম গ্যারান্টি</span>
+                                <span className="text-xs font-black text-emerald-950">ওজনভিত্তিক চার্জ</span>
+                                <span className="text-[9px] bg-emerald-200/80 text-emerald-900 border border-emerald-300 px-1.5 py-0.2 rounded font-black uppercase">পার্সেল অনুযায়ী চার্জ প্রজোয্য</span>
                               </div>
                               <p className="text-[11px] text-emerald-900 font-semibold leading-relaxed">
-                                {siteConfig?.checkoutGuaranteeText || "পণ্য হাতে পেয়ে চেক করে দেখে মূল্য পরিশোধ করুন। শতভাগ খাঁটি ও ফ্রেশ কোয়ালিটির সম্পূর্ণ নিশ্চয়তা!"}
+                                {siteConfig?.checkoutGuaranteeText || "পার্সেল 1 KG ছাড়ালে অতিরিক্ত প্রতি কেজিতে ৳20 যোগ হতে পারে। চূড়ান্ত চার্জ অর্ডার কনফার্মেশন কলে জানানো হবে।"}
                               </p>
                             </div>
                           </div>

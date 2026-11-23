@@ -8,6 +8,7 @@ import { Product, Review, sortProductSizes } from '../types';
 import { getSeedReviews, getProductReviewsFromStorage } from '../utils/reviewUtils';
 import { safeSetLocalStorage } from '../utils/storage';
 import { motion } from 'motion/react';
+import { DEFAULT_PRODUCT_PLACEHOLDER, getValidImageSrc, handleImageError } from '../utils/imageUtils';
 import { 
   Star, 
   ShoppingCart, 
@@ -25,7 +26,8 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Store
+  Store,
+  Share2
 } from 'lucide-react';
 
 const maskPhone = (phone: string): string => {
@@ -246,29 +248,12 @@ const getDetailedContent = (product: Product) => {
   return map[product.id] || { title: defaultTitle, tagline: defaultTagline, bullets: defaultBullets };
 };
 
-const getProductImages = (product: Product): string[] => {
-  // If product.images is defined, is an array, and contains at least one non-empty string,
-  // we strictly show ONLY those images. We do NOT append any default fallbacks.
-  if (product.images && Array.isArray(product.images)) {
-    const validImages = product.images.map(img => typeof img === 'string' ? img.trim() : '').filter(Boolean);
-    if (validImages.length > 0) {
-      return validImages;
-    }
-  }
-
-  // If we don't have product.images, build a list with product.image if it exists
-  const list: string[] = [];
-  if (product.image && typeof product.image === 'string' && product.image.trim() !== '') {
-    list.push(product.image.trim());
-  }
-
-  // If it's one of the seeded products and we didn't have product.images, we can append default fallback images
-  const defaultImages: Record<string, string[]> = {
-    'p1': [
-      '/src/assets/images/juice_powder_1782456192648.jpg',
-      'https://images.unsplash.com/photo-1541432901042-2d8bd64b4a9b?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=600&q=80'
-    ],
+const defaultImages: Record<string, string[]> = {
+  'p1': [
+    '/src/assets/images/juice_powder_1782456192648.jpg',
+    'https://images.unsplash.com/photo-1541432901042-2d8bd64b4a9b?auto=format&fit=crop&w=600&q=80',
+    'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=600&q=80'
+  ],
     'p2': [
       '/src/assets/images/akher_gur_1782456206623.jpg',
       'https://images.unsplash.com/photo-1608686207856-001b95cf60ca?auto=format&fit=crop&w=600&q=80',
@@ -340,8 +325,21 @@ const getProductImages = (product: Product): string[] => {
     'm4': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
     'm5': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
     'm6': ['/src/assets/images/green_mangoes_1_1782466276525.jpg'],
-    'd1': ['https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80']
   };
+
+const getProductImages = (product: Product): string[] => {
+  const list: string[] = [];
+  if (product.images && Array.isArray(product.images)) {
+    const valid = product.images.map(img => typeof img === 'string' ? img.trim() : '').filter(Boolean);
+    if (valid.length > 0) {
+      list.push(...valid);
+    }
+  }
+  if (product.image && typeof product.image === 'string' && product.image.trim() !== '') {
+    if (!list.includes(product.image.trim())) {
+      list.unshift(product.image.trim());
+    }
+  }
 
   const defaults = defaultImages[product.id];
   if (defaults && Array.isArray(defaults)) {
@@ -356,11 +354,8 @@ const getProductImages = (product: Product): string[] => {
     return list;
   }
 
-  // Ultimate fallback if absolutely no image is present
-  return [
-    'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=600&q=80',
-    'https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&w=600&q=80'
-  ];
+  // Fallback to official brand logo when product has no image
+  return [DEFAULT_PRODUCT_PLACEHOLDER];
 };
 
 export default function ProductDetails({
@@ -605,10 +600,11 @@ export default function ProductDetails({
                       }`}
                     >
                       <img
-                        src={imgUrl}
+                        src={getValidImageSrc(imgUrl)}
                         alt={`${product.name} preview ${idx + 1}`}
                         className="w-full h-full object-contain p-1 mix-blend-multiply rounded-lg"
                         referrerPolicy="no-referrer"
+                        onError={handleImageError}
                       />
                     </button>
                   );
@@ -635,10 +631,10 @@ export default function ProductDetails({
             </div>
           )}
 
-          {/* Right/Center Area: Main Large Product Image with overlay arrows */}
+          {/* Right/Center Area: Main Large Product Image with overlay arrows matching screenshot image_908db5b6.png */}
           <div 
             onClick={() => onViewImage?.(images[activeImageIndex])}
-            className="relative flex-1 bg-[#f7f8f9] rounded-2xl flex items-center justify-center p-0 border border-gray-100 overflow-hidden h-full select-none cursor-zoom-in group/mainimg"
+            className="relative flex-1 bg-white rounded-2xl flex items-center justify-center p-3 sm:p-5 border border-gray-200/90 overflow-hidden h-full select-none cursor-zoom-in group/mainimg"
             title="ছবি জুম করতে ক্লিক করুন"
           >
             {/* Discount Badge */}
@@ -648,7 +644,7 @@ export default function ProductDetails({
               </div>
             ) : product.badge === 'new' ? (
               <div className="absolute top-4 left-4 bg-[#00b050] text-white text-[10px] font-black px-3 py-1 rounded-sm tracking-wider z-10 shadow-md">
-                নতুন
+                New
               </div>
             ) : product.badge === 'restocked' ? (
               <div className="absolute top-4 left-4 bg-indigo-600 text-white text-[10px] font-black px-3 py-1 rounded-sm tracking-wider z-10 shadow-md">
@@ -666,35 +662,40 @@ export default function ProductDetails({
               )
             )}
 
-            {/* Left navigation arrow on the side of main image */}
+            {/* Left navigation arrow matching screenshot image_908db5b6.png: pure slim blue chevron */}
             {images.length > 1 && (
               <button
+                type="button"
                 onClick={(e) => { e.stopPropagation(); handlePrevImage(); }}
-                className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 md:w-11 md:h-11 rounded-full bg-white/90 hover:bg-white text-rose-500 hover:text-rose-600 active:scale-90 shadow-md flex items-center justify-center cursor-pointer transition-all border border-gray-100"
+                className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-20 text-[#0ea5e9] hover:text-[#0284c7] active:scale-90 transition-all cursor-pointer p-1 group/arrow"
                 aria-label="Previous image"
+                title="পূর্ববর্তী ছবি"
               >
-                <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 stroke-[2.5]" />
+                <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2] group-hover/arrow:scale-125 transition-transform" />
               </button>
             )}
 
-            {/* Right navigation arrow on the side of main image */}
+            {/* Right navigation arrow matching screenshot image_908db5b6.png: pure slim blue chevron */}
             {images.length > 1 && (
               <button
+                type="button"
                 onClick={(e) => { e.stopPropagation(); handleNextImage(); }}
-                className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 md:w-11 md:h-11 rounded-full bg-white/90 hover:bg-white text-rose-500 hover:text-rose-600 active:scale-90 shadow-md flex items-center justify-center cursor-pointer transition-all border border-gray-100"
+                className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-20 text-[#0ea5e9] hover:text-[#0284c7] active:scale-90 transition-all cursor-pointer p-1 group/arrow"
                 aria-label="Next image"
+                title="পরবর্তী ছবি"
               >
-                <ChevronRight className="w-5 h-5 md:w-6 md:h-6 stroke-[2.5]" />
+                <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2] group-hover/arrow:scale-125 transition-transform" />
               </button>
             )}
 
             {/* Big product image with rounded corners - 1:1 Aspect ratio representing 1200x1200px display */}
             <div className="w-full h-full flex items-center justify-center rounded-2xl overflow-hidden p-0">
               <img 
-                src={images[activeImageIndex]} 
+                src={getValidImageSrc(images[activeImageIndex])} 
                 alt={`${product.name} view ${activeImageIndex + 1}`}
-                className="w-full h-full object-cover mx-auto rounded-2xl transition-all duration-300 group-hover/mainimg:scale-103 mix-blend-multiply"
+                className="w-full h-full object-contain mx-auto rounded-2xl transition-all duration-300 group-hover/mainimg:scale-103 mix-blend-multiply"
                 referrerPolicy="no-referrer"
+                onError={handleImageError}
               />
             </div>
 
@@ -857,6 +858,19 @@ export default function ProductDetails({
               )}
             </div>
           </div>
+
+          {/* Share / Copy Product Link Button */}
+          <button
+            onClick={() => {
+              const link = `${window.location.origin}/#product-${product.id}`;
+              navigator.clipboard.writeText(link);
+              alert("পণ্যের ডাইরেক্ট লিংক কপি করা হয়েছে! এখন ফেসবুকে বা হোয়াটসঅ্যাপে শেয়ার করতে পারেন।");
+            }}
+            className="w-full bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-bold text-xs md:text-sm py-2.5 px-4 rounded-md transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-3xs"
+          >
+            <Share2 className="w-4 h-4 text-amber-700" />
+            <span>শেয়ারযোগ্য ডাইরেক্ট প্রোডাক্ট লিংক কপি করুন (Copy Product Link)</span>
+          </button>
 
           {/* Social Order Quick Hotlines */}
           <div className="grid grid-cols-2 gap-3">

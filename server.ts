@@ -10,6 +10,7 @@ import {
   INITIAL_CATEGORIES, 
   INITIAL_PRODUCTS, 
   INITIAL_USERS, 
+  INITIAL_ORDERS,
   DEFAULT_SITE_CONFIG 
 } from "./server/seed";
 import { populateFallbackStore } from "./server/fallbackStore";
@@ -22,7 +23,9 @@ import {
   WithdrawRequest, 
   ProductRequest, 
   ChatSession,
-  Complaint 
+  Complaint,
+  Expense,
+  AuditLog
 } from "./server/models";
 
 dotenv.config();
@@ -36,7 +39,8 @@ async function startServer() {
     INITIAL_CATEGORIES,
     INITIAL_PRODUCTS,
     INITIAL_USERS,
-    DEFAULT_SITE_CONFIG
+    DEFAULT_SITE_CONFIG,
+    INITIAL_ORDERS
   );
 
   // Initialize MongoDB Atlas
@@ -158,8 +162,17 @@ async function startServer() {
   // 3. Products APIs
   app.get("/api/products", async (req, res) => {
     try {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
       const products = await Product.find();
-      res.json(products);
+      const sorted = [...products].sort((a: any, b: any) => {
+        if (a.createdAt && b.createdAt) {
+          return b.createdAt.localeCompare(a.createdAt);
+        }
+        if (a.createdAt) return -1;
+        if (b.createdAt) return 1;
+        return 0;
+      });
+      res.json(sorted);
     } catch (err) {
       res.status(500).json({ error: "পণ্যসমূহ লোড করতে ব্যর্থ হয়েছে।" });
     }
@@ -167,9 +180,51 @@ async function startServer() {
 
   app.post("/api/products", async (req, res) => {
     try {
-      const productData = req.body;
+      const productData = { ...req.body };
       if (!productData.id) {
         productData.id = 'p-' + Math.random().toString(36).substring(2, 9);
+      }
+      if (!productData.name || !String(productData.name).trim()) {
+        return res.status(400).json({ error: "পণ্যের নাম আবশ্যক।" });
+      }
+      productData.name = String(productData.name).trim();
+      if (!productData.category || !String(productData.category).trim()) {
+        productData.category = 'অন্যান্য';
+      }
+      if (!productData.image) {
+        productData.image = '/assets/aistudio/image_f57a69c5.png';
+      }
+      if (!productData.unit) {
+        productData.unit = 'পিস';
+      }
+      productData.price = Number(productData.price) || 0;
+      productData.stock = Number(productData.stock) || 0;
+      if (productData.originalPrice !== undefined && productData.originalPrice !== null && productData.originalPrice !== '') {
+        const parsed = Number(productData.originalPrice);
+        productData.originalPrice = Number.isFinite(parsed) ? parsed : undefined;
+      } else {
+        delete productData.originalPrice;
+      }
+      if (productData.purchasePrice !== undefined && productData.purchasePrice !== null && productData.purchasePrice !== '') {
+        const parsed = Number(productData.purchasePrice);
+        productData.purchasePrice = Number.isFinite(parsed) ? parsed : undefined;
+      } else {
+        delete productData.purchasePrice;
+      }
+      if (productData.offerPrice !== undefined && productData.offerPrice !== null && productData.offerPrice !== '') {
+        const parsed = Number(productData.offerPrice);
+        productData.offerPrice = Number.isFinite(parsed) ? parsed : undefined;
+      } else {
+        delete productData.offerPrice;
+      }
+      if (!['none', 'new', 'restocked'].includes(productData.badge)) {
+        productData.badge = 'none';
+      }
+      if (!['pending', 'approved', 'rejected'].includes(productData.sellerProductStatus)) {
+        delete productData.sellerProductStatus;
+      }
+      if (!productData.createdAt) {
+        productData.createdAt = new Date().toISOString();
       }
       const newProduct = await Product.create(productData);
       res.status(201).json(newProduct);
@@ -185,6 +240,12 @@ async function startServer() {
       const updateData = { ...req.body };
       if (!updateData.originalPrice) {
         updateData.originalPrice = null;
+      }
+      if (updateData.isOffer !== undefined) {
+        updateData.isOffer = Boolean(updateData.isOffer);
+      }
+      if (updateData.offerPrice !== undefined && updateData.offerPrice !== null && (updateData.offerPrice as any) !== '') {
+        updateData.offerPrice = Number(updateData.offerPrice);
       }
       let updatedProduct = await Product.findOneAndUpdate({ id }, updateData, { new: true });
       if (!updatedProduct) {
@@ -275,6 +336,28 @@ async function startServer() {
     }
   });
 
+  // Helper to restore product stock
+  async function restoreStockForOrder(order: any) {
+    if (!order || !Array.isArray(order.items)) return;
+    for (const item of order.items) {
+      try {
+        const prod = await Product.findOne({ id: item.productId });
+        if (prod) {
+          prod.stock = (Number(prod.stock) || 0) + (Number(item.quantity) || 1);
+          if (item.unit && prod.sizePrices && prod.sizePrices[item.unit]) {
+            const sp = prod.sizePrices[item.unit];
+            if (sp.stock !== undefined) {
+              sp.stock = Number(sp.stock) + (Number(item.quantity) || 1);
+            }
+          }
+          await prod.save();
+        }
+      } catch (e) {
+        console.error("Failed to restore stock:", e);
+      }
+    }
+  }
+
   app.post("/api/orders", async (req, res) => {
     try {
       const orderData = req.body;
@@ -292,6 +375,28 @@ async function startServer() {
         orderData.createdAt = new Date().toLocaleDateString("bn-BD") + " " + new Date().toLocaleTimeString("bn-BD");
       }
       const newOrder = await Order.create(orderData);
+
+      // Automatically decrement product stock & variant stock
+      if (Array.isArray(newOrder.items)) {
+        for (const item of newOrder.items) {
+          try {
+            const prod = await Product.findOne({ id: item.productId });
+            if (prod) {
+              prod.stock = Math.max(0, (Number(prod.stock) || 0) - (Number(item.quantity) || 1));
+              if (item.unit && prod.sizePrices && prod.sizePrices[item.unit]) {
+                const sp = prod.sizePrices[item.unit];
+                if (sp.stock !== undefined) {
+                  sp.stock = Math.max(0, Number(sp.stock) - (Number(item.quantity) || 1));
+                }
+              }
+              await prod.save();
+            }
+          } catch (e) {
+            console.error("Failed to decrement stock on order creation:", e);
+          }
+        }
+      }
+
       res.status(201).json(newOrder);
     } catch (err) {
       console.error("Create order error:", err);
@@ -299,12 +404,44 @@ async function startServer() {
     }
   });
 
+  app.put("/api/orders/bulk-status", async (req, res) => {
+    try {
+      const { orderIds, status } = req.body;
+      if (!Array.isArray(orderIds) || orderIds.length === 0 || !status) {
+        return res.status(400).json({ error: "অর্ডার আইডি তালিকা ও স্ট্যাটাস আবশ্যক।" });
+      }
+      const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: "অবৈধ অর্ডার স্ট্যাটাস।" });
+      }
+      const updatedOrders = [];
+      for (const id of orderIds) {
+        const prevOrder = await Order.findOne({ id });
+        const updated = await Order.findOneAndUpdate({ id }, { status }, { new: true });
+        if (updated) {
+          updatedOrders.push(updated);
+          if (status === 'cancelled' && prevOrder && prevOrder.status !== 'cancelled') {
+            await restoreStockForOrder(prevOrder);
+          }
+        }
+      }
+      res.json({ success: true, count: updatedOrders.length, orders: updatedOrders });
+    } catch (err) {
+      console.error("Bulk update order status error:", err);
+      res.status(500).json({ error: "অর্ডারসমূহের স্ট্যাটাস আপডেট করতে ব্যর্থ হয়েছে।" });
+    }
+  });
+
   app.put("/api/orders/:id", async (req, res) => {
     try {
       const { id } = req.params;
+      const prevOrder = await Order.findOne({ id });
       const updatedOrder = await Order.findOneAndUpdate({ id }, req.body, { new: true });
       if (!updatedOrder) {
         return res.status(404).json({ error: "অর্ডারটি খুঁজে পাওয়া যায়নি।" });
+      }
+      if (req.body.status === 'cancelled' && prevOrder && prevOrder.status !== 'cancelled') {
+        await restoreStockForOrder(prevOrder);
       }
       res.json(updatedOrder);
     } catch (err) {
@@ -319,13 +456,14 @@ async function startServer() {
       // Extract details about the requester
       const requesterPhone = req.headers['x-requester-phone'] || req.query.phone;
       const requesterRole = req.headers['x-requester-role'] || req.query.role;
+      const requesterId = req.headers['x-requester-id'] || req.query.userId;
 
       // Find the site config
       const config = await SiteConfig.findOne();
       if (config && config.allowAdminsToDeleteOrders === false) {
-        // Super Admin identifier checks
         const isSuperAdmin = 
           requesterPhone === '01837587551' || 
+          requesterId === 'U-130163' ||
           requesterRole === 'super_admin';
 
         if (!isSuperAdmin) {
@@ -336,6 +474,9 @@ async function startServer() {
       const result = await Order.findOneAndDelete({ id });
       if (!result) {
         return res.status(404).json({ error: "অর্ডারটি খুঁজে পাওয়া যায়নি।" });
+      }
+      if (result.status !== 'cancelled') {
+        await restoreStockForOrder(result);
       }
       res.json({ success: true, message: "অর্ডারটি মুছে ফেলা হয়েছে।" });
     } catch (err) {
@@ -413,6 +554,19 @@ async function startServer() {
       res.json(updatedRequest);
     } catch (err) {
       res.status(500).json({ error: "অনুরোধ আপডেট করতে ব্যর্থ হয়েছে।" });
+    }
+  });
+
+  app.delete("/api/product-requests/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deletedRequest = await ProductRequest.findOneAndDelete({ id });
+      if (!deletedRequest) {
+        return res.status(404).json({ error: "অনুরোধ খুঁজে পাওয়া যায়নি।" });
+      }
+      res.json({ success: true, message: "অনুরোধটি সফলভাবে মুছে ফেলা হয়েছে।" });
+    } catch (err) {
+      res.status(500).json({ error: "অনুরোধটি ডিলিট করতে ব্যর্থ হয়েছে।" });
     }
   });
 
@@ -515,6 +669,85 @@ async function startServer() {
       res.json({ success: true, message: "কম্পেলেইন মুছে ফেলা হয়েছে।" });
     } catch (err) {
       res.status(500).json({ error: "কম্পেলেইন ডিলিট করতে ব্যর্থ হয়েছে।" });
+    }
+  });
+
+  // 8B. Business Expenses & Accounting APIs
+  app.get("/api/expenses", async (req, res) => {
+    try {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      const expenses = await Expense.find().sort({ createdAt: -1 });
+      res.json(expenses);
+    } catch (err) {
+      res.status(500).json({ error: "খরচের তালিকা লোড করতে ব্যর্থ হয়েছে।" });
+    }
+  });
+
+  app.post("/api/expenses", async (req, res) => {
+    try {
+      const data = { ...req.body };
+      if (!data.id) {
+        data.id = 'EXP-' + Math.floor(100000 + Math.random() * 900000);
+      }
+      if (!data.title || !String(data.title).trim()) {
+        return res.status(400).json({ error: "খরচের বিবরণ/শিরোনাম আবশ্যক।" });
+      }
+      data.title = String(data.title).trim();
+      data.amount = Math.max(0, Number(data.amount) || 0);
+      if (!['purchase', 'packaging', 'courier', 'marketing', 'salary', 'other'].includes(data.category)) {
+        data.category = 'other';
+      }
+      if (!data.date) {
+        data.date = new Date().toISOString().slice(0, 10);
+      }
+      if (!data.createdAt) {
+        data.createdAt = new Date().toISOString();
+      }
+      const created = await Expense.create(data);
+      res.status(201).json(created);
+    } catch (err) {
+      console.error("Create expense error:", err);
+      res.status(500).json({ error: "খরচ সংরক্ষণ করতে ব্যর্থ হয়েছে।" });
+    }
+  });
+
+  app.delete("/api/expenses/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await Expense.findOneAndDelete({ id });
+      if (!deleted) {
+        return res.status(404).json({ error: "খরচের রেকর্ড খুঁজে পাওয়া যায়নি।" });
+      }
+      res.json({ success: true, message: "খরচের রেকর্ড মুছে ফেলা হয়েছে।" });
+    } catch (err) {
+      res.status(500).json({ error: "খরচ ডিলিট করতে ব্যর্থ হয়েছে।" });
+    }
+  });
+
+  // 8C. Audit Log APIs
+  app.get("/api/audit-logs", async (req, res) => {
+    try {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      const logs = await AuditLog.find().sort({ createdAt: -1 });
+      res.json(logs);
+    } catch (err) {
+      res.status(500).json({ error: "অডিট লগ লোড করতে ব্যর্থ হয়েছে।" });
+    }
+  });
+
+  app.post("/api/audit-logs", async (req, res) => {
+    try {
+      const data = { ...req.body };
+      if (!data.id) {
+        data.id = 'AUD-' + Math.floor(100000 + Math.random() * 900000);
+      }
+      if (!data.createdAt) {
+        data.createdAt = new Date().toISOString();
+      }
+      const newLog = await AuditLog.create(data);
+      res.status(201).json(newLog);
+    } catch (err) {
+      res.status(500).json({ error: "অডিট লগ সংরক্ষণ করতে ব্যর্থ হয়েছে।" });
     }
   });
 
@@ -968,8 +1201,14 @@ CRITICAL PRODUCT PRESENTATION & RESPONSE RULES:
   });
 
 
-  // Serve local asset folders statically
-  app.use("/src/assets", express.static(path.join(process.cwd(), "src/assets")));
+  // Serve local asset folders statically (allow Vite ?import/?url module queries to pass through)
+  const srcAssetsStatic = express.static(path.join(process.cwd(), "src/assets"));
+  app.use("/src/assets", (req, res, next) => {
+    if (req.query.import !== undefined || req.query.url !== undefined || req.query.raw !== undefined) {
+      return next();
+    }
+    return srcAssetsStatic(req, res, next);
+  });
   app.use("/assets", express.static(path.join(process.cwd(), "src/assets")));
   app.use("/public", express.static(path.join(process.cwd(), "public")));
 

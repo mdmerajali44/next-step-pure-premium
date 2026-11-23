@@ -23,6 +23,13 @@ interface ReviewsTabProps {
   products: Product[];
   notify: (msg: string, type: 'success' | 'error' | 'info') => void;
   filterProductId?: string | null;
+  externalStatusFilter?: string;
+  onStatusFilterChange?: (val: string) => void;
+  openAddTrigger?: number;
+  subView?: 'list' | 'add';
+  onSubViewChange?: (val: 'list' | 'add') => void;
+  canDelete?: boolean;
+  canAdd?: boolean;
 }
 
 interface EnrichedReview extends Review {
@@ -31,17 +38,31 @@ interface EnrichedReview extends Review {
   productImage: string;
 }
 
-export default function ReviewsTab({ products, notify, filterProductId }: ReviewsTabProps) {
+export default function ReviewsTab({ products, notify, filterProductId, externalStatusFilter, onStatusFilterChange, openAddTrigger, subView = 'list', onSubViewChange, canDelete = true, canAdd = true }: ReviewsTabProps) {
   const [allReviews, setAllReviews] = useState<EnrichedReview[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProductFilter, setSelectedProductFilter] = useState<string>(filterProductId || 'all');
   const [selectedRatingFilter, setSelectedRatingFilter] = useState<string>('all');
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
+  const [selectedStatusFilter, setSelectedStatusFilterState] = useState<string>(externalStatusFilter || 'all');
+  const setSelectedStatusFilter = (val: string) => {
+    setSelectedStatusFilterState(val);
+    onStatusFilterChange?.(val);
+  };
+  useEffect(() => {
+    if (externalStatusFilter !== undefined) {
+      setSelectedStatusFilterState(externalStatusFilter);
+    }
+  }, [externalStatusFilter]);
 
   // Modals & Confirmation States
   const [deletingReview, setDeletingReview] = useState<EnrichedReview | null>(null);
   const [editingReview, setEditingReview] = useState<EnrichedReview | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  useEffect(() => {
+    if (openAddTrigger && openAddTrigger > 0) {
+      setShowAddModal(true);
+    }
+  }, [openAddTrigger]);
 
   // Edit Form Fields
   const [editName, setEditName] = useState('');
@@ -190,6 +211,7 @@ export default function ReviewsTab({ products, notify, filterProductId }: Review
     updateProductReviewsInStorage(addProductId, prodReviews);
 
     setShowAddModal(false);
+    onSubViewChange?.('list');
     setAddName('');
     setAddPhone('');
     setAddComment('');
@@ -261,6 +283,124 @@ export default function ReviewsTab({ products, notify, filterProductId }: Review
     ? (allReviews.reduce((acc, r) => acc + r.rating, 0) / totalCount).toFixed(1) 
     : '5.0';
 
+  const isFocusedHidden = selectedStatusFilter === 'hidden';
+
+  if (subView === 'add') {
+    return (
+      <div className="bg-white border border-gray-200 rounded-3xl p-6 md:p-8 shadow-xs text-left space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+          <div>
+            <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+              <Plus className="w-5 h-5 text-emerald-600" />
+              <span>নতুন কাস্টমার রিভিউ ম্যানুয়ালি যোগ করুন</span>
+            </h3>
+            <p className="text-xs text-gray-500 font-medium mt-0.5">
+              নির্দিষ্ট পণ্যের জন্য নতুন কাস্টমার রেটিং ও মতামত যোগ করুন।
+            </p>
+          </div>
+          {onSubViewChange && (
+            <button
+              type="button"
+              onClick={() => onSubViewChange('list')}
+              className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer self-start sm:self-auto"
+            >
+              তালিকায় ফিরে যান
+            </button>
+          )}
+        </div>
+
+        <form onSubmit={handleAddReviewSubmit} className="space-y-4 text-xs max-w-2xl">
+          <div>
+            <label className="block font-extrabold text-gray-700 mb-1">পণ্য নির্বাচন করুন <span className="text-red-500">*</span></label>
+            <select
+              value={addProductId}
+              onChange={(e) => setAddProductId(e.target.value)}
+              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-slate-800"
+            >
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block font-extrabold text-gray-700 mb-1">কাস্টমারের নাম <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                required
+                placeholder="যেমন: সাকিব আল হাসান"
+                value={addName}
+                onChange={(e) => setAddName(e.target.value)}
+                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-slate-800"
+              />
+            </div>
+
+            <div>
+              <label className="block font-extrabold text-gray-700 mb-1">মোবাইল নম্বর (ঐচ্ছিক)</label>
+              <input
+                type="text"
+                placeholder="যেমন: 01700000000"
+                value={addPhone}
+                onChange={(e) => setAddPhone(e.target.value)}
+                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-slate-800"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-extrabold text-gray-700 mb-1">স্টার রেটিং (১ - ৫)</label>
+            <div className="flex items-center gap-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setAddRating(star)}
+                  className="p-1 cursor-pointer hover:scale-110 transition-transform"
+                >
+                  <Star
+                    className={`w-6 h-6 ${star <= addRating ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                  />
+                </button>
+              ))}
+              <span className="font-black text-slate-800 text-sm ml-2">{addRating} স্টার</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-extrabold text-gray-700 mb-1">রিভিউ কমেন্ট / মন্তব্য <span className="text-red-500">*</span></label>
+            <textarea
+              required
+              rows={4}
+              placeholder="কাস্টমারের পজিটিভ রিভিউ এখানে লিখুন..."
+              value={addComment}
+              onChange={(e) => setAddComment(e.target.value)}
+              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-semibold text-slate-800"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+            {onSubViewChange && (
+              <button
+                type="button"
+                onClick={() => onSubViewChange('list')}
+                className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                বাতিল
+              </button>
+            )}
+            <button
+              type="submit"
+              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-sm cursor-pointer"
+            >
+              রিভিউ যোগ করুন
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in text-left">
       {/* Header & Stats Banner */}
@@ -268,23 +408,36 @@ export default function ReviewsTab({ products, notify, filterProductId }: Review
         <div>
           <div className="flex items-center gap-2">
             <Star className="w-6 h-6 fill-white text-white" />
-            <h2 className="text-xl md:text-2xl font-black">কাস্টমার রেটিং ও রিভিউ অ্যাডমিন কন্ট্রোল Panel</h2>
+            <h2 className="text-xl md:text-2xl font-black">
+              {isFocusedHidden ? 'লুকানো (Hidden) রিভিউ তালিকা' : 'কাস্টমার রেটিং ও রিভিউ অ্যাডমিন কন্ট্রোল'}
+            </h2>
           </div>
           <p className="text-amber-100 text-xs md:text-sm font-semibold mt-1">
-            খারাপ বা ভুয়া রিভিউ হাইড অথবা মুছে ফেলুন এবং ওয়েবসাইট রেটিং নিয়ন্ত্রণ করুন।
+            {isFocusedHidden
+              ? `বর্তমানে ওয়েবসাইট থেকে লুকানো অবস্থায় ${hiddenCount}টি রিভিউ রয়েছে। এখান থেকে প্রকাশ বা ডিলিট করুন।`
+              : 'খারাপ বা ভুয়া রিভিউ হাইড অথবা মুছে ফেলুন এবং ওয়েবসাইট রেটিং নিয়ন্ত্রণ করুন।'}
           </p>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="px-4 py-2.5 bg-white text-amber-700 hover:bg-amber-50 font-black text-xs md:text-sm rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer hover:scale-102 active:scale-98"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>ম্যানুয়াল রিভিউ যোগ করুন</span>
-        </button>
+        {canAdd && (
+          <button
+            onClick={() => {
+              if (onSubViewChange) {
+                onSubViewChange('add');
+              } else {
+                setShowAddModal(true);
+              }
+            }}
+            className="px-4 py-2.5 bg-white text-amber-700 hover:bg-amber-50 font-black text-xs md:text-sm rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer hover:scale-102 active:scale-98"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>ম্যানুয়াল রিভিউ যোগ করুন</span>
+          </button>
+        )}
       </div>
 
-      {/* Metrics Grid */}
+      {/* Metrics Grid (only in All view) */}
+      {!isFocusedHidden && (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-3xs">
           <span className="text-xs font-extrabold text-gray-400 block">মোট রিভিউ</span>
@@ -308,10 +461,11 @@ export default function ReviewsTab({ products, notify, filterProductId }: Review
           </div>
         </div>
       </div>
+      )}
 
       {/* Search & Filter Control Bar */}
       <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-3xs space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${isFocusedHidden ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-3`}>
           {/* Search Box */}
           <div className="relative">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -354,7 +508,8 @@ export default function ReviewsTab({ products, notify, filterProductId }: Review
             </select>
           </div>
 
-          {/* Status Filter */}
+          {/* Status Filter (only in All view) */}
+          {!isFocusedHidden && (
           <div className="relative">
             <select
               value={selectedStatusFilter}
@@ -366,6 +521,7 @@ export default function ReviewsTab({ products, notify, filterProductId }: Review
               <option value="hidden">হাইডকৃত (Hidden)</option>
             </select>
           </div>
+          )}
         </div>
       </div>
 
@@ -516,13 +672,15 @@ export default function ReviewsTab({ products, notify, filterProductId }: Review
                       </button>
 
                       {/* Delete Button */}
-                      <button
-                        onClick={() => setDeletingReview(rev)}
-                        className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-extrabold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>ডিলিট</span>
-                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={() => setDeletingReview(rev)}
+                          className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-extrabold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>ডিলিট</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

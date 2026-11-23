@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
-import { Product, CartItem, Order, OrderStatus, SiteConfig, ProductRequest, getEmbedMapUrl, User, Category, matchesSearchWithNumerals, sortProductSizes, WithdrawRequest, Complaint } from './types';
+import React, { useState, useEffect, useRef } from 'react';
+import { Product, CartItem, Order, OrderStatus, SiteConfig, ProductRequest, getEmbedMapUrl, User, Category, matchesSearchWithNumerals, sortProductSizes, WithdrawRequest, Complaint, Expense } from './types';
 import { CATEGORIES, INITIAL_PRODUCTS } from './data';
 import { api } from './api';
 import { safeSetLocalStorage } from './utils/storage';
@@ -19,15 +19,18 @@ import AuthModal from './components/AuthModal';
 import { ChatWidget } from './components/ChatWidget';
 import SellerDashboard from './components/SellerDashboard';
 import OrderTrackingModal from './components/OrderTrackingModal';
+import { AnimatedTrackingButton } from './components/AnimatedTrackingButton';
 import DoubleRingLoader from './components/DoubleRingLoader';
-import BestSellerSection from './components/BestSellerSection';
+import BestSellerSection, { BestSellerCard } from './components/BestSellerSection';
 import OfferSection from './components/OfferSection';
+import HeritageSideDecorations from './components/HeritageSideDecorations';
+import { getValidImageSrc, handleImageError, DEFAULT_PRODUCT_PLACEHOLDER } from './utils/imageUtils';
 import { 
   Search, ShoppingCart, ShieldAlert, X, Star, CheckCircle, 
   Plus, Minus, ShoppingBag, Clock, HelpCircle, Store, ChevronRight, ChevronLeft,
   Home, Droplet, Cookie, Candy, Waves, Leaf, Sprout, Sun, Wheat, Sparkles, Loader2,
   Truck, ShieldCheck, Headphones, Facebook, Instagram, Youtube, AlertTriangle, Info,
-  MapPin, Map, User as UserIcon, LogOut, LogIn, UserPlus, ChevronDown, Bell, AlertCircle, Gift
+  MapPin, Map, User as UserIcon, LogOut, LogIn, UserPlus, ChevronDown, Bell, AlertCircle, Gift, Flame
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -43,18 +46,19 @@ const SEEDED_ORDERS: Order[] = [
     paymentMethod: 'cod',
     items: [
       {
-        productId: 'p1',
-        productName: 'সুন্দরবনের খাঁটি মধু (Pure Sundarban Honey)',
-        price: 850,
+        productId: 'h4',
+        productName: 'সুন্দরবনের চাকের মধু',
+        price: 750,
         quantity: 1,
-        unit: '১ কেজি',
-        image: '/src/assets/images/sundarban_honey_jar_1782453470122.jpg',
+        unit: '1 KG',
+        image: '/src/assets/images/sundarban_honey_1782465914163.jpg',
       }
     ],
-    totalAmount: 910,
+    totalAmount: 810,
     deliveryCharge: 60,
     status: 'pending',
-    createdAt: '২৫ জুন, ২০২৬',
+    isTalked: false,
+    createdAt: '২৮ জুন, ২০২৬',
   },
   {
     id: 'ML-392104',
@@ -68,18 +72,240 @@ const SEEDED_ORDERS: Order[] = [
     trxId: 'BK89XJ12L',
     items: [
       {
-        productId: 'p8',
-        productName: 'নিউট্রিটিয়াস হানি নাটস (Mixed Nuts with Honey)',
-        price: 550,
+        productId: 'p4',
+        productName: 'খাঁটি গাওয়া ঘি',
+        price: 750,
         quantity: 2,
-        unit: '৪০০ গ্রাম',
-        image: 'https://images.unsplash.com/photo-1511117461117-573522c1b4ec?auto=format&fit=crop&w=600&q=80',
+        unit: '0.5 KG',
+        image: '/src/assets/images/gawa_ghee_1782456236375.jpg',
       }
     ],
-    totalAmount: 1220,
+    totalAmount: 1620,
     deliveryCharge: 120,
     status: 'delivered',
+    isTalked: true,
+    customerNotes: [
+      {
+        id: 'n-1',
+        author: 'মেহেদী হাসান',
+        text: 'গ্রাহক পণ্য হাতে পেয়ে সন্তুষ্টি প্রকাশ করেছেন।',
+        createdAt: '2026-06-27T11:30:00.000Z',
+        type: 'call'
+      }
+    ],
+    createdAt: '২৭ জুন, ২০২৬',
+  },
+  {
+    id: 'ML-748215',
+    customerName: 'কামরুল ইসলাম',
+    customerPhone: '01911223344',
+    deliveryAddress: 'ব্লক-সি, রোড-৮, মিরপুর ১০',
+    district: 'ঢাকা',
+    area: 'মিরপুর',
+    paymentMethod: 'nagad',
+    bkashNumber: '01911223344',
+    trxId: 'NG45PL90Q',
+    items: [
+      {
+        productId: 'm1',
+        productName: 'আম্রপালি আম',
+        price: 1560,
+        quantity: 1,
+        unit: '12 KG',
+        image: '/src/assets/images/green_mangoes_1_1782466276525.jpg',
+      },
+      {
+        productId: 'p3',
+        productName: 'আমসত্ত্বের আচার',
+        price: 350,
+        quantity: 1,
+        unit: '0.5 KG',
+        image: '/src/assets/images/amsotto_achar_1782456219512.jpg',
+      }
+    ],
+    totalAmount: 1970,
+    deliveryCharge: 60,
+    status: 'processing',
+    isTalked: true,
+    customerNotes: [
+      {
+        id: 'n-2',
+        author: 'সাপোর্ট টিম',
+        text: 'বিকেল ৫টার পরে ডেলিভারি দিতে অনুরোধ করেছেন।',
+        createdAt: '2026-06-27T09:15:00.000Z',
+        type: 'general'
+      }
+    ],
+    createdAt: '২৬ জুন, ২০২৬',
+  },
+  {
+    id: 'ML-619340',
+    customerName: 'সাবিনা ইয়াসমিন',
+    customerPhone: '01688776655',
+    deliveryAddress: 'থানা রোড, শ্যামনগর বাজার',
+    district: 'সাতক্ষীরা',
+    area: 'শ্যামনগর',
+    paymentMethod: 'bkash',
+    bkashNumber: '01688776655',
+    trxId: 'BK72KM31R',
+    items: [
+      {
+        productId: 'h1',
+        productName: 'কালোজিরা ফুলের মধু',
+        price: 700,
+        quantity: 1,
+        unit: '1 KG',
+        image: '/src/assets/images/kalojira_honey_1782465866977.jpg',
+      },
+      {
+        productId: 'p5',
+        productName: 'খাঁটি সরিষার তেল',
+        price: 300,
+        quantity: 2,
+        unit: '1 Liter',
+        image: '/src/assets/images/mustard_oil_1782456250479.jpg',
+      }
+    ],
+    totalAmount: 1360,
+    deliveryCharge: 60,
+    status: 'shipped',
+    isTalked: true,
+    createdAt: '২৫ জুন, ২০২৬',
+  },
+  {
+    id: 'ML-492081',
+    customerName: 'আব্দুর রহমান',
+    customerPhone: '01554433221',
+    deliveryAddress: 'কেডিএ এভিনিউ, সোনাডাঙ্গা',
+    district: 'খুলনা',
+    area: 'সোনাডাঙ্গা',
+    paymentMethod: 'cod',
+    items: [
+      {
+        productId: 'p2',
+        productName: 'আখের দানাদার ঝোলা গুড় 1 KG',
+        price: 300,
+        quantity: 2,
+        unit: '1 KG',
+        image: '/src/assets/images/akher_gur_1782456206623.jpg',
+      },
+      {
+        productId: 'p1',
+        productName: 'আখের জুস পাউডার',
+        price: 400,
+        quantity: 1,
+        unit: '1 KG',
+        image: '/src/assets/images/juice_powder_1782456192648.jpg',
+      }
+    ],
+    totalAmount: 1120,
+    deliveryCharge: 120,
+    status: 'pending',
+    isTalked: false,
     createdAt: '২৪ জুন, ২০২৬',
+  },
+  {
+    id: 'ML-835712',
+    customerName: 'নুসরাত জাহান',
+    customerPhone: '01799887766',
+    deliveryAddress: 'জিন্দাবাজার পয়েন্ট, সিলেট সদর',
+    district: 'সিলেট',
+    area: 'জিন্দাবাজার',
+    paymentMethod: 'rocket',
+    bkashNumber: '01799887766',
+    trxId: 'RK61TR84Z',
+    items: [
+      {
+        productId: 'p6',
+        productName: 'ঘিয়ে ভাজা লাচ্ছা সেমাই',
+        price: 650,
+        quantity: 1,
+        unit: '0.5 KG',
+        image: '/src/assets/images/laccha_semai_1782456263350.jpg',
+      },
+      {
+        productId: 'h2',
+        productName: 'লিচু ফুলের মধু',
+        price: 400,
+        quantity: 1,
+        unit: '1 KG',
+        image: '/src/assets/images/lychee_honey_1782465883260.jpg',
+      }
+    ],
+    totalAmount: 1170,
+    deliveryCharge: 120,
+    status: 'delivered',
+    isTalked: true,
+    createdAt: '২৩ জুন, ২০২৬',
+  },
+  {
+    id: 'ML-274519',
+    customerName: 'মাহমুদুল হাসান',
+    customerPhone: '01822334455',
+    deliveryAddress: 'রোড #৯/এ, ধানমন্ডি',
+    district: 'ঢাকা',
+    area: 'ধানমন্ডি',
+    paymentMethod: 'cod',
+    items: [
+      {
+        productId: 'h3',
+        productName: 'সরিষা ফুলের মধু',
+        price: 400,
+        quantity: 1,
+        unit: '1 KG',
+        image: '/src/assets/images/mustard_honey_1782465897931.jpg',
+      }
+    ],
+    totalAmount: 460,
+    deliveryCharge: 60,
+    status: 'cancelled',
+    isTalked: true,
+    customerNotes: [
+      {
+        id: 'n-3',
+        author: 'সাপোর্ট টিম',
+        text: 'গ্রাহক ভুলবশত অর্ডার করেছিলেন, ফোনে কথা বলে বাতিল করা হয়েছে।',
+        createdAt: '2026-06-22T14:20:00.000Z',
+        type: 'call'
+      }
+    ],
+    createdAt: '২২ জুন, ২০২৬',
+  },
+  {
+    id: 'ML-910463',
+    customerName: 'ফারজানা আক্তার',
+    customerPhone: '01755667788',
+    deliveryAddress: 'সাহেব বাজার জিরো পয়েন্ট',
+    district: 'রাজশাহী',
+    area: 'বোয়ালিয়া',
+    paymentMethod: 'bkash',
+    bkashNumber: '01755667788',
+    trxId: 'BK19MN54W',
+    items: [
+      {
+        productId: 'p4',
+        productName: 'খাঁটি গাওয়া ঘি',
+        price: 1450,
+        quantity: 1,
+        unit: '1 KG',
+        image: '/src/assets/images/gawa_ghee_1782456236375.jpg',
+      },
+      {
+        productId: 'h4',
+        productName: 'সুন্দরবনের চাকের মধু',
+        price: 750,
+        quantity: 1,
+        unit: '1 KG',
+        image: '/src/assets/images/sundarban_honey_1782465914163.jpg',
+      }
+    ],
+    couponCode: 'MANGO100',
+    discountAmount: 100,
+    totalAmount: 2220,
+    deliveryCharge: 120,
+    status: 'processing',
+    isTalked: true,
+    createdAt: '২১ জুন, ২০২৬',
   }
 ];
 
@@ -341,7 +567,8 @@ const DEFAULT_SITE_CONFIG: SiteConfig = {
   ],
   deliveryChargeInsideDhaka: 60,
   deliveryChargeOutsideDhaka: 120,
-  checkoutGuaranteeText: 'পণ্য হাতে পেয়ে চেক করে দেখে মূল্য পরিশোধ করুন। শতভাগ খাঁটি ও ফ্রেশ কোয়ালিটির সম্পূর্ণ নিশ্চয়তা!'
+  checkoutGuaranteeText: 'পার্সেল 1 KG ছাড়ালে অতিরিক্ত প্রতি কেজিতে ৳20 যোগ হতে পারে। চূড়ান্ত চার্জ অর্ডার কনফার্মেশন কলে জানানো হবে।',
+  heritageSideDesignActive: true
 };
 
 const toBengaliNumber = (num: number | string): string => {
@@ -363,18 +590,123 @@ const SEARCH_SUGGESTIONS = [
 ];
 
 export default function App() {
+  const loadPendingProductsMap = (): Record<string, Product> => {
+    try {
+      const raw = localStorage.getItem('ml_pending_products');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return {};
+  };
+
+  const loadPendingDeletedIdsMap = (): Record<string, boolean> => {
+    try {
+      const raw = localStorage.getItem('ml_deleted_product_ids');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return {};
+  };
+
+  const pendingLocalProductsRef = useRef<Record<string, Product>>(loadPendingProductsMap());
+  const pendingDeletedProductIdsRef = useRef<Record<string, boolean>>(loadPendingDeletedIdsMap());
+  const syncingProductIdsRef = useRef<Record<string, boolean>>({});
+
+  const persistPendingProductsMap = (map: Record<string, Product>) => {
+    if (Object.keys(map).length === 0) {
+      try { localStorage.removeItem('ml_pending_products'); } catch {}
+    } else {
+      safeSetLocalStorage('ml_pending_products', JSON.stringify(map));
+    }
+  };
+
+  const persistDeletedProductIdsMap = (map: Record<string, boolean>) => {
+    if (Object.keys(map).length === 0) {
+      try { localStorage.removeItem('ml_deleted_product_ids'); } catch {}
+    } else {
+      safeSetLocalStorage('ml_deleted_product_ids', JSON.stringify(map));
+    }
+  };
+
+  const mergeAndSyncServerProducts = (freshProducts: Product[]): Product[] => {
+    const deletedMap = pendingDeletedProductIdsRef.current;
+    let deletedChanged = false;
+    const filteredFresh = freshProducts.filter((p) => !deletedMap[p.id]);
+
+    for (const delId of Object.keys(deletedMap)) {
+      const stillOnServer = freshProducts.some((p) => p.id === delId);
+      if (!stillOnServer) {
+        delete deletedMap[delId];
+        deletedChanged = true;
+      } else {
+        api.deleteProduct(delId).catch(() => {});
+      }
+    }
+    if (deletedChanged) {
+      persistDeletedProductIdsMap(deletedMap);
+    }
+
+    const pendingMap = pendingLocalProductsRef.current;
+    let pendingChanged = false;
+    const mergedProducts = [...filteredFresh];
+    for (const pid of Object.keys(pendingMap)) {
+      if (mergedProducts.some((p) => p.id === pid)) {
+        delete pendingMap[pid];
+        pendingChanged = true;
+      } else {
+        const pendingProd = pendingMap[pid];
+        mergedProducts.unshift(pendingProd);
+        // Auto-retry syncing pending local product to backend if not already in flight
+        if (!syncingProductIdsRef.current[pid]) {
+          syncingProductIdsRef.current[pid] = true;
+          api.createProduct(pendingProd)
+            .then((saved) => {
+              if (saved && saved.id) {
+                pendingLocalProductsRef.current[saved.id] = { ...pendingProd, ...saved };
+                persistPendingProductsMap(pendingLocalProductsRef.current);
+              }
+            })
+            .catch(() => {})
+            .finally(() => {
+              delete syncingProductIdsRef.current[pid];
+            });
+        }
+      }
+    }
+    if (pendingChanged) {
+      persistPendingProductsMap(pendingMap);
+    }
+    return mergedProducts;
+  };
+
   // --- Persistent Storage State ---
   const [products, setProducts] = useState<Product[]>(() => {
+    let baseList = INITIAL_PRODUCTS;
     const saved = localStorage.getItem('ml_products');
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as Product[];
-        return parsed;
-      } catch (e) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          baseList = parsed;
+        }
+      } catch {
         // ignore
       }
     }
-    return INITIAL_PRODUCTS;
+    const deletedMap = loadPendingDeletedIdsMap();
+    const pendingMap = loadPendingProductsMap();
+    const filtered = baseList.filter((p) => !deletedMap[p.id]);
+    const existingIds = new Set(filtered.map((p) => p.id));
+    const extras = Object.values(pendingMap).filter((p) => p && p.id && !existingIds.has(p.id) && !deletedMap[p.id]);
+    return [...extras, ...filtered];
   });
 
   const [siteConfig, setSiteConfig] = useState<SiteConfig>(() => {
@@ -426,18 +758,20 @@ export default function App() {
 
     const fetchFreshData = async () => {
       try {
-        const [freshProducts, freshSiteConfig, freshCategories, freshOrders, freshUsers, freshWithdraws, freshProductRequests] = await Promise.all([
+        const [freshProducts, freshSiteConfig, freshCategories, freshOrders, freshUsers, freshWithdraws, freshProductRequests, freshExpenses] = await Promise.all([
           api.getProducts(INITIAL_PRODUCTS),
           api.getSiteConfig(DEFAULT_SITE_CONFIG),
           api.getCategories(CATEGORIES),
           api.getOrders(SEEDED_ORDERS),
           api.getUsers(INITIAL_USERS),
           api.getWithdrawRequests(),
-          api.getProductRequests()
+          api.getProductRequests(),
+          api.getExpenses()
         ]);
         
         if (!active) return;
-        setProducts(freshProducts);
+        const mergedFreshProducts = mergeAndSyncServerProducts(freshProducts);
+        setProducts(mergedFreshProducts);
         if (freshSiteConfig.promoActive && !freshSiteConfig.promoImage) {
           freshSiteConfig.promoImage = 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80';
         }
@@ -450,6 +784,7 @@ export default function App() {
         setUsers(freshUsers);
         setWithdrawRequests(freshWithdraws);
         setProductRequests(freshProductRequests);
+        setExpenses(freshExpenses);
 
         // Refresh loggedInUser from fresh MongoDB user data for cross-browser sync
         if (loggedInUser) {
@@ -460,13 +795,14 @@ export default function App() {
           }
         }
 
-        safeSetLocalStorage('ml_products', JSON.stringify(freshProducts));
+        safeSetLocalStorage('ml_products', JSON.stringify(mergedFreshProducts));
         safeSetLocalStorage('mango_lover_site_config', JSON.stringify(freshSiteConfig));
         safeSetLocalStorage('ml_categories', JSON.stringify(freshCategories));
         safeSetLocalStorage('ml_orders', JSON.stringify(freshOrders));
         safeSetLocalStorage('ml_users', JSON.stringify(freshUsers));
         safeSetLocalStorage('ml_withdraw_requests', JSON.stringify(freshWithdraws));
         safeSetLocalStorage('ml_product_requests', JSON.stringify(freshProductRequests));
+        safeSetLocalStorage('ml_expenses', JSON.stringify(freshExpenses));
 
         setIsConfigLoaded(true);
       } catch (err) {
@@ -510,10 +846,23 @@ export default function App() {
   });
 
   const handleUpdateCategories = async (updatedCategories: Category[]) => {
+    const prevIds = new Set<string>(categories.map((c) => c.id));
+    const nextIds = new Set<string>(updatedCategories.map((c) => c.id));
+    const removedIds = Array.from(prevIds).filter((id) => !nextIds.has(id));
+
     setCategories(updatedCategories);
     safeSetLocalStorage('ml_categories', JSON.stringify(updatedCategories));
-    
-    // Upsert categories to MongoDB Atlas
+
+    // Delete removed categories from server
+    for (const delId of removedIds) {
+      try {
+        await api.deleteCategory(delId);
+      } catch (err) {
+        console.error("Failed to delete category:", delId, err);
+      }
+    }
+
+    // Upsert remaining categories to MongoDB Atlas
     for (const cat of updatedCategories) {
       try {
         await api.createCategory(cat);
@@ -529,8 +878,16 @@ export default function App() {
 
 
   const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('ml_orders');
-    return saved ? JSON.parse(saved) : SEEDED_ORDERS;
+    try {
+      const saved = localStorage.getItem('ml_orders');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return SEEDED_ORDERS;
   });
 
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -569,7 +926,7 @@ export default function App() {
 
     const refreshData = async () => {
       try {
-        const [freshProducts, freshSiteConfig, freshCategories, freshOrders, freshUsers, freshWithdraws, freshProductRequests, freshComplaints] = await Promise.all([
+        const [freshProducts, freshSiteConfig, freshCategories, freshOrders, freshUsers, freshWithdraws, freshProductRequests, freshComplaints, freshExpenses] = await Promise.all([
           api.getProducts(INITIAL_PRODUCTS),
           api.getSiteConfig(DEFAULT_SITE_CONFIG),
           api.getCategories(CATEGORIES),
@@ -577,18 +934,26 @@ export default function App() {
           api.getUsers(INITIAL_USERS),
           api.getWithdrawRequests(),
           api.getProductRequests(),
-          api.getComplaints([])
+          api.getComplaints([]),
+          api.getExpenses()
         ]);
 
         if (Array.isArray(freshProducts) && freshProducts.length > 0) {
-          setProducts(freshProducts);
-          safeSetLocalStorage('ml_products', JSON.stringify(freshProducts));
+          const mergedProducts = mergeAndSyncServerProducts(freshProducts);
+          setProducts(mergedProducts);
+          safeSetLocalStorage('ml_products', JSON.stringify(mergedProducts));
+        }
+        if (freshSiteConfig && freshSiteConfig.storeName) {
+          setSiteConfig(freshSiteConfig);
+          safeSetLocalStorage('mango_lover_site_config', JSON.stringify(freshSiteConfig));
         }
         setCategories(freshCategories);
         setOrders(freshOrders);
         setUsers(freshUsers);
         setWithdrawRequests(freshWithdraws);
         setProductRequests(freshProductRequests);
+        setExpenses(freshExpenses);
+        safeSetLocalStorage('ml_expenses', JSON.stringify(freshExpenses));
         if (Array.isArray(freshComplaints) && freshComplaints.length > 0) {
           setComplaints(freshComplaints);
         }
@@ -633,6 +998,22 @@ export default function App() {
   useEffect(() => {
     safeSetLocalStorage('ml_complaints', JSON.stringify(complaints));
   }, [complaints]);
+
+  const [expenses, setExpenses] = useState<Expense[]>(() => {
+    const saved = localStorage.getItem('ml_expenses');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        // ignore
+      }
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    safeSetLocalStorage('ml_expenses', JSON.stringify(expenses));
+  }, [expenses]);
 
   const [withdrawRequests, setWithdrawRequests] = useState<WithdrawRequest[]>(() => {
     const saved = localStorage.getItem('ml_withdraw_requests');
@@ -818,8 +1199,17 @@ export default function App() {
     }
   };
 
-  const handleDeleteProductRequest = (id: string) => {
-    setProductRequests(prev => prev.filter(r => r.id !== id));
+  const handleDeleteProductRequest = async (id: string) => {
+    setProductRequests((prev) => {
+      const updated = prev.filter((r) => r.id !== id);
+      safeSetLocalStorage('ml_product_requests', JSON.stringify(updated));
+      return updated;
+    });
+    try {
+      await api.deleteProductRequest(id);
+    } catch (err) {
+      console.error("Failed to delete product request:", err);
+    }
   };
 
   // --- UI Filter & Navigation State ---
@@ -1365,26 +1755,50 @@ export default function App() {
   };
 
   // --- Admin Dashboard Callbacks ---
-  const handleAddProduct = async (newProduct: Omit<Product, 'id' | 'rating' | 'reviewsCount'>) => {
+  const handleAddProduct = async (newProduct: Omit<Product, 'id' | 'rating' | 'reviewsCount'>): Promise<boolean> => {
     const productToAdd: Product = {
       ...newProduct,
       id: 'p-' + Math.random().toString(36).substring(2, 9),
       rating: 5.0,
       reviewsCount: 1,
+      createdAt: new Date().toISOString(),
     };
+    pendingLocalProductsRef.current[productToAdd.id] = productToAdd;
+    persistPendingProductsMap(pendingLocalProductsRef.current);
+
     setProducts((prev) => {
-      const updated = [...prev, productToAdd];
+      const updated = [productToAdd, ...prev];
       safeSetLocalStorage('ml_products', JSON.stringify(updated));
       return updated;
     });
+
+    syncingProductIdsRef.current[productToAdd.id] = true;
     try {
-      await api.createProduct(productToAdd);
+      const saved = await api.createProduct(productToAdd);
+      if (saved && saved.id) {
+        // Keep in pending map until next server GET confirms presence so in-flight polls can't drop it
+        pendingLocalProductsRef.current[saved.id] = { ...productToAdd, ...saved };
+        persistPendingProductsMap(pendingLocalProductsRef.current);
+        setProducts((prev) => {
+          const updated = prev.map((p) => (p.id === productToAdd.id ? { ...p, ...saved } : p));
+          safeSetLocalStorage('ml_products', JSON.stringify(updated));
+          return updated;
+        });
+      }
+      return true;
     } catch (e) {
-      console.error("Failed to add product:", e);
+      console.error("Failed to sync new product to server (saved locally & will retry):", e);
+      return false;
+    } finally {
+      delete syncingProductIdsRef.current[productToAdd.id];
     }
   };
 
   const handleEditProduct = async (updatedProduct: Product) => {
+    if (pendingLocalProductsRef.current[updatedProduct.id]) {
+      pendingLocalProductsRef.current[updatedProduct.id] = updatedProduct;
+      persistPendingProductsMap(pendingLocalProductsRef.current);
+    }
     setProducts((prev) => {
       const updated = prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p));
       safeSetLocalStorage('ml_products', JSON.stringify(updated));
@@ -1393,6 +1807,10 @@ export default function App() {
     try {
       const result = await api.updateProduct(updatedProduct);
       if (result && result.id) {
+        if (pendingLocalProductsRef.current[result.id]) {
+          pendingLocalProductsRef.current[result.id] = { ...updatedProduct, ...result };
+          persistPendingProductsMap(pendingLocalProductsRef.current);
+        }
         setProducts((prev) => {
           const updated = prev.map((p) => (p.id === result.id ? { ...p, ...result } : p));
           safeSetLocalStorage('ml_products', JSON.stringify(updated));
@@ -1405,6 +1823,13 @@ export default function App() {
   };
 
   const handleDeleteProduct = async (productId: string) => {
+    if (pendingLocalProductsRef.current[productId]) {
+      delete pendingLocalProductsRef.current[productId];
+      persistPendingProductsMap(pendingLocalProductsRef.current);
+    }
+    pendingDeletedProductIdsRef.current[productId] = true;
+    persistDeletedProductIdsMap(pendingDeletedProductIdsRef.current);
+
     setProducts((prev) => {
       const updated = prev.filter((p) => p.id !== productId);
       safeSetLocalStorage('ml_products', JSON.stringify(updated));
@@ -1412,6 +1837,8 @@ export default function App() {
     });
     try {
       await api.deleteProduct(productId);
+      delete pendingDeletedProductIdsRef.current[productId];
+      persistDeletedProductIdsMap(pendingDeletedProductIdsRef.current);
     } catch (e) {
       console.error("Failed to delete product:", e);
     }
@@ -1427,6 +1854,21 @@ export default function App() {
       await api.updateOrder({ id: orderId, status } as any);
     } catch (e) {
       console.error("Failed to update order status:", e);
+    }
+  };
+
+  const handleBulkUpdateOrderStatus = async (orderIds: string[], status: OrderStatus) => {
+    if (!orderIds || orderIds.length === 0) return;
+    const idSet = new Set(orderIds);
+    setOrders((prev) => {
+      const updated = prev.map((order) => (idSet.has(order.id) ? { ...order, status } : order));
+      safeSetLocalStorage('ml_orders', JSON.stringify(updated));
+      return updated;
+    });
+    try {
+      await api.bulkUpdateOrderStatus(orderIds, status);
+    } catch (e) {
+      console.error("Failed to bulk update order status:", e);
     }
   };
 
@@ -1459,7 +1901,18 @@ export default function App() {
 
   const handleDeleteOrder = async (orderId: string): Promise<boolean> => {
     try {
-      const success = await api.deleteOrder(orderId, loggedInUser?.phone || undefined, loggedInUser?.role || undefined);
+      const isSuperAdminUser =
+        loggedInUser?.phone === '01837587551' ||
+        loggedInUser?.id === 'U-130163' ||
+        loggedInUser?.name === 'মেহেদী হাসান';
+      const roleToSend = isSuperAdminUser ? 'super_admin' : (loggedInUser?.role || undefined);
+
+      const success = await api.deleteOrder(
+        orderId,
+        loggedInUser?.phone || undefined,
+        roleToSend,
+        loggedInUser?.id || undefined
+      );
       if (success) {
         setOrders((prev) => {
           const updated = prev.filter((order) => order.id !== orderId);
@@ -1520,7 +1973,11 @@ export default function App() {
   const handleDeleteComplaint = async (id: string): Promise<boolean> => {
     const success = await api.deleteComplaint(id);
     if (success) {
-      setComplaints((prev) => prev.filter((c) => c.id !== id));
+      setComplaints((prev) => {
+        const updated = prev.filter((c) => c.id !== id);
+        safeSetLocalStorage('ml_complaints', JSON.stringify(updated));
+        return updated;
+      });
     }
     return success;
   };
@@ -1529,6 +1986,45 @@ export default function App() {
     const updated = await api.addComplaintCallLog(complaintId, log);
     setComplaints((prev) => prev.map((c) => (c.id === complaintId ? updated : c)));
     return updated;
+  };
+
+  const handleAddExpense = async (expense: Omit<Expense, 'id' | 'createdAt'>): Promise<Expense> => {
+    const tempExpense: Expense = {
+      ...expense,
+      id: 'EXP-' + Math.floor(100000 + Math.random() * 900000),
+      createdAt: new Date().toISOString(),
+    };
+    setExpenses((prev) => {
+      const updated = [tempExpense, ...prev];
+      safeSetLocalStorage('ml_expenses', JSON.stringify(updated));
+      return updated;
+    });
+    try {
+      const created = await api.createExpense(tempExpense);
+      setExpenses((prev) => {
+        const updated = prev.map((ex) => (ex.id === tempExpense.id ? created : ex));
+        safeSetLocalStorage('ml_expenses', JSON.stringify(updated));
+        return updated;
+      });
+      return created;
+    } catch (e) {
+      console.error("Failed to persist expense:", e);
+      return tempExpense;
+    }
+  };
+
+  const handleDeleteExpense = async (id: string): Promise<boolean> => {
+    setExpenses((prev) => {
+      const updated = prev.filter((ex) => ex.id !== id);
+      safeSetLocalStorage('ml_expenses', JSON.stringify(updated));
+      return updated;
+    });
+    try {
+      return await api.deleteExpense(id);
+    } catch (e) {
+      console.error("Failed to delete expense:", e);
+      return true;
+    }
   };
 
   // --- Filtering & Searching logic ---
@@ -1707,8 +2203,13 @@ export default function App() {
     });
   });
 
+  const showSideHeritage = siteConfig.heritageSideDesignActive !== false;
+  const storefrontContainerWidth = showSideHeritage
+    ? 'w-full max-w-7xl min-[1180px]:max-w-[940px] min-[1280px]:max-w-[1000px] min-[1340px]:max-w-[1060px] min-[1440px]:max-w-[1110px] min-[1600px]:max-w-[1200px] min-[1760px]:max-w-7xl mx-auto'
+    : 'w-full max-w-7xl mx-auto';
+
   return (
-    <div className="bg-white min-h-screen font-sans antialiased text-gray-800">
+    <div className="bg-white min-h-screen font-sans antialiased text-gray-800 relative overflow-x-clip">
       {isAdminMode && loggedInUser?.role === 'admin' ? (
         <AdminDashboard
           products={products}
@@ -1744,6 +2245,10 @@ export default function App() {
           onUpdateComplaint={handleUpdateComplaint}
           onDeleteComplaint={handleDeleteComplaint}
           onAddComplaintCallLog={handleAddComplaintCallLog}
+          expenses={expenses}
+          onAddExpense={handleAddExpense}
+          onDeleteExpense={handleDeleteExpense}
+          onBulkUpdateOrderStatus={handleBulkUpdateOrderStatus}
           initialTab={adminInitialTab}
           initialSearchQuery={adminInitialSearch}
         />
@@ -1771,8 +2276,8 @@ export default function App() {
       ) : (
         <>
           {/* 1. Header (সাতক্ষীরা প্রিমিয়াম) */}
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-100 shadow-xs">
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
+        <div className={`${storefrontContainerWidth} px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4`}>
           {/* Brand Logo & Name */}
           <div 
             onClick={() => { setActivePage('home'); setCurrentCategory('all'); setShowAllProducts(false); setShowOnlyProduced(false); setSearchQuery(''); setViewingDetailsProduct(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
@@ -1954,7 +2459,13 @@ export default function App() {
                         className="flex items-center gap-3 p-2 rounded-xl hover:bg-orange-50 cursor-pointer transition-colors border border-transparent hover:border-orange-100 group/suggest"
                       >
                         <div className="w-9 h-9 bg-gray-50 rounded-lg p-1 shrink-0 flex items-center justify-center border border-gray-100">
-                          <img src={p.image} alt={p.name} className="max-h-full max-w-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
+                          <img 
+                            src={getValidImageSrc(p.image)} 
+                            alt={p.name} 
+                            className="max-h-full max-w-full object-contain mix-blend-multiply" 
+                            referrerPolicy="no-referrer" 
+                            onError={handleImageError}
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-xs font-extrabold text-slate-900 group-hover/suggest:text-orange-600 transition-colors truncate py-1 leading-normal">
@@ -2242,15 +2753,8 @@ export default function App() {
               </div>
             )}
 
-            {/* Order Tracking Button */}
-            <button
-              onClick={() => setIsTrackOrderOpen(true)}
-              className="relative p-2.5 bg-[#e6f4ea] hover:bg-[#d2ebd9] text-[#006437] rounded-xl border border-emerald-100/80 transition-colors cursor-pointer flex items-center gap-1.5"
-              title="অর্ডার ট্র্যাকিং"
-            >
-              <Truck className="w-5 h-5" />
-              <span className="hidden lg:inline text-[11px] font-black">অর্ডার ট্র্যাকিং</span>
-            </button>
+            {/* Order Tracking Button with Animated Truck */}
+            <AnimatedTrackingButton onClick={() => setIsTrackOrderOpen(true)} />
 
             {/* Cart Icon with badge */}
             <button
@@ -2405,7 +2909,13 @@ export default function App() {
                       className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-orange-50 cursor-pointer transition-colors"
                     >
                       <div className="w-8 h-8 bg-gray-50 rounded-lg p-0.5 shrink-0 flex items-center justify-center border border-gray-100">
-                        <img src={p.image} alt={p.name} className="max-h-full max-w-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
+                        <img 
+                          src={getValidImageSrc(p.image)} 
+                          alt={p.name} 
+                          className="max-h-full max-w-full object-contain mix-blend-multiply" 
+                          referrerPolicy="no-referrer" 
+                          onError={handleImageError}
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="text-[11px] font-extrabold text-slate-900 truncate py-0.5 leading-normal">
@@ -2430,15 +2940,7 @@ export default function App() {
 
         {/* Dynamic Category List Links with interactive dropdown on hover */}
         <div className="bg-gray-50 border-t border-gray-100 overflow-x-auto md:overflow-visible">
-          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-5 md:gap-0 md:justify-between py-2.5 text-xs font-bold text-gray-600 whitespace-nowrap relative md:overflow-visible">
-            <button
-              onClick={() => { setActivePage('offers'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-              className={`pb-1 px-3 py-1 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white shadow-xs font-black animate-pulse ${
-                activePage === 'offers' ? 'ring-2 ring-offset-2 ring-amber-500' : ''
-              }`}
-            >
-              <span>⚡ স্পেশাল অফার</span>
-            </button>
+          <div className={`${storefrontContainerWidth} px-4 sm:px-6 lg:px-8 flex items-center gap-5 md:gap-0 md:justify-between py-2.5 text-xs font-bold text-gray-600 whitespace-nowrap relative md:overflow-visible`}>
             <button
               onClick={() => { setActivePage('home'); setCurrentCategory('all'); setShowAllProducts(true); setShowOnlyProduced(false); setSearchQuery(''); setViewingDetailsProduct(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               className={`pb-1 px-1 transition-all cursor-pointer ${
@@ -2498,7 +3000,13 @@ export default function App() {
                               className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-orange-50/50 cursor-pointer transition-colors border border-transparent hover:border-orange-100 group/item"
                             >
                               <div className="w-10 h-10 bg-gray-50 rounded-lg p-1 shrink-0 flex items-center justify-center border border-gray-100">
-                                <img src={p.image} alt={p.name} className="max-h-full max-w-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
+                                <img 
+                                  src={getValidImageSrc(p.image)} 
+                                  alt={p.name} 
+                                  className="max-h-full max-w-full object-contain mix-blend-multiply" 
+                                  referrerPolicy="no-referrer" 
+                                  onError={handleImageError}
+                                />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <h4 className="text-xs font-extrabold text-slate-900 group-hover/item:text-orange-600 transition-colors truncate">
@@ -2583,7 +3091,10 @@ export default function App() {
         </div>
       </section>
 
-      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      {/* Storefront Main Wrapper with Full-Height Bangladeshi Heritage Side Art */}
+      <div className="relative w-full pb-12">
+        {showSideHeritage && <HeritageSideDecorations />}
+        <main className={`relative z-10 ${storefrontContainerWidth} px-4 sm:px-6 lg:px-8 py-6 space-y-8`}>
         {activePage === 'offers' ? (
           <div className="w-full space-y-8 py-4 max-w-6xl mx-auto">
             {/* Elegant Header Banner for Offers */}
@@ -2616,6 +3127,51 @@ export default function App() {
             <div className="text-center pt-8">
               <button 
                 onClick={() => setActivePage('home')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm px-8 py-3.5 rounded-2xl shadow-md cursor-pointer hover:scale-102 transition-all"
+              >
+                হোম পেইজে ফিরে যান
+              </button>
+            </div>
+          </div>
+        ) : activePage === 'bestsellers' ? (
+          <div className="w-full space-y-8 py-4 max-w-7xl mx-auto">
+            {/* Elegant Header Banner for Best Sellers */}
+            <div className="bg-gradient-to-r from-red-500/10 via-amber-500/15 to-orange-500/10 border-2 border-orange-300/80 rounded-3xl p-6 sm:p-8 md:p-12 text-center space-y-3 animate-fade-in relative overflow-hidden">
+              <div className="w-12 h-12 bg-gradient-to-br from-[#e11d48] to-[#ff9800] text-white rounded-2xl flex items-center justify-center mx-auto shadow-md">
+                <Flame className="w-6 h-6 fill-white animate-pulse" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-950 font-sans tracking-tight">
+                সকল সেরা বিক্রীত পণ্য (All Best Sellers)
+              </h1>
+              <p className="text-xs sm:text-sm md:text-base text-gray-700 font-bold max-w-2xl mx-auto">
+                আমাদের সম্মানিত ক্রেতাদের সর্বাধিক পছন্দের এবং সর্বোচ্চ রেটিংপ্রাপ্ত খাঁটি ও স্বাস্থ্যসম্মত পণ্যসমূহ এক নজরে দেখুন।
+              </p>
+              <div className="flex items-center justify-center gap-2 text-xs md:text-sm font-bold text-orange-800 pt-2">
+                <button onClick={() => { setActivePage('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-orange-600 cursor-pointer">হোম</button>
+                <span className="text-gray-400">/</span>
+                <span className="text-orange-900 font-extrabold">সেরা বিক্রীত পণ্য</span>
+              </div>
+            </div>
+
+            {/* All Best Seller Products Grid matching screenshot format with orange border */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5">
+              {products
+                .filter(p => isProductVisibleToCustomer(p) && (p.isBestSeller || ['h4', 'p5', 'h1', 'p4'].includes(p.id)))
+                .map((product) => (
+                  <BestSellerCard
+                    key={product.id}
+                    product={product}
+                    onAddToCart={handleAddToCart}
+                    onDirectBuy={handleDirectBuy}
+                    onSelectProduct={handleSelectProduct}
+                  />
+                ))}
+            </div>
+
+            {/* Back to Home Button */}
+            <div className="text-center pt-6">
+              <button 
+                onClick={() => { setActivePage('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm px-8 py-3.5 rounded-2xl shadow-md cursor-pointer hover:scale-102 transition-all"
               >
                 হোম পেইজে ফিরে যান
@@ -3125,24 +3681,17 @@ export default function App() {
           </section>
         )}
 
-        {/* Single-Line Running Featured Deals & Special Offers Section */}
-        {!isShopActive && (
-          <FeaturedDealsSection
-            products={products.filter(p => isProductVisibleToCustomer(p))}
-            onAddToCart={handleAddToCart}
-            onDirectBuy={handleDirectBuy}
-            onSelectProduct={(p) => setViewingDetailsProduct(p)}
-            onViewAllOffers={() => { setActivePage('offers'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-          />
-        )}
-
-        {/* Best Seller Section */}
+        {/* Best Seller Section (ক্যাটাগরির পর সেরা বিক্রীত পণ্য) */}
         {!isShopActive && (
           <BestSellerSection
             products={products.filter(p => isProductVisibleToCustomer(p))}
             onAddToCart={handleAddToCart}
             onDirectBuy={handleDirectBuy}
-            onSelectProduct={(p) => setViewingDetailsProduct(p)}
+            onSelectProduct={handleSelectProduct}
+            onQuickView={handleQuickView}
+            onRequestProduct={handleOpenRequestModal}
+            onViewImage={setZoomImage}
+            users={users}
           />
         )}
 
@@ -3579,13 +4128,14 @@ export default function App() {
         )}
           </>
         )}
-      </main>
+        </main>
+      </div>
 
       {/* 6. Footer Information section */}
-      <footer className="w-full mt-12 shrink-0 font-sans">
+      <footer className="relative z-20 w-full shrink-0 font-sans">
         {/* Top Highlight/Contact Banner in Green */}
         <div className="bg-[#006437] text-white py-8 px-4 sm:px-6 lg:px-8 border-b border-[#00522c]">
-          <div className="w-full max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-8">
+          <div className={`${storefrontContainerWidth} flex flex-col lg:flex-row items-center justify-between gap-8`}>
             
             {/* Left Block: Heading & Subtitle */}
             <div className="flex flex-col gap-2 w-full lg:w-auto flex-grow max-w-3xl">
@@ -3641,7 +4191,7 @@ export default function App() {
 
         {/* Bottom Detailed Footer in Dark Emerald / Black */}
         <div className="bg-[#011a0f] text-gray-300 text-xs md:text-sm pt-12 pb-5 px-4 sm:px-6 lg:px-8 border-t border-emerald-950/20">
-          <div className="w-full max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8 md:gap-6 lg:gap-8 pb-4">
+          <div className={`${storefrontContainerWidth} grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8 md:gap-6 lg:gap-8 pb-4`}>
             
             {/* Column 1: Store Bio */}
             <div className="space-y-4 md:pr-4 flex flex-col items-start">
@@ -4333,10 +4883,11 @@ export default function App() {
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-white rounded-xl p-1.5 shrink-0 flex items-center justify-center border border-[#004d2a]">
                     <img 
-                      src={requestModalProduct.image} 
+                      src={getValidImageSrc(requestModalProduct.image)} 
                       alt={requestModalProduct.name} 
                       className="max-h-full max-w-full object-contain mix-blend-multiply"
                       referrerPolicy="no-referrer"
+                      onError={handleImageError}
                     />
                   </div>
                   <div>

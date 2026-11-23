@@ -91,6 +91,7 @@ export interface IProductDocument extends Document {
   isBestSeller?: boolean;
   isOffer?: boolean;
   offerPrice?: number;
+  createdAt?: string;
 }
 
 const ProductSchema = new Schema<IProductDocument>({
@@ -127,7 +128,8 @@ const ProductSchema = new Schema<IProductDocument>({
   sellerProductStatus: { type: String, enum: ['pending', 'approved', 'rejected'] },
   isBestSeller: { type: Boolean, default: false },
   isOffer: { type: Boolean, default: false },
-  offerPrice: { type: Number }
+  offerPrice: { type: Number },
+  createdAt: { type: String }
 });
 
 // --- ORDER SCHEMA ---
@@ -164,6 +166,10 @@ export interface IOrderDocument extends Document {
     type?: string;
   }[];
   complaintIds?: string[];
+  isTalked?: boolean;
+  callStatus?: string;
+  isPaymentVerified?: boolean;
+  paymentVerifiedAt?: string;
 }
 
 const OrderSchema = new Schema<IOrderDocument>({
@@ -198,7 +204,11 @@ const OrderSchema = new Schema<IOrderDocument>({
     createdAt: { type: String },
     type: { type: String }
   }],
-  complaintIds: [{ type: String }]
+  complaintIds: [{ type: String }],
+  isTalked: { type: Boolean, default: false },
+  callStatus: { type: String },
+  isPaymentVerified: { type: Boolean, default: false },
+  paymentVerifiedAt: { type: String }
 });
 
 // --- CATEGORY SCHEMA ---
@@ -327,6 +337,7 @@ export interface ISiteConfigDocument extends Document {
   deliveryChargeInsideDhaka?: number;
   deliveryChargeOutsideDhaka?: number;
   checkoutGuaranteeText?: string;
+  heritageSideDesignActive?: boolean;
 }
 
 const SiteConfigSchema = new Schema<ISiteConfigDocument>({
@@ -386,7 +397,8 @@ const SiteConfigSchema = new Schema<ISiteConfigDocument>({
   allowAdminsToDeleteOrders: { type: Boolean, default: true },
   deliveryChargeInsideDhaka: { type: Number, default: 60 },
   deliveryChargeOutsideDhaka: { type: Number, default: 120 },
-  checkoutGuaranteeText: { type: String }
+  checkoutGuaranteeText: { type: String },
+  heritageSideDesignActive: { type: Boolean, default: true }
 });
 
 // --- CHAT SESSION SCHEMA ---
@@ -431,6 +443,7 @@ export interface IComplaintDocument extends Document {
   createdAt: string;
   updatedAt?: string;
   createdBy: string;
+  assignedTo?: string;
   callLogs: {
     id: string;
     representativeName: string;
@@ -464,6 +477,7 @@ const ComplaintSchema = new Schema<IComplaintDocument>({
   createdAt: { type: String, required: true },
   updatedAt: { type: String },
   createdBy: { type: String, default: "অ্যাডমিন" },
+  assignedTo: { type: String },
   callLogs: [{
     id: { type: String, required: true },
     representativeName: { type: String, required: true },
@@ -483,6 +497,54 @@ const ComplaintSchema = new Schema<IComplaintDocument>({
   }
 });
 
+// --- EXPENSE SCHEMA ---
+export interface IExpenseDocument extends Document {
+  id: string;
+  title: string;
+  category: 'purchase' | 'packaging' | 'courier' | 'marketing' | 'salary' | 'other';
+  amount: number;
+  date: string;
+  note?: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
+const ExpenseSchema = new Schema<IExpenseDocument>({
+  id: { type: String, required: true, unique: true },
+  title: { type: String, required: true },
+  category: { type: String, enum: ['purchase', 'packaging', 'courier', 'marketing', 'salary', 'other'], default: 'other' },
+  amount: { type: Number, required: true },
+  date: { type: String, required: true },
+  note: { type: String },
+  createdBy: { type: String },
+  createdAt: { type: String, required: true }
+});
+
+// --- AUDIT LOG SCHEMA ---
+export interface IAuditLogDocument extends Document {
+  id: string;
+  adminName: string;
+  adminPhone?: string;
+  action: string;
+  targetType: string;
+  targetId: string;
+  targetName: string;
+  details: string;
+  createdAt: string;
+}
+
+const AuditLogSchema = new Schema<IAuditLogDocument>({
+  id: { type: String, required: true, unique: true },
+  adminName: { type: String, required: true },
+  adminPhone: { type: String },
+  action: { type: String, required: true },
+  targetType: { type: String, required: true },
+  targetId: { type: String, required: true },
+  targetName: { type: String, required: true },
+  details: { type: String, required: true },
+  createdAt: { type: String, required: true }
+});
+
 // Compile and export Mongoose Models with automatic in-memory fallback
 import { makeDynamicModelProxy } from "./fallbackStore";
 
@@ -495,6 +557,8 @@ const RawWithdrawRequest = (mongoose.models.WithdrawRequest || mongoose.model<IW
 const RawProductRequest = (mongoose.models.ProductRequest || mongoose.model<IProductRequestDocument>("ProductRequest", ProductRequestSchema)) as any;
 const RawChatSession = (mongoose.models.ChatSession || mongoose.model<IChatSessionDocument>("ChatSession", ChatSessionSchema)) as any;
 const RawComplaint = (mongoose.models.Complaint || mongoose.model<IComplaintDocument>("Complaint", ComplaintSchema)) as any;
+const RawExpense = (mongoose.models.Expense || mongoose.model<IExpenseDocument>("Expense", ExpenseSchema)) as any;
+const RawAuditLog = (mongoose.models.AuditLog || mongoose.model<IAuditLogDocument>("AuditLog", AuditLogSchema)) as any;
 
 export const User = makeDynamicModelProxy("User", RawUser);
 export const Product = makeDynamicModelProxy("Product", RawProduct);
@@ -505,5 +569,7 @@ export const WithdrawRequest = makeDynamicModelProxy("WithdrawRequest", RawWithd
 export const ProductRequest = makeDynamicModelProxy("ProductRequest", RawProductRequest);
 export const ChatSession = makeDynamicModelProxy("ChatSession", RawChatSession);
 export const Complaint = makeDynamicModelProxy("Complaint", RawComplaint);
+export const Expense = makeDynamicModelProxy("Expense", RawExpense);
+export const AuditLog = makeDynamicModelProxy("AuditLog", RawAuditLog);
 
 

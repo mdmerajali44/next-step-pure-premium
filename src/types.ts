@@ -19,7 +19,7 @@ export interface Product {
   reviewsCount: number;
   sku?: string;
   sizes?: string[];
-  sizePrices?: Record<string, { price: number; originalPrice?: number; offerPrice?: number }>;
+  sizePrices?: Record<string, { price: number; originalPrice?: number; offerPrice?: number; stock?: number; purchasePrice?: number }>;
   reorderLevel?: number;
   addedBy?: string;
   status?: string;
@@ -38,6 +38,22 @@ export interface Product {
   isBestSeller?: boolean;
   isOffer?: boolean;
   offerPrice?: number;
+  nameEnglish?: string;
+  hasFreeGift?: boolean;
+  freeGiftName?: string;
+  createdAt?: string;
+}
+
+export interface AuditLog {
+  id: string;
+  adminName: string;
+  adminPhone?: string;
+  action: 'create' | 'update' | 'delete' | 'status_change';
+  targetType: 'order' | 'product' | 'category' | 'user' | 'config' | 'coupon' | 'expense';
+  targetId: string;
+  targetName: string;
+  details: string;
+  createdAt: string;
 }
 
 export interface Review {
@@ -89,6 +105,21 @@ export interface Order {
   complaintIds?: string[];
   isTalked?: boolean;
   callStatus?: string;
+  isPaymentVerified?: boolean;
+  paymentVerifiedAt?: string;
+}
+
+export type ExpenseCategory = 'purchase' | 'packaging' | 'courier' | 'marketing' | 'salary' | 'other';
+
+export interface Expense {
+  id: string;
+  title: string;
+  category: ExpenseCategory;
+  amount: number;
+  date: string;
+  note?: string;
+  createdBy?: string;
+  createdAt: string;
 }
 
 export interface OrderCustomerNote {
@@ -132,6 +163,7 @@ export interface Complaint {
   createdAt: string;
   updatedAt?: string;
   createdBy: string;
+  assignedTo?: string;
   callLogs: ComplaintCallLog[];
   resolution?: ComplaintResolution;
 }
@@ -207,6 +239,7 @@ export interface SiteConfig {
   deliveryChargeInsideDhaka?: number;
   deliveryChargeOutsideDhaka?: number;
   checkoutGuaranteeText?: string;
+  heritageSideDesignActive?: boolean;
 }
 
 export interface Coupon {

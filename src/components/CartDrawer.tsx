@@ -7,6 +7,7 @@ import React from 'react';
 import { CartItem } from '../types';
 import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { getValidImageSrc, handleImageError } from '../utils/imageUtils';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -68,6 +69,27 @@ export default function CartDrawer({
               </button>
             </div>
 
+            {/* Free Delivery Progress Bar */}
+            {cartItems.length > 0 && (() => {
+              const freeThreshold = 2000;
+              const remaining = Math.max(0, freeThreshold - subtotal);
+              const progress = Math.min(100, (subtotal / freeThreshold) * 100);
+              return (
+                <div className="bg-amber-50/90 border-b border-amber-200/80 px-4 py-2.5">
+                  <div className="flex items-center justify-between text-xs font-bold text-amber-950 mb-1.5">
+                    <span>{remaining > 0 ? `আর মাত্র ৳${remaining} টাকার পণ্য যোগ করলে ফ্রি ডেলিভারি!` : `🎉 অভিনন্দন! আপনি ফ্রি ডেলিভারি পেয়েছেন!`}</span>
+                    <span>{Math.round(progress)}%</span>
+                  </div>
+                  <div className="w-full bg-amber-200/80 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-gradient-to-r from-orange-500 to-emerald-500 h-full rounded-full transition-all duration-300"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Cart Items List */}
             <div className="flex-grow overflow-y-auto p-4 space-y-4">
               {cartItems.length === 0 ? (
@@ -99,10 +121,11 @@ export default function CartDrawer({
                     {/* Item Image */}
                     <div className="w-20 h-20 bg-white rounded-xl overflow-hidden border border-gray-100 shrink-0 relative">
                       <img
-                        src={item.product.image}
+                        src={getValidImageSrc(item.product.image)}
                         alt={item.product.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain p-1 mix-blend-multiply"
                         referrerPolicy="no-referrer"
+                        onError={handleImageError}
                       />
                     </div>
 

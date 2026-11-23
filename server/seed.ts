@@ -1,4 +1,4 @@
-import { User, Product, Category, SiteConfig } from "./models";
+import { User, Product, Category, SiteConfig, Order } from "./models";
 
 // --- SEED DATA ---
 export const INITIAL_CATEGORIES = [
@@ -18,11 +18,19 @@ export const INITIAL_PRODUCTS = [
     name: 'আখের জুস পাউডার',
     description: 'গুড় ও চিনি, আখের জুস পাউডার, আমাদের উৎপাদিত',
     price: 400,
+    originalPrice: 450,
     image: '/src/assets/images/juice_powder_1782456192648.jpg',
     category: 'গুড় ও চিনি',
     unit: '1 KG',
     stock: 25,
     isFeatured: true,
+    isOffer: true,
+    offerPrice: 350,
+    sizes: ['0.5 KG', '1 KG'],
+    sizePrices: {
+      '0.5 KG': { price: 200, originalPrice: 240, offerPrice: 180 },
+      '1 KG': { price: 400, originalPrice: 450, offerPrice: 350 }
+    },
     rating: 4.8,
     reviewsCount: 30,
     status: 'Active',
@@ -473,8 +481,283 @@ export const DEFAULT_SITE_CONFIG = {
       answer: 'আমাদের মূল বাগান ও সংগ্রহ কেন্দ্র সাতক্ষীরা ও শ্যামনগরে অবস্থিত। বর্তমানে আমরা শুধু অনলাইনের মাধ্যমে সরাসরি বাগান থেকে ফ্রেশ পণ্য গ্রাহকের দোরগোড়ায় পৌঁছে দেওয়ার সেবা দিয়ে আসছি।'
     }
   ],
-  commissionPercentage: 10
+  commissionPercentage: 10,
+  heritageSideDesignActive: true
 };
+
+export const INITIAL_ORDERS = [
+  {
+    id: 'ML-581932',
+    customerName: 'রফিক উল্লাহ',
+    customerPhone: '01712345678',
+    deliveryAddress: 'বাসা #১০, রোড #২, সেক্টর #৪',
+    district: 'ঢাকা',
+    area: 'উত্তরা',
+    paymentMethod: 'cod',
+    items: [
+      {
+        productId: 'h4',
+        productName: 'সুন্দরবনের চাকের মধু',
+        price: 750,
+        quantity: 1,
+        unit: '1 KG',
+        image: '/src/assets/images/sundarban_honey_1782465914163.jpg',
+      }
+    ],
+    totalAmount: 810,
+    deliveryCharge: 60,
+    status: 'pending',
+    isTalked: false,
+    createdAt: '২৮ জুন, ২০২৬',
+  },
+  {
+    id: 'ML-392104',
+    customerName: 'তাহমিনা বেগম',
+    customerPhone: '01876543210',
+    deliveryAddress: 'জিইসি মোড়, লালখান বাজার',
+    district: 'চট্টগ্রাম',
+    area: 'কোতোয়ালী',
+    paymentMethod: 'bkash',
+    bkashNumber: '01876543210',
+    trxId: 'BK89XJ12L',
+    items: [
+      {
+        productId: 'p4',
+        productName: 'খাঁটি গাওয়া ঘি',
+        price: 750,
+        quantity: 2,
+        unit: '0.5 KG',
+        image: '/src/assets/images/gawa_ghee_1782456236375.jpg',
+      }
+    ],
+    totalAmount: 1620,
+    deliveryCharge: 120,
+    status: 'delivered',
+    isTalked: true,
+    customerNotes: [
+      {
+        id: 'n-1',
+        author: 'মেহেদী হাসান',
+        text: 'গ্রাহক পণ্য হাতে পেয়ে সন্তুষ্টি প্রকাশ করেছেন।',
+        createdAt: '2026-06-27T11:30:00.000Z',
+        type: 'call'
+      }
+    ],
+    createdAt: '২৭ জুন, ২০২৬',
+  },
+  {
+    id: 'ML-748215',
+    customerName: 'কামরুল ইসলাম',
+    customerPhone: '01911223344',
+    deliveryAddress: 'ব্লক-সি, রোড-৮, মিরপুর ১০',
+    district: 'ঢাকা',
+    area: 'মিরপুর',
+    paymentMethod: 'nagad',
+    bkashNumber: '01911223344',
+    trxId: 'NG45PL90Q',
+    items: [
+      {
+        productId: 'm1',
+        productName: 'আম্রপালি আম',
+        price: 1560,
+        quantity: 1,
+        unit: '12 KG',
+        image: '/src/assets/images/green_mangoes_1_1782466276525.jpg',
+      },
+      {
+        productId: 'p3',
+        productName: 'আমসত্ত্বের আচার',
+        price: 350,
+        quantity: 1,
+        unit: '0.5 KG',
+        image: '/src/assets/images/amsotto_achar_1782456219512.jpg',
+      }
+    ],
+    totalAmount: 1970,
+    deliveryCharge: 60,
+    status: 'processing',
+    isTalked: true,
+    customerNotes: [
+      {
+        id: 'n-2',
+        author: 'সাপোর্ট টিম',
+        text: 'বিকেল ৫টার পরে ডেলিভারি দিতে অনুরোধ করেছেন।',
+        createdAt: '2026-06-27T09:15:00.000Z',
+        type: 'general'
+      }
+    ],
+    createdAt: '২৬ জুন, ২০২৬',
+  },
+  {
+    id: 'ML-619340',
+    customerName: 'সাবিনা ইয়াসমিন',
+    customerPhone: '01688776655',
+    deliveryAddress: 'থানা রোড, শ্যামনগর বাজার',
+    district: 'সাতক্ষীরা',
+    area: 'শ্যামনগর',
+    paymentMethod: 'bkash',
+    bkashNumber: '01688776655',
+    trxId: 'BK72KM31R',
+    items: [
+      {
+        productId: 'h1',
+        productName: 'কালোজিরা ফুলের মধু',
+        price: 700,
+        quantity: 1,
+        unit: '1 KG',
+        image: '/src/assets/images/kalojira_honey_1782465866977.jpg',
+      },
+      {
+        productId: 'p5',
+        productName: 'খাঁটি সরিষার তেল',
+        price: 300,
+        quantity: 2,
+        unit: '1 Liter',
+        image: '/src/assets/images/mustard_oil_1782456250479.jpg',
+      }
+    ],
+    totalAmount: 1360,
+    deliveryCharge: 60,
+    status: 'shipped',
+    isTalked: true,
+    createdAt: '২৫ জুন, ২০২৬',
+  },
+  {
+    id: 'ML-492081',
+    customerName: 'আব্দুর রহমান',
+    customerPhone: '01554433221',
+    deliveryAddress: 'কেডিএ এভিনিউ, সোনাডাঙ্গা',
+    district: 'খুলনা',
+    area: 'সোনাডাঙ্গা',
+    paymentMethod: 'cod',
+    items: [
+      {
+        productId: 'p2',
+        productName: 'আখের দানাদার ঝোলা গুড় 1 KG',
+        price: 300,
+        quantity: 2,
+        unit: '1 KG',
+        image: '/src/assets/images/akher_gur_1782456206623.jpg',
+      },
+      {
+        productId: 'p1',
+        productName: 'আখের জুস পাউডার',
+        price: 400,
+        quantity: 1,
+        unit: '1 KG',
+        image: '/src/assets/images/juice_powder_1782456192648.jpg',
+      }
+    ],
+    totalAmount: 1120,
+    deliveryCharge: 120,
+    status: 'pending',
+    isTalked: false,
+    createdAt: '২৪ জুন, ২০২৬',
+  },
+  {
+    id: 'ML-835712',
+    customerName: 'নুসরাত জাহান',
+    customerPhone: '01799887766',
+    deliveryAddress: 'জিন্দাবাজার পয়েন্ট, সিলেট সদর',
+    district: 'সিলেট',
+    area: 'জিন্দাবাজার',
+    paymentMethod: 'rocket',
+    bkashNumber: '01799887766',
+    trxId: 'RK61TR84Z',
+    items: [
+      {
+        productId: 'p6',
+        productName: 'ঘিয়ে ভাজা লাচ্ছা সেমাই',
+        price: 650,
+        quantity: 1,
+        unit: '0.5 KG',
+        image: '/src/assets/images/laccha_semai_1782456263350.jpg',
+      },
+      {
+        productId: 'h2',
+        productName: 'লিচু ফুলের মধু',
+        price: 400,
+        quantity: 1,
+        unit: '1 KG',
+        image: '/src/assets/images/lychee_honey_1782465883260.jpg',
+      }
+    ],
+    totalAmount: 1170,
+    deliveryCharge: 120,
+    status: 'delivered',
+    isTalked: true,
+    createdAt: '২৩ জুন, ২০২৬',
+  },
+  {
+    id: 'ML-274519',
+    customerName: 'মাহমুদুল হাসান',
+    customerPhone: '01822334455',
+    deliveryAddress: 'রোড #৯/এ, ধানমন্ডি',
+    district: 'ঢাকা',
+    area: 'ধানমন্ডি',
+    paymentMethod: 'cod',
+    items: [
+      {
+        productId: 'h3',
+        productName: 'সরিষা ফুলের মধু',
+        price: 400,
+        quantity: 1,
+        unit: '1 KG',
+        image: '/src/assets/images/mustard_honey_1782465897931.jpg',
+      }
+    ],
+    totalAmount: 460,
+    deliveryCharge: 60,
+    status: 'cancelled',
+    isTalked: true,
+    customerNotes: [
+      {
+        id: 'n-3',
+        author: 'সাপোর্ট টিম',
+        text: 'গ্রাহক ভুলবশত অর্ডার করেছিলেন, ফোনে কথা বলে বাতিল করা হয়েছে।',
+        createdAt: '2026-06-22T14:20:00.000Z',
+        type: 'call'
+      }
+    ],
+    createdAt: '২২ জুন, ২০২৬',
+  },
+  {
+    id: 'ML-910463',
+    customerName: 'ফারজানা আক্তার',
+    customerPhone: '01755667788',
+    deliveryAddress: 'সাহেব বাজার জিরো পয়েন্ট',
+    district: 'রাজশাহী',
+    area: 'বোয়ালিয়া',
+    paymentMethod: 'bkash',
+    bkashNumber: '01755667788',
+    trxId: 'BK19MN54W',
+    items: [
+      {
+        productId: 'p4',
+        productName: 'খাঁটি গাওয়া ঘি',
+        price: 1450,
+        quantity: 1,
+        unit: '1 KG',
+        image: '/src/assets/images/gawa_ghee_1782456236375.jpg',
+      },
+      {
+        productId: 'h4',
+        productName: 'সুন্দরবনের চাকের মধু',
+        price: 750,
+        quantity: 1,
+        unit: '1 KG',
+        image: '/src/assets/images/sundarban_honey_1782465914163.jpg',
+      }
+    ],
+    couponCode: 'MANGO100',
+    discountAmount: 100,
+    totalAmount: 2220,
+    deliveryCharge: 120,
+    status: 'processing',
+    isTalked: true,
+    createdAt: '২১ জুন, ২০২৬',
+  }
+];
 
 export async function seedDatabase() {
   try {
@@ -504,6 +787,13 @@ export async function seedDatabase() {
     if (configCount === 0) {
       await SiteConfig.create(DEFAULT_SITE_CONFIG);
       console.log("🌱 Seeded initial site configuration");
+    }
+
+    // 5. Demo Orders
+    const orderCount = await Order.countDocuments();
+    if (orderCount === 0) {
+      await Order.insertMany(INITIAL_ORDERS as any);
+      console.log("🌱 Seeded initial demo orders");
     }
     
   } catch (err) {

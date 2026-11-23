@@ -1,7 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { Sliders, Palette, Users, MapPin, ShieldAlert, CreditCard, ImageIcon, HelpCircle, Upload, Volume2, Share2, Facebook, Instagram, Youtube, Plus, Trash2, Truck } from 'lucide-react';
+import {
+  Sliders, Palette, Users, MapPin, ShieldAlert, CreditCard, ImageIcon, HelpCircle,
+  Upload, Volume2, Share2, Facebook, Instagram, Youtube, Plus, Trash2, Truck,
+  Check, Sparkles, Eye, Save, X
+} from 'lucide-react';
 import { Category, Coupon, SiteConfig } from '../../types';
 import { compressImageFile as compressAndSetImage } from '../../utils/storage';
+import { getValidImageSrc, handleImageError } from '../../utils/imageUtils';
+import DeleteConfirmModal from './DeleteConfirmModal';
+
+export type MarketingSubTabId =
+  | 'brand_banners'
+  | 'ticker_categories'
+  | 'about_page'
+  | 'contact_info'
+  | 'policies'
+  | 'coupons'
+  | 'promo_offer'
+  | 'faq'
+  | 'shipping_delivery';
+
+export const MARKETING_SUB_TABS: {
+  id: MarketingSubTabId;
+  num: string;
+  label: string;
+  shortDesc: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { id: 'brand_banners', num: '১', label: 'ব্র্যান্ড ও ব্যানার', shortDesc: 'লোগো, নাম ও হিরো ব্যানার', icon: Sliders },
+  { id: 'ticker_categories', num: '২', label: 'ঘোষণা ও ক্যাটাগরি', shortDesc: 'স্ক্রলিং নোটিশ ও ক্যাটাগরি', icon: Palette },
+  { id: 'about_page', num: '৩', label: 'আমাদের সম্পর্কে', shortDesc: 'গল্প ও ওনার প্রোফাইল', icon: Users },
+  { id: 'contact_info', num: '৪', label: 'যোগাযোগ ও ম্যাপ', shortDesc: 'ঠিকানা, ম্যাপ ও সোশ্যাল', icon: MapPin },
+  { id: 'policies', num: '৫', label: 'পলিসি ও শর্তাবলী', shortDesc: 'রিফান্ড ও প্রাইভেসি নীতি', icon: ShieldAlert },
+  { id: 'coupons', num: '৬', label: 'কুপন ম্যানেজমেন্ট', shortDesc: 'ডিসকাউন্ট ও প্রোমো কোড', icon: CreditCard },
+  { id: 'promo_offer', num: '৭', label: 'অফার পপআপ', shortDesc: 'ওয়েলকাম অফার ব্যানার', icon: ImageIcon },
+  { id: 'faq', num: '৮', label: 'এফএকিউ (FAQ)', shortDesc: 'সচরাচর প্রশ্ন ও উত্তর', icon: HelpCircle },
+  { id: 'shipping_delivery', num: '৯', label: 'শিপিং ও ডেলিভারি', shortDesc: 'ডেলিভারি চার্জ ও গ্যারান্টি', icon: Truck },
+];
 
 interface MarketingTabProps {
   siteConfig: SiteConfig;
@@ -9,9 +44,12 @@ interface MarketingTabProps {
   onUpdateSiteConfig: (config: SiteConfig) => void;
   notify: (msg: string, type?: 'success' | 'info' | 'error') => void;
   onOpenImageSelector: (target: string) => void;
-  // If the parent updates imageSelectorTarget and provides the currently selected image value to us
   selectedImageFromGallery?: { target: string; url: string } | null;
   onClearSelectedImageFromGallery?: () => void;
+  initialSubTab?: MarketingSubTabId;
+  onSubTabChange?: (tab: MarketingSubTabId) => void;
+  hideModuleSwitcher?: boolean;
+  allowedSubTabs?: MarketingSubTabId[];
 }
 
 export default function MarketingTab({
@@ -22,14 +60,44 @@ export default function MarketingTab({
   onOpenImageSelector,
   selectedImageFromGallery,
   onClearSelectedImageFromGallery,
+  initialSubTab,
+  onSubTabChange,
+  hideModuleSwitcher = false,
+  allowedSubTabs,
 }: MarketingTabProps) {
-  const [marketingSubTab, setMarketingSubTab] = useState<'brand_banners' | 'ticker_categories' | 'about_page' | 'contact_info' | 'policies' | 'coupons' | 'promo_offer' | 'faq' | 'shipping_delivery'>('brand_banners');
+  const visibleMarketingTabs = allowedSubTabs
+    ? MARKETING_SUB_TABS.filter((t) => allowedSubTabs.includes(t.id))
+    : MARKETING_SUB_TABS;
+
+  const [marketingSubTab, setMarketingSubTabState] = useState<MarketingSubTabId>(() => {
+    if (initialSubTab && (!allowedSubTabs || allowedSubTabs.includes(initialSubTab))) {
+      return initialSubTab;
+    }
+    return visibleMarketingTabs[0]?.id || 'brand_banners';
+  });
+
+  const [couponToDelete, setCouponToDelete] = useState<Coupon | null>(null);
+  const [faqDeleteIndex, setFaqDeleteIndex] = useState<number | null>(null);
+
+  const setMarketingSubTab = (tab: MarketingSubTabId) => {
+    setMarketingSubTabState(tab);
+    onSubTabChange?.(tab);
+  };
+
+  useEffect(() => {
+    if (initialSubTab && (!allowedSubTabs || allowedSubTabs.includes(initialSubTab))) {
+      setMarketingSubTabState(initialSubTab);
+    } else if (visibleMarketingTabs.length > 0 && !visibleMarketingTabs.some((t) => t.id === marketingSubTab)) {
+      setMarketingSubTabState(visibleMarketingTabs[0].id);
+    }
+  }, [initialSubTab, allowedSubTabs]);
 
   const [cfgDeliveryInside, setCfgDeliveryInside] = useState<number>(siteConfig?.deliveryChargeInsideDhaka ?? 60);
   const [cfgDeliveryOutside, setCfgDeliveryOutside] = useState<number>(siteConfig?.deliveryChargeOutsideDhaka ?? 120);
   const [cfgGuaranteeText, setCfgGuaranteeText] = useState<string>(siteConfig?.checkoutGuaranteeText || 'পণ্য হাতে পেয়ে চেক করে দেখে মূল্য পরিশোধ করুন। শতভাগ খাঁটি ও ফ্রেশ কোয়ালিটির সম্পূর্ণ নিশ্চয়তা!');
 
   const [cfgPromoActive, setCfgPromoActive] = useState<boolean>(siteConfig?.promoActive ?? true);
+  const [cfgHeritageSideDesignActive, setCfgHeritageSideDesignActive] = useState<boolean>(siteConfig?.heritageSideDesignActive !== false);
   const [cfgPromoImage, setCfgPromoImage] = useState<string>(siteConfig?.promoImage || 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80');
   const [cfgPromoLink, setCfgPromoLink] = useState<string>(siteConfig?.promoLink || '');
 
@@ -126,6 +194,7 @@ export default function MarketingTab({
       setCfgCoupons(siteConfig.coupons || []);
       setCfgFaqItems(siteConfig.faqItems || []);
       setCfgPromoActive(siteConfig.promoActive ?? true);
+      setCfgHeritageSideDesignActive(siteConfig.heritageSideDesignActive !== false);
       if (siteConfig.promoImage) setCfgPromoImage(siteConfig.promoImage);
       if (siteConfig.promoLink !== undefined) setCfgPromoLink(siteConfig.promoLink);
       if (siteConfig.deliveryChargeInsideDhaka !== undefined) setCfgDeliveryInside(siteConfig.deliveryChargeInsideDhaka);
@@ -177,6 +246,7 @@ export default function MarketingTab({
       privacyPolicyText: cfgPrivacyPolicyText,
       coupons: cfgCoupons,
       promoActive: cfgPromoActive,
+      heritageSideDesignActive: cfgHeritageSideDesignActive,
       promoImage: cfgPromoImage,
       promoLink: cfgPromoLink,
       faqItems: cfgFaqItems,
@@ -187,132 +257,191 @@ export default function MarketingTab({
     notify('অভিনন্দন! আপনার শপ কাস্টমাইজেশন সফলভাবে আপডেট করা হয়েছে।', 'success');
   };
 
+  const activeMeta = MARKETING_SUB_TABS.find(t => t.id === marketingSubTab) || MARKETING_SUB_TABS[0];
+
   return (
     <div className="space-y-6 text-left">
-      <div className="bg-white p-4 rounded-2xl border border-gray-200">
-        <h3 className="font-bold text-gray-800 text-sm md:text-base">মার্কেটিং ও ব্র্যান্ড কাস্টমাইজেশন</h3>
-        <p className="text-xs text-gray-400">আপনার শপের নাম, লোগো, ডাবল হিরো ব্যানার এবং ঘোষণা নোটিশগুলো পরিবর্তন করুন</p>
-      </div>
-
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Marketing & Theme Sub-Tabs Switcher */}
-        <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-4">
-          <button
-            type="button"
-            onClick={() => setMarketingSubTab('brand_banners')}
-            className={`px-4 py-2.5 text-[11px] font-black tracking-tight rounded-xl flex items-center gap-1.5 cursor-pointer transition-all ${
-              marketingSubTab === 'brand_banners'
-                ? 'bg-[#006437] text-white shadow-md shadow-emerald-900/10'
-                : 'bg-slate-100 border border-slate-200/60 text-slate-600 hover:bg-slate-200/50'
-            }`}
-          >
-            <Sliders className="w-3.5 h-3.5" />
-            <span>১. ব্র্যান্ড ও ব্যানার</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMarketingSubTab('ticker_categories')}
-            className={`px-4 py-2.5 text-[11px] font-black tracking-tight rounded-xl flex items-center gap-1.5 cursor-pointer transition-all ${
-              marketingSubTab === 'ticker_categories'
-                ? 'bg-[#006437] text-white shadow-md shadow-emerald-900/10'
-                : 'bg-slate-100 border border-slate-200/60 text-slate-600 hover:bg-slate-200/50'
-            }`}
-          >
-            <Palette className="w-3.5 h-3.5" />
-            <span>২. ঘোষণা ও ক্যাটাগরি</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMarketingSubTab('about_page')}
-            className={`px-4 py-2.5 text-[11px] font-black tracking-tight rounded-xl flex items-center gap-1.5 cursor-pointer transition-all ${
-              marketingSubTab === 'about_page'
-                ? 'bg-[#006437] text-white shadow-md shadow-emerald-900/10'
-                : 'bg-slate-100 border border-slate-200/60 text-slate-600 hover:bg-slate-200/50'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>৩. আমাদের সম্পর্কে</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMarketingSubTab('contact_info')}
-            className={`px-4 py-2.5 text-[11px] font-black tracking-tight rounded-xl flex items-center gap-1.5 cursor-pointer transition-all ${
-              marketingSubTab === 'contact_info'
-                ? 'bg-[#006437] text-white shadow-md shadow-emerald-900/10'
-                : 'bg-slate-100 border border-slate-200/60 text-slate-600 hover:bg-slate-200/50'
-            }`}
-          >
-            <MapPin className="w-3.5 h-3.5" />
-            <span>৪. যোগাযোগ ও ম্যাপ</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMarketingSubTab('policies')}
-            className={`px-4 py-2.5 text-[11px] font-black tracking-tight rounded-xl flex items-center gap-1.5 cursor-pointer transition-all ${
-              marketingSubTab === 'policies'
-                ? 'bg-[#006437] text-white shadow-md shadow-emerald-900/10'
-                : 'bg-slate-100 border border-slate-200/60 text-slate-600 hover:bg-slate-200/50'
-            }`}
-          >
-            <ShieldAlert className="w-3.5 h-3.5" />
-            <span>৫. পলিসি ও শর্তাবলী</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMarketingSubTab('coupons')}
-            className={`px-4 py-2.5 text-[11px] font-black tracking-tight rounded-xl flex items-center gap-1.5 cursor-pointer transition-all ${
-              marketingSubTab === 'coupons'
-                ? 'bg-[#006437] text-white shadow-md shadow-emerald-900/10'
-                : 'bg-slate-100 border border-slate-200/60 text-slate-600 hover:bg-slate-200/50'
-            }`}
-          >
-            <CreditCard className="w-3.5 h-3.5" />
-            <span>৬. কুপন ম্যানেজমেন্ট</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMarketingSubTab('promo_offer')}
-            className={`px-4 py-2.5 text-[11px] font-black tracking-tight rounded-xl flex items-center gap-1.5 cursor-pointer transition-all ${
-              marketingSubTab === 'promo_offer'
-                ? 'bg-[#006437] text-white shadow-md shadow-emerald-900/10'
-                : 'bg-slate-100 border border-slate-200/60 text-slate-600 hover:bg-slate-200/50'
-            }`}
-          >
-            <ImageIcon className="w-3.5 h-3.5" />
-            <span>৭. অফার পপআপ</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMarketingSubTab('faq')}
-            className={`px-4 py-2.5 text-[11px] font-black tracking-tight rounded-xl flex items-center gap-1.5 cursor-pointer transition-all ${
-              marketingSubTab === 'faq'
-                ? 'bg-[#006437] text-white shadow-md shadow-emerald-900/10'
-                : 'bg-slate-100 border border-slate-200/60 text-slate-600 hover:bg-slate-200/50'
-            }`}
-          >
-            <HelpCircle className="w-3.5 h-3.5" />
-            <span>৮. এফএকিউ (FAQ)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMarketingSubTab('shipping_delivery')}
-            className={`px-4 py-2.5 text-[11px] font-black tracking-tight rounded-xl flex items-center gap-1.5 cursor-pointer transition-all ${
-              marketingSubTab === 'shipping_delivery'
-                ? 'bg-[#006437] text-white shadow-md shadow-emerald-900/10'
-                : 'bg-slate-100 border border-slate-200/60 text-slate-600 hover:bg-slate-200/50'
-            }`}
-          >
-            <Truck className="w-3.5 h-3.5" />
-            <span>৯. শিপিং ও ডেলিভারি চার্জ</span>
-          </button>
+        {/* Executive Studio Header */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#004d2a] via-[#006437] to-emerald-700 p-5 md:p-6 text-white shadow-sm">
+          <div className="absolute -right-10 -top-10 w-44 h-44 rounded-full bg-white/5 pointer-events-none" />
+          <div className="absolute right-20 -bottom-12 w-32 h-32 rounded-full bg-orange-400/10 pointer-events-none" />
+          <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-white/95 p-1.5 shadow-md flex items-center justify-center shrink-0 border border-white/40">
+                <img
+                  src={getValidImageSrc(cfgStoreLogo)}
+                  alt={cfgStoreName}
+                  className="w-full h-full object-contain rounded-xl"
+                  referrerPolicy="no-referrer"
+                  onError={handleImageError}
+                />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-black text-base md:text-lg tracking-tight">
+                    {hideModuleSwitcher ? `${activeMeta.num}. ${activeMeta.label}` : 'মার্কেটিং ও থিম স্টুডিও'}
+                  </h3>
+                  {!hideModuleSwitcher && (
+                    <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs">
+                      {activeMeta.num}. {activeMeta.label}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-emerald-100/90 font-medium mt-0.5">
+                  {hideModuleSwitcher
+                    ? activeMeta.shortDesc
+                    : 'শপের ব্র্যান্ডিং, ব্যানার, কুপন, ডেলিভারি চার্জ ও সকল তথ্য এখান থেকে সুন্দরভাবে নিয়ন্ত্রণ করুন'}
+                </p>
+              </div>
+            </div>
+            <button
+              type="submit"
+              className="bg-orange-500 hover:bg-orange-600 active:scale-98 text-white font-black text-xs px-5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 shrink-0 border border-orange-400/30"
+            >
+              <Save className="w-4 h-4" />
+              <span>পরিবর্তন সেভ করুন</span>
+            </button>
+          </div>
         </div>
+
+        {/* Sleek Segmented Cards Navigation for All 9 Sections (hidden when sidebar controls active module) */}
+        {!hideModuleSwitcher && (
+        <div className="bg-white p-3.5 rounded-2xl border border-gray-200/80 shadow-xs">
+          <div className="flex items-center justify-between mb-2.5 px-1">
+            <span className="text-[11px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-orange-500" />
+              <span>সেকশন নির্বাচন করুন (৯টি মডিউল)</span>
+            </span>
+            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+              বর্তমান: {activeMeta.num}. {activeMeta.label}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            {visibleMarketingTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = marketingSubTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setMarketingSubTab(tab.id)}
+                  className={`group text-left px-3 py-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-2.5 ${
+                    isActive
+                      ? 'bg-[#006437] border-[#006437] text-white shadow-sm'
+                      : 'bg-slate-50/70 border-slate-200/70 text-slate-700 hover:bg-emerald-50/60 hover:border-emerald-300'
+                  }`}
+                >
+                  <div
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                      isActive
+                        ? 'bg-white/15 text-white'
+                        : 'bg-white text-emerald-700 border border-slate-200/80 group-hover:border-emerald-200'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-black truncate leading-tight">
+                      {tab.num}. {tab.label}
+                    </div>
+                    <div
+                      className={`text-[9px] truncate mt-0.5 font-semibold ${
+                        isActive ? 'text-emerald-100' : 'text-slate-400'
+                      }`}
+                    >
+                      {tab.shortDesc}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        )}
 
         {marketingSubTab === 'brand_banners' && (
           <div className="space-y-6">
+            {/* Live Brand Header Preview */}
+            <div className="bg-gradient-to-br from-emerald-50/70 via-white to-orange-50/50 p-4 rounded-2xl border border-emerald-200/70 shadow-xs">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-black text-emerald-800 flex items-center gap-1.5">
+                  <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                  লাইভ ব্র্যান্ড হেডার প্রিভিউ (Live Storefront Header Preview)
+                </span>
+                <span className="text-[10px] font-bold text-slate-400">স্বয়ংক্রিয়ভাবে আপডেট হচ্ছে</span>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200/80 px-4 py-3 flex items-center gap-3 shadow-3xs">
+                <img
+                  src={getValidImageSrc(cfgStoreLogo)}
+                  alt={cfgStoreName}
+                  className="w-11 h-11 rounded-xl object-contain border border-slate-100 bg-slate-50 p-0.5"
+                  referrerPolicy="no-referrer"
+                  onError={handleImageError}
+                />
+                <div className="min-w-0">
+                  {cfgStoreNameImage ? (
+                    <img src={cfgStoreNameImage} alt={cfgStoreName} className="h-6 object-contain" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="font-black text-slate-900 text-base leading-tight truncate">{cfgStoreName || 'সাতক্ষীরা প্রিমিয়াম'}</div>
+                  )}
+                  {cfgStoreSloganImage ? (
+                    <img src={cfgStoreSloganImage} alt={cfgStoreSlogan} className="h-3.5 object-contain mt-0.5" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="text-[11px] font-bold text-emerald-700 truncate">{cfgStoreSlogan || 'Pure & Organic Food'}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Side Heritage Design ON/OFF Switch Card */}
+            <div className="bg-white p-5 rounded-2xl border border-gray-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </span>
+                  <h4 className="font-bold text-gray-800 text-sm">ওয়েবসাইটের দুই পাশের ঐতিহ্যবাহী ডিজাইন (Side Heritage Design)</h4>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${cfgHeritageSideDesignActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-500 border border-gray-200'}`}>
+                    {cfgHeritageSideDesignActive ? 'চালু আছে (ON)' : 'বন্ধ আছে (OFF)'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500 font-semibold leading-relaxed">
+                  চালু রাখলে ওয়েবসাইটের দুই পাশে বাংলাদেশের ঐতিহ্য, সংস্কৃতি ও স্থাপনার হালকা ফোটা ফোটা জলছাপ ডিজাইন দেখাবে। বন্ধ করলে সাধারণ সাদা ব্যাকগ্রাউন্ড দেখাবে।
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextVal = !cfgHeritageSideDesignActive;
+                  setCfgHeritageSideDesignActive(nextVal);
+                  onUpdateSiteConfig({ ...siteConfig, heritageSideDesignActive: nextVal });
+                  notify(
+                    nextVal
+                      ? 'দুই পাশের ঐতিহ্যবাহী ডিজাইন চালু করা হয়েছে!'
+                      : 'দুই পাশের ঐতিহ্যবাহী ডিজাইন বন্ধ করা হয়েছে!',
+                    nextVal ? 'success' : 'info'
+                  );
+                }}
+                aria-pressed={cfgHeritageSideDesignActive}
+                className={`w-14 h-7 rounded-full p-1 transition-colors cursor-pointer shrink-0 flex items-center ${
+                  cfgHeritageSideDesignActive ? 'bg-[#006437]' : 'bg-gray-300'
+                }`}
+              >
+                <div
+                  className={`bg-white w-5 h-5 rounded-full transition-transform shadow-xs ${
+                    cfgHeritageSideDesignActive ? 'translate-x-7' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
             {/* Card 1: Brand Profile */}
-            <div className="bg-white p-5 rounded-2xl border border-gray-200 space-y-4">
-              <h4 className="font-bold text-gray-800 text-sm border-b border-gray-100 pb-2 flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-orange-500" />
+            <div className="bg-white p-5 rounded-2xl border border-gray-200/90 shadow-xs space-y-4">
+              <h4 className="font-bold text-gray-800 text-sm border-b border-gray-100 pb-2.5 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+                  <Sliders className="w-3.5 h-3.5" />
+                </span>
                 ১. ব্র্যান্ড আইডেন্টিটি (Brand Identity)
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -875,7 +1004,7 @@ export default function MarketingTab({
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">우리 সম্পর্কে - প্রধান শিরোনাম (Title)</label>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">আমাদের সম্পর্কে - প্রধান শিরোনাম (Title)</label>
                     <input
                       type="text"
                       required
@@ -1358,16 +1487,8 @@ export default function MarketingTab({
                               <td className="px-3 py-2.5 text-right px-4">
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const updatedCoupons = cfgCoupons.filter(c => c.code !== coupon.code);
-                                    setCfgCoupons(updatedCoupons);
-                                    onUpdateSiteConfig({
-                                      ...siteConfig,
-                                      coupons: updatedCoupons
-                                    });
-                                    notify(`"${coupon.code}" কুপনটি বাদ দিয়ে সেভ করা হয়েছে।`, 'info');
-                                  }}
-                                  className="p-1 hover:bg-red-50 text-red-600 hover:text-red-700 rounded-md transition-all cursor-pointer border-0 bg-transparent"
+                                  onClick={() => setCouponToDelete(coupon)}
+                                  className="p-1.5 hover:bg-red-50 text-red-600 hover:text-red-700 rounded-md transition-all cursor-pointer border-0 bg-transparent"
                                   title="মুছে ফেলুন"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -1620,12 +1741,7 @@ export default function MarketingTab({
                           </div>
                           <button
                             type="button"
-                            onClick={() => {
-                              if (confirm('আপনি কি নিশ্চিতভাবে এই প্রশ্ন ও উত্তরটি মুছে ফেলতে চান?')) {
-                                setCfgFaqItems(cfgFaqItems.filter((_, fidx) => fidx !== idx));
-                                notify('প্রশ্নটি তালিকা থেকে মুছে ফেলা হয়েছে।', 'info');
-                              }
-                            }}
+                            onClick={() => setFaqDeleteIndex(idx)}
                             className="p-1.5 hover:bg-red-50 text-red-500 hover:text-red-700 rounded-lg transition-colors cursor-pointer shrink-0 mt-1 border-0 bg-transparent"
                             title="মুছে ফেলুন"
                           >
@@ -1711,21 +1827,85 @@ export default function MarketingTab({
                 <p className="text-[11px] text-gray-500 font-medium">
                   এই লেখাটি চেকআউট ফর্মের কুপন কোড ফিল্ডের নিচে চারপাশে সুন্দর বর্ডার এবং আইকন সহকারে ফ্রেম আকারে প্রদর্শিত হবে।
                 </p>
+
+                {/* Live Guarantee Preview Box */}
+                <div className="pt-1">
+                  <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block mb-1.5">লাইভ চেকআউট প্রিভিউ:</span>
+                  <div className="bg-emerald-50/80 border-2 border-dashed border-emerald-300 rounded-xl p-3 flex items-start gap-2.5 text-emerald-900">
+                    <ShieldAlert className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <p className="text-xs font-bold leading-relaxed">{cfgGuaranteeText || 'আপনার গ্যারান্টি লেখা এখানে দেখাবে...'}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Save Button */}
-        <div className="flex justify-end pt-2">
+        {/* Sticky Bottom Studio Save Bar */}
+        <div className="sticky bottom-3 z-20 bg-white/95 backdrop-blur-md border border-emerald-200/80 rounded-2xl px-5 py-3.5 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 text-xs">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span className="font-bold text-slate-600">
+              সক্রিয় মডিউল: <strong className="text-[#006437]">{activeMeta.num}. {activeMeta.label}</strong> — পরিবর্তন স্থায়ী করতে সেভ বাটনে ক্লিক করুন
+            </span>
+          </div>
           <button
             type="submit"
-            className="bg-red-700 hover:bg-red-800 text-white font-extrabold text-xs px-6 py-3 rounded-xl shadow-md transition-all cursor-pointer border-0"
+            className="w-full sm:w-auto bg-[#006437] hover:bg-[#004d2a] active:scale-98 text-white font-black text-xs px-6 py-2.5 rounded-xl shadow-md transition-all cursor-pointer border-0 flex items-center justify-center gap-2 shrink-0"
           >
-            কাস্টমাইজেশন সেভ করুন
+            <Check className="w-4 h-4" />
+            <span>কাস্টমাইজেশন সেভ করুন</span>
           </button>
         </div>
       </form>
+
+      <DeleteConfirmModal
+        isOpen={Boolean(couponToDelete)}
+        title="কুপন কোড মুছে ফেলতে চান?"
+        description={
+          couponToDelete && (
+            <>
+              আপনি কি নিশ্চিতভাবে <strong className="text-slate-900 font-mono">"{couponToDelete.code}"</strong> কুপন কোডটি তালিকা থেকে ডিলিট করতে চান?
+            </>
+          )
+        }
+        onCancel={() => setCouponToDelete(null)}
+        onConfirm={() => {
+          if (!couponToDelete) return;
+          const updatedCoupons = cfgCoupons.filter((c) => c.code !== couponToDelete.code);
+          setCfgCoupons(updatedCoupons);
+          onUpdateSiteConfig({
+            ...siteConfig,
+            coupons: updatedCoupons,
+          });
+          notify(`"${couponToDelete.code}" কুপনটি বাদ দিয়ে সেভ করা হয়েছে।`, 'info');
+          setCouponToDelete(null);
+        }}
+      />
+
+      <DeleteConfirmModal
+        isOpen={faqDeleteIndex !== null}
+        title="প্রশ্ন ও উত্তর মুছে ফেলতে চান?"
+        description={
+          faqDeleteIndex !== null && cfgFaqItems[faqDeleteIndex] ? (
+            <>
+              আপনি কি নিশ্চিতভাবে <strong className="text-slate-900">"{cfgFaqItems[faqDeleteIndex].question || `প্রশ্ন ${faqDeleteIndex + 1}`}"</strong> প্রশ্নটি মুছে ফেলতে চান?
+            </>
+          ) : null
+        }
+        onCancel={() => setFaqDeleteIndex(null)}
+        onConfirm={() => {
+          if (faqDeleteIndex === null) return;
+          const updatedFaq = cfgFaqItems.filter((_, fidx) => fidx !== faqDeleteIndex);
+          setCfgFaqItems(updatedFaq);
+          onUpdateSiteConfig({
+            ...siteConfig,
+            faqItems: updatedFaq,
+          });
+          notify('প্রশ্নটি তালিকা থেকে মুছে ফেলা হয়েছে।', 'info');
+          setFaqDeleteIndex(null);
+        }}
+      />
     </div>
   );
 }

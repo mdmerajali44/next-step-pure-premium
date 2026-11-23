@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { Complaint, Order, User, ComplaintCallLog, matchesSearchWithNumerals } from '../../types';
-import { 
-  AlertTriangle, Phone, PhoneCall, CheckCircle2, Clock, UserCheck, 
+import React, { useState, useMemo, useEffect } from 'react';
+import { Complaint, Order, User, matchesSearchWithNumerals } from '../../types';
+import {
+  AlertTriangle, Phone, PhoneCall, CheckCircle2, Clock, UserCheck,
   Search, Plus, X, MessageSquare, ShieldAlert, ArrowRight,
-  Filter, Calendar, ExternalLink, RefreshCw, Trash2, Check,
-  Sparkles, FileText, ChevronRight, User as UserIcon, HelpCircle
+  Download, Eye, Edit3, Trash2, Check, FileText, Mail, XCircle,
+  RefreshCw, ArrowUp, ArrowDown, Minus, User as UserIcon, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import DeleteConfirmModal from './DeleteConfirmModal';
 
 interface ComplaintsTabProps {
   complaints: Complaint[];
@@ -19,6 +20,14 @@ interface ComplaintsTabProps {
   notify?: (msg: string, type?: 'success' | 'info' | 'error') => void;
   prefillPhone?: string;
   prefillOrderId?: string;
+  externalStatusFilter?: 'all' | 'pending' | 'in_progress' | 'resolved' | 'cancelled';
+  onStatusFilterChange?: (val: 'all' | 'pending' | 'in_progress' | 'resolved') => void;
+  openCreateTrigger?: number;
+  subView?: 'list' | 'create';
+  onSubViewChange?: (val: 'list' | 'create') => void;
+  allowedStatuses?: ('all' | 'pending' | 'in_progress' | 'resolved')[];
+  canCreate?: boolean;
+  canDelete?: boolean;
 }
 
 export const ISSUE_CATEGORIES = [
@@ -52,24 +61,94 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
   onViewOrderDetails,
   notify = (_msg: string, _type?: 'success' | 'info' | 'error') => {},
   prefillPhone,
-  prefillOrderId
+  prefillOrderId,
+  externalStatusFilter,
+  onStatusFilterChange,
+  openCreateTrigger,
+  subView = 'list',
+  onSubViewChange,
+  allowedStatuses,
+  canCreate = true,
+  canDelete = true,
 }) => {
+  const effectiveAllowedStatuses = useMemo(
+    () =>
+      allowedStatuses && allowedStatuses.length > 0
+        ? allowedStatuses
+        : (['all', 'pending', 'in_progress', 'resolved'] as const),
+    [allowedStatuses]
+  );
+
+  const canViewAll = effectiveAllowedStatuses.includes('all');
+  const canViewStatus = (st: 'all' | 'pending' | 'in_progress' | 'resolved' | 'cancelled') => {
+    if (canViewAll) return true;
+    if (st === 'cancelled') return effectiveAllowedStatuses.includes('all');
+    return effectiveAllowedStatuses.includes(st as any);
+  };
+
   const [searchQuery, setSearchQuery] = useState(prefillPhone || '');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'in_progress' | 'resolved'>('all');
+  const [statusFilter, setStatusFilterState] = useState<'all' | 'pending' | 'in_progress' | 'resolved' | 'cancelled'>(() => {
+    const initial = externalStatusFilter || 'all';
+    if (!allowedStatuses || allowedStatuses.length === 0) return initial;
+    if (allowedStatuses.includes(initial as any)) return initial;
+    return allowedStatuses[0];
+  });
+  const [urgentOnlyFilter, setUrgentOnlyFilter] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  
-  // Modals
+  const [dateFilter, setDateFilter] = useState<string>('');
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [complaintToDelete, setComplaintToDelete] = useState<Complaint | null>(null);
+
+  const setStatusFilter = (val: 'all' | 'pending' | 'in_progress' | 'resolved' | 'cancelled') => {
+    if (!canViewStatus(val)) return;
+    setUrgentOnlyFilter(false);
+    setStatusFilterState(val);
+    setCurrentPage(1);
+    if (val === 'all' || val === 'pending' || val === 'in_progress' || val === 'resolved') {
+      onStatusFilterChange?.(val);
+    }
+  };
+
+  useEffect(() => {
+    if (externalStatusFilter && canViewStatus(externalStatusFilter)) {
+      setStatusFilterState(externalStatusFilter);
+      setUrgentOnlyFilter(false);
+      setCurrentPage(1);
+    }
+  }, [externalStatusFilter]);
+
+  useEffect(() => {
+    if (!canViewStatus(statusFilter)) {
+      setStatusFilterState(effectiveAllowedStatuses[0] || 'all');
+    }
+  }, [effectiveAllowedStatuses]);
+
+  // Quick Create Modal (when clicking "+ নতুন অভিযোগ যোগ করুন" inside main workspace)
   const [showCreateModal, setShowCreateModal] = useState(false);
+  useEffect(() => {
+    if (openCreateTrigger && openCreateTrigger > 0 && canCreate) {
+      setShowCreateModal(true);
+    }
+  }, [openCreateTrigger, canCreate]);
+
+  // Selected Complaint for Floating Split-Pane Detail Panel
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
-  
-  // Log Call Sub-modal
-  const [showLogCallModal, setShowLogCallModal] = useState(false);
+  const [isDetailDismissed, setIsDetailDismissed] = useState(false);
+
+  // Active inline action mode inside the Floating Detail Panel: 'assign' | 'reply' | 'status' | 'resolve' | null
+  const [activeActionMode, setActiveActionMode] = useState<'assign' | 'reply' | 'status' | 'resolve' | null>(null);
+
+  // Inline Assign state
+  const [assignName, setAssignName] = useState(loggedInUser?.name || 'কাস্টমার সাপোর্ট');
+  const [assignPriority, setAssignPriority] = useState<'normal' | 'high' | 'urgent'>('normal');
+
+  // Inline Reply / Call Log state
   const [callLogRepresentative, setCallLogRepresentative] = useState(loggedInUser?.name || 'কাস্টমার সাপোর্ট');
   const [callLogNotes, setCallLogNotes] = useState('');
   const [callLogResponse, setCallLogResponse] = useState<'satisfied' | 'neutral' | 'unhappy' | 'followup_needed'>('satisfied');
-  
-  // Resolution Sub-modal
-  const [showResolveModal, setShowResolveModal] = useState(false);
+
+  // Inline Resolution state
   const [resolveAction, setResolveAction] = useState('replacement');
   const [resolveNotes, setResolveNotes] = useState('');
   const [resolveRepresentative, setResolveRepresentative] = useState(loggedInUser?.name || 'কাস্টমার ম্যানেজার');
@@ -87,11 +166,18 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
   const [newRepresentative, setNewRepresentative] = useState(loggedInUser?.name || 'অ্যাডমিন সাপোর্ট');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Convert English number to Bengali number
+  const toBn = (num: number | string | undefined | null): string => {
+    if (num === undefined || num === null) return '০';
+    const bnDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    return num.toString().replace(/\d/g, d => bnDigits[parseInt(d, 10)]);
+  };
+
   // Auto-fill customer info when phone matches existing order
   const matchedPhoneOrders = useMemo(() => {
     if (!newCustPhone || newCustPhone.trim().length < 4) return [];
     const clean = newCustPhone.trim();
-    return orders.filter(o => 
+    return orders.filter(o =>
       o.customerPhone && (o.customerPhone.includes(clean) || clean.includes(o.customerPhone))
     );
   }, [newCustPhone, orders]);
@@ -100,7 +186,7 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
     setNewCustPhone(phone);
     if (!phone.trim()) return;
     const clean = phone.trim();
-    const matched = orders.filter(o => 
+    const matched = orders.filter(o =>
       o.customerPhone && (o.customerPhone.includes(clean) || clean.includes(o.customerPhone))
     );
     if (matched.length > 0) {
@@ -117,30 +203,31 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
     setNewCustAddress(`${ord.deliveryAddress}, ${ord.area ? ord.area + ', ' : ''}${ord.district}`);
   };
 
-  // Convert English number to Bengali number
-  const toBn = (num: number | string | undefined | null): string => {
-    if (num === undefined || num === null) return '০';
-    const bnDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
-    return num.toString().replace(/\d/g, d => bnDigits[parseInt(d, 10)]);
-  };
-
-  // Stats calculation
+  // Stats calculation across ALL complaints (always visible in top 6 KPI cards)
   const stats = useMemo(() => {
     const total = complaints.length;
     const pending = complaints.filter(c => c.status === 'pending').length;
     const inProgress = complaints.filter(c => c.status === 'in_progress').length;
     const resolved = complaints.filter(c => c.status === 'resolved').length;
-    return { total, pending, inProgress, resolved };
+    const cancelled = complaints.filter(c => c.status === 'cancelled').length;
+    const urgent = complaints.filter(c => c.priority === 'urgent' || c.priority === 'high').length;
+    return { total, pending, inProgress, resolved, cancelled, urgent };
   }, [complaints]);
 
   // Filtered list
   const filteredComplaints = useMemo(() => {
     return complaints.filter(c => {
-      // Status filter
-      if (statusFilter !== 'all' && c.status !== statusFilter) return false;
-      // Category filter
+      if (!canViewAll && !effectiveAllowedStatuses.includes(c.status as any)) return false;
+      if (urgentOnlyFilter && c.priority !== 'urgent' && c.priority !== 'high') return false;
+      if (!urgentOnlyFilter && statusFilter !== 'all' && c.status !== statusFilter) return false;
       if (categoryFilter !== 'all' && c.issueCategory !== categoryFilter) return false;
-      // Search query
+      if (dateFilter) {
+        const formattedSelected = new Date(dateFilter).toLocaleDateString('bn-BD');
+        const created = c.createdAt || '';
+        if (!created.includes(dateFilter) && !created.includes(formattedSelected)) {
+          return false;
+        }
+      }
       if (searchQuery.trim()) {
         const q = searchQuery.trim();
         const matchPhone = matchesSearchWithNumerals(c.customerPhone, q);
@@ -148,13 +235,50 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
         const matchId = matchesSearchWithNumerals(c.id, q);
         const matchOrder = c.orderId && matchesSearchWithNumerals(c.orderId, q);
         const matchDesc = matchesSearchWithNumerals(c.description, q);
-        if (!matchPhone && !matchName && !matchId && !matchOrder && !matchDesc) {
+        const matchCat = matchesSearchWithNumerals(c.issueCategoryLabel, q);
+        if (!matchPhone && !matchName && !matchId && !matchOrder && !matchDesc && !matchCat) {
           return false;
         }
       }
       return true;
     });
-  }, [complaints, statusFilter, categoryFilter, searchQuery]);
+  }, [complaints, statusFilter, urgentOnlyFilter, categoryFilter, dateFilter, searchQuery, canViewAll, effectiveAllowedStatuses]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredComplaints.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedComplaints = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredComplaints.slice(start, start + pageSize);
+  }, [filteredComplaints, safePage, pageSize]);
+
+  // Sync & auto-select first visible complaint so details are always right in front of the eyes
+  useEffect(() => {
+    if (filteredComplaints.length === 0) {
+      setSelectedComplaint(null);
+      return;
+    }
+    if (selectedComplaint) {
+      const updatedInList = filteredComplaints.find(c => c.id === selectedComplaint.id);
+      if (updatedInList) {
+        if (updatedInList !== selectedComplaint) {
+          setSelectedComplaint(updatedInList);
+        }
+        return;
+      }
+    }
+    if (!isDetailDismissed) {
+      setSelectedComplaint(filteredComplaints[0]);
+    }
+  }, [filteredComplaints, isDetailDismissed]);
+
+  // Sync inline assign form inputs when selectedComplaint changes
+  useEffect(() => {
+    if (selectedComplaint) {
+      setAssignName(selectedComplaint.assignedTo || selectedComplaint.createdBy || loggedInUser?.name || 'কাস্টমার সাপোর্ট');
+      setAssignPriority(selectedComplaint.priority || 'normal');
+    }
+  }, [selectedComplaint?.id]);
 
   // Submit New Complaint
   const handleCreateSubmit = async (e: React.FormEvent) => {
@@ -183,30 +307,54 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
         priority: newPriority,
         status: 'pending',
         createdBy: newRepresentative.trim() || 'অ্যাডমিন',
+        assignedTo: newRepresentative.trim() || 'অ্যাডমিন',
         callLogs: []
       });
 
-      notify(`কম্পেলেইন #${created.id} সফলভাবে জমা হয়েছে!`, 'success');
+      notify(`অভিযোগ #${created.id} সফলভাবে জমা হয়েছে!`, 'success');
       setShowCreateModal(false);
-      // Reset form
+      setIsDetailDismissed(false);
+      setSelectedComplaint(created);
+      onSubViewChange?.('list');
       setNewCustPhone('');
       setNewCustName('');
       setNewCustAddress('');
       setNewOrderId('');
       setNewDescription('');
     } catch (err: any) {
-      notify(err?.message || 'কম্পেলেইন জমা দিতে সমস্যা হয়েছে', 'error');
+      notify(err?.message || 'অভিযোগ জমা দিতে সমস্যা হয়েছে', 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Submit Call Log
+  // Save Assignment & Priority
+  const handleSaveAssign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedComplaint) return;
+    try {
+      const updated: Complaint = {
+        ...selectedComplaint,
+        assignedTo: assignName.trim() || 'কাস্টমার সাপোর্ট',
+        priority: assignPriority,
+        status: selectedComplaint.status === 'pending' ? 'in_progress' : selectedComplaint.status,
+        updatedAt: new Date().toLocaleDateString('bn-BD') + ' ' + new Date().toLocaleTimeString('bn-BD')
+      };
+      const saved = await onUpdateComplaint(updated);
+      setSelectedComplaint(saved);
+      setActiveActionMode(null);
+      notify(`দায়িত্ব প্রদান ও অগ্রাধিকার আপডেট হয়েছে!`, 'success');
+    } catch {
+      notify('দায়িত্ব প্রদান সংরক্ষণে ব্যর্থ হয়েছে', 'error');
+    }
+  };
+
+  // Submit Call Log / Reply
   const handleSaveCallLog = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedComplaint) return;
     if (!callLogNotes.trim()) {
-      notify('কলের আলোচনার সারসংক্ষেপ লিখুন', 'error');
+      notify('আলোচনা বা উত্তরের বিবরণ লিখুন', 'error');
       return;
     }
 
@@ -218,11 +366,11 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
       });
 
       setSelectedComplaint(updated);
-      setShowLogCallModal(false);
       setCallLogNotes('');
-      notify('নতুন কল রেকর্ড সফলভাবে যুক্ত হয়েছে!', 'success');
-    } catch (e: any) {
-      notify(e?.message || 'কল রেকর্ড সংরক্ষণে ব্যর্থ হয়েছে', 'error');
+      setActiveActionMode(null);
+      notify('উত্তর ও কল রেকর্ড সফলভাবে যুক্ত হয়েছে!', 'success');
+    } catch (err: any) {
+      notify(err?.message || 'কল রেকর্ড সংরক্ষণে ব্যর্থ হয়েছে', 'error');
     }
   };
 
@@ -236,13 +384,14 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
     }
 
     const actionObj = ACTION_OPTIONS.find(a => a.id === resolveAction);
+    const nowStr = new Date().toLocaleDateString('bn-BD') + ' ' + new Date().toLocaleTimeString('bn-BD');
 
     const updatedComplaint: Complaint = {
       ...selectedComplaint,
       status: 'resolved',
-      updatedAt: new Date().toLocaleDateString('bn-BD') + ' ' + new Date().toLocaleTimeString('bn-BD'),
+      updatedAt: nowStr,
       resolution: {
-        resolvedAt: new Date().toLocaleDateString('bn-BD') + ' ' + new Date().toLocaleTimeString('bn-BD'),
+        resolvedAt: nowStr,
         resolvedBy: resolveRepresentative.trim() || 'প্রতিনিধি',
         actionTaken: resolveAction as any,
         actionTakenLabel: actionObj ? actionObj.label : 'সমাধান সম্পন্ন',
@@ -255,10 +404,12 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
     try {
       const saved = await onUpdateComplaint(updatedComplaint);
       setSelectedComplaint(saved);
-      setShowResolveModal(false);
-      notify(`কম্পেলেইন #${saved.id} সফলভাবে সমাধান হিসেবে চিহ্নিত হয়েছে!`, 'success');
-    } catch (e: any) {
-      notify(e?.message || 'সমাধান সংরক্ষণে সমস্যা হয়েছে', 'error');
+      setResolveNotes('');
+      setResolveRefundAmount('');
+      setActiveActionMode(null);
+      notify(`অভিযোগ #${saved.id} সফলভাবে সমাধান হয়েছে!`, 'success');
+    } catch (err: any) {
+      notify(err?.message || 'সমাধান সংরক্ষণে সমস্যা হয়েছে', 'error');
     }
   };
 
@@ -266,7 +417,8 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
   const handleQuickStatusChange = async (complaint: Complaint, newStatus: Complaint['status']) => {
     if (newStatus === 'resolved') {
       setSelectedComplaint(complaint);
-      setShowResolveModal(true);
+      setIsDetailDismissed(false);
+      setActiveActionMode('resolve');
       return;
     }
 
@@ -280,169 +432,525 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
       if (selectedComplaint?.id === saved.id) {
         setSelectedComplaint(saved);
       }
+      setActiveActionMode(null);
       notify(`স্ট্যাটাস পরিবর্তন সম্পন্ন হয়েছে`, 'success');
-    } catch (e: any) {
+    } catch {
       notify('স্ট্যাটাস আপডেট ব্যর্থ হয়েছে', 'error');
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* 1. Header Banner & Stats */}
-      <div className="bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-600 rounded-3xl p-5 md:p-7 text-white shadow-lg relative overflow-hidden">
-        <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-xs text-white text-xs font-black">
-              <ShieldAlert className="w-3.5 h-3.5" />
-              <span>কাস্টমার কেয়ার ও অভিযোগ সেল</span>
-            </div>
-            <h2 className="text-xl md:text-2xl font-black tracking-tight">
-              গ্রাহক সমস্যা সমাধান ও কম্পেলেইন সেন্টার
-            </h2>
-            <p className="text-xs md:text-sm text-white/90 font-medium max-w-xl">
-              মোবাইল নম্বর সার্চ করে অর্ডার খুঁজে সমস্যা নোট করুন, কল হিস্ট্রি ট্র্যাক করুন এবং প্রতিনিধির মাধ্যমে প্রফেশনাল সমাধান দিন।
+  // Download CSV Report
+  const handleExportReport = () => {
+    if (filteredComplaints.length === 0) {
+      notify('ডাউনলোড করার মতো কোনো অভিযোগ নেই', 'info');
+      return;
+    }
+    const headers = ['অভিযোগ নং', 'গ্রাহকের নাম', 'মোবাইল', 'অর্ডার আইডি', 'ক্যাটাগরি', 'অগ্রাধিকার', 'স্ট্যাটাস', 'দায়িত্বপ্রাপ্ত', 'তারিখ', 'বিবরণ'];
+    const escapeCsv = (val: string | undefined) => `"${String(val || '').replace(/"/g, '""')}"`;
+    const rows = filteredComplaints.map(c => [
+      escapeCsv(c.id),
+      escapeCsv(c.customerName),
+      escapeCsv(c.customerPhone),
+      escapeCsv(c.orderId || '-'),
+      escapeCsv(c.issueCategoryLabel),
+      escapeCsv(c.priority === 'urgent' ? 'অতি জরুরি' : c.priority === 'high' ? 'উচ্চ' : 'সাধারণ'),
+      escapeCsv(c.status === 'resolved' ? 'সমাধান হয়েছে' : c.status === 'in_progress' ? 'চলমান' : c.status === 'cancelled' ? 'বাতিল' : 'নতুন'),
+      escapeCsv(c.assignedTo || c.createdBy),
+      escapeCsv(c.createdAt),
+      escapeCsv(c.description)
+    ].join(','));
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `complaints-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    notify('অভিযোগ রিপোর্ট ডাউনলোড সম্পন্ন হয়েছে!', 'success');
+  };
+
+  const renderStatusPill = (status: Complaint['status']) => {
+    if (status === 'resolved') {
+      return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800">সমাধান হয়েছে</span>;
+    }
+    if (status === 'in_progress') {
+      return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-800">চলমান</span>;
+    }
+    if (status === 'cancelled') {
+      return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-100 text-rose-700">বাতিল</span>;
+    }
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-sky-100 text-sky-800">নতুন</span>;
+  };
+
+  const renderPriorityBadge = (priority: Complaint['priority']) => {
+    if (priority === 'urgent') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-black text-red-600">
+          <ArrowUp className="w-3.5 h-3.5 stroke-[3]" />
+          <span>অতি জরুরি</span>
+        </span>
+      );
+    }
+    if (priority === 'high') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-black text-orange-600">
+          <ArrowUp className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span>উচ্চ</span>
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
+        <ArrowDown className="w-3.5 h-3.5" />
+        <span>সাধারণ</span>
+      </span>
+    );
+  };
+
+  // Dedicated Create View (when navigated directly via Sidebar -> "নতুন অভিযোগ নথিভুক্ত")
+  if (subView === 'create' && canCreate) {
+    return (
+      <div className="bg-white rounded-3xl border border-gray-200 p-6 md:p-8 shadow-xs space-y-5 max-w-3xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+          <div className="space-y-1">
+            <h3 className="text-lg md:text-xl font-black text-gray-900 flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-teal-700" />
+              <span>নতুন গ্রাহক অভিযোগ নথিভুক্ত করুন</span>
+            </h3>
+            <p className="text-xs text-gray-500 font-medium">
+              গ্রাহকের মোবাইল নম্বর দিয়ে সার্চ করুন বা তথ্য দিয়ে অভিযোগ সিস্টেমে জমা দিন।
             </p>
           </div>
+          {onSubViewChange && (
+            <button
+              type="button"
+              onClick={() => onSubViewChange('list')}
+              className="px-3.5 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer self-start sm:self-auto"
+            >
+              ← অভিযোগ ব্যবস্থাপনায় ফিরুন
+            </button>
+          )}
+        </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+        <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs">
+          <div>
+            <label className="block font-bold text-gray-700 mb-1">
+              গ্রাহকের মোবাইল নম্বর <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                required
+                placeholder="017XXXXXXXX"
+                value={newCustPhone}
+                onChange={(e) => handlePhoneLookup(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl font-bold font-sans text-sm focus:outline-hidden focus:border-teal-600"
+              />
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1">
+              নম্বর লিখলে পূর্বের অর্ডারের নাম ও ঠিকানা স্বয়ংক্রিয়ভাবে পাওয়া যাবে।
+            </p>
+            {matchedPhoneOrders.length > 0 && (
+              <div className="mt-2.5 p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-amber-900 font-extrabold">
+                  <span>এই নম্বরে {toBn(matchedPhoneOrders.length)}টি অর্ডার পাওয়া গেছে:</span>
+                  <span className="text-[10px] text-amber-700">ক্লিক করে সিলেক্ট করুন</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pt-1">
+                  {matchedPhoneOrders.map((ord) => {
+                    const isSelected = newOrderId === ord.id;
+                    return (
+                      <button
+                        key={ord.id}
+                        type="button"
+                        onClick={() => handleSelectCustomerOrder(ord)}
+                        className={`text-left px-2.5 py-1.5 rounded-lg border text-[11px] transition-all cursor-pointer flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-teal-700 text-white border-teal-700 font-black shadow-xs'
+                            : 'bg-white text-gray-700 border-gray-200 hover:border-teal-400'
+                        }`}
+                      >
+                        <span className="font-mono font-bold">#{ord.id}</span>
+                        <span className="text-[10px] opacity-80">(৳{ord.totalAmount})</span>
+                        {isSelected && <Check className="w-3 h-3 text-white" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-gray-700 mb-1">গ্রাহকের নাম</label>
+              <input
+                type="text"
+                placeholder="নাম লিখুন"
+                value={newCustName}
+                onChange={(e) => setNewCustName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl font-semibold focus:outline-hidden focus:border-teal-600"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-gray-700 mb-1">অর্ডার আইডি (যদি থাকে)</label>
+              <input
+                type="text"
+                placeholder="e.g. ML-102934"
+                value={newOrderId}
+                onChange={(e) => setNewOrderId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl font-mono font-bold focus:outline-hidden focus:border-teal-600"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-bold text-gray-700 mb-1">গ্রাহকের ঠিকানা</label>
+            <input
+              type="text"
+              placeholder="ঠিকানা ও জেলা"
+              value={newCustAddress}
+              onChange={(e) => setNewCustAddress(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl font-semibold focus:outline-hidden focus:border-teal-600"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-gray-700 mb-1">সমস্যার ক্যাটাগরি</label>
+              <select
+                value={newIssueCategory}
+                onChange={(e) => setNewIssueCategory(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold bg-white focus:outline-hidden focus:border-teal-600 cursor-pointer"
+              >
+                {ISSUE_CATEGORIES.map(c => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block font-bold text-gray-700 mb-1">অগ্রাধিকার (Priority)</label>
+              <select
+                value={newPriority}
+                onChange={(e) => setNewPriority(e.target.value as any)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold bg-white focus:outline-hidden focus:border-teal-600 cursor-pointer"
+              >
+                <option value="normal">সাধারণ (Normal)</option>
+                <option value="high">উচ্চ (High)</option>
+                <option value="urgent">অতি জরুরি (Urgent)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-bold text-gray-700 mb-1">
+              অভিযোগের বিস্তারিত বিবরণ <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              required
+              rows={4}
+              placeholder="গ্রাহকের সাথে কী কথা হয়েছে, কি সমস্যা ঘটেছে বিস্তারিত লিখুন..."
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              className="w-full p-3 border border-gray-200 rounded-xl font-medium focus:outline-hidden focus:border-teal-600 leading-relaxed"
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold text-gray-700 mb-1">যে প্রতিনিধি এন্ট্রি করছেন</label>
+            <input
+              type="text"
+              value={newRepresentative}
+              onChange={(e) => setNewRepresentative(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold text-gray-800"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+            {onSubViewChange && (
+              <button
+                type="button"
+                onClick={() => onSubViewChange('list')}
+                className="px-4 py-2.5 border border-gray-200 rounded-xl text-gray-600 font-bold hover:bg-gray-50 cursor-pointer"
+              >
+                বাতিল
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-teal-700 hover:bg-teal-800 text-white font-extrabold px-6 py-2.5 rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
+            >
+              {isSubmitting ? 'জমা হচ্ছে...' : 'অভিযোগ জমা দিন'}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* 1. Top Header Bar */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center shrink-0">
+            <MessageSquare className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg md:text-2xl font-black text-gray-900 tracking-tight">অভিযোগ ব্যবস্থাপনা</h2>
+            <p className="text-xs text-gray-500 font-medium">ব্যবহারকারীদের অভিযোগ গ্রহণ, যাচাই, সমাধান ও মনিটরিং</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            type="button"
+            onClick={handleExportReport}
+            className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-extrabold flex items-center gap-2 transition-all shadow-3xs cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-gray-600" />
+            <span>রিপোর্ট ডাউনলোড</span>
+          </button>
+          {canCreate && (
             <button
               type="button"
               onClick={() => {
                 setNewCustPhone(searchQuery);
                 setShowCreateModal(true);
               }}
-              className="bg-white text-orange-600 hover:bg-orange-50 font-black text-xs md:text-sm px-4 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95"
+              className="px-4 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-extrabold flex items-center gap-2 transition-all shadow-sm cursor-pointer"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
-              <span>নতুন কম্পেলেইন এন্ট্রি</span>
+              <span>নতুন অভিযোগ যোগ করুন</span>
             </button>
-          </div>
-        </div>
-
-        {/* KPI Mini Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t border-white/20 text-white">
-          <div className="bg-white/15 backdrop-blur-xs p-3 rounded-2xl border border-white/20">
-            <span className="text-[11px] font-bold opacity-80 block">মোট কম্পেলেইন</span>
-            <span className="text-xl md:text-2xl font-black font-sans">{toBn(stats.total)}</span>
-          </div>
-          <div className="bg-white/15 backdrop-blur-xs p-3 rounded-2xl border border-white/20">
-            <span className="text-[11px] font-bold opacity-80 block">অমীমাংসিত (নতুন)</span>
-            <span className="text-xl md:text-2xl font-black font-sans text-amber-200">{toBn(stats.pending)}</span>
-          </div>
-          <div className="bg-white/15 backdrop-blur-xs p-3 rounded-2xl border border-white/20">
-            <span className="text-[11px] font-bold opacity-80 block">তদন্ত ও আলোচনা চলছে</span>
-            <span className="text-xl md:text-2xl font-black font-sans text-sky-200">{toBn(stats.inProgress)}</span>
-          </div>
-          <div className="bg-white/15 backdrop-blur-xs p-3 rounded-2xl border border-white/20">
-            <span className="text-[11px] font-bold opacity-80 block">সমাধান সম্পন্ন</span>
-            <span className="text-xl md:text-2xl font-black font-sans text-emerald-200">{toBn(stats.resolved)}</span>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* 2. Search & Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          {/* Search Box */}
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+      {/* 2. Floating Glanceable KPI Cards (Clickable Quick Filters) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {canViewStatus('all') && (
+          <button
+            type="button"
+            onClick={() => setStatusFilter('all')}
+            className={`text-left rounded-2xl p-3.5 border transition-all cursor-pointer flex items-center gap-3 bg-sky-50/70 hover:shadow-sm ${
+              !urgentOnlyFilter && statusFilter === 'all' ? 'border-sky-400 ring-2 ring-sky-200 shadow-xs' : 'border-sky-100'
+            }`}
+          >
+            <div className="w-10 h-10 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center shrink-0">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <span className="block text-[11px] font-bold text-gray-600 truncate">মোট অভিযোগ</span>
+              <span className="block text-xl font-black text-gray-900 font-sans">{toBn(stats.total)}</span>
+            </div>
+          </button>
+        )}
+
+        {canViewStatus('pending') && (
+          <button
+            type="button"
+            onClick={() => setStatusFilter('pending')}
+            className={`text-left rounded-2xl p-3.5 border transition-all cursor-pointer flex items-center gap-3 bg-amber-50/70 hover:shadow-sm ${
+              !urgentOnlyFilter && statusFilter === 'pending' ? 'border-amber-400 ring-2 ring-amber-200 shadow-xs' : 'border-amber-100'
+            }`}
+          >
+            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+              <Mail className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <span className="block text-[11px] font-bold text-gray-600 truncate">নতুন অভিযোগ</span>
+              <span className="block text-xl font-black text-gray-900 font-sans">{toBn(stats.pending)}</span>
+            </div>
+          </button>
+        )}
+
+        {canViewStatus('in_progress') && (
+          <button
+            type="button"
+            onClick={() => setStatusFilter('in_progress')}
+            className={`text-left rounded-2xl p-3.5 border transition-all cursor-pointer flex items-center gap-3 bg-purple-50/70 hover:shadow-sm ${
+              !urgentOnlyFilter && statusFilter === 'in_progress' ? 'border-purple-400 ring-2 ring-purple-200 shadow-xs' : 'border-purple-100'
+            }`}
+          >
+            <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <span className="block text-[11px] font-bold text-gray-600 truncate">চলমান</span>
+              <span className="block text-xl font-black text-gray-900 font-sans">{toBn(stats.inProgress)}</span>
+            </div>
+          </button>
+        )}
+
+        {canViewStatus('resolved') && (
+          <button
+            type="button"
+            onClick={() => setStatusFilter('resolved')}
+            className={`text-left rounded-2xl p-3.5 border transition-all cursor-pointer flex items-center gap-3 bg-emerald-50/70 hover:shadow-sm ${
+              !urgentOnlyFilter && statusFilter === 'resolved' ? 'border-emerald-400 ring-2 ring-emerald-200 shadow-xs' : 'border-emerald-100'
+            }`}
+          >
+            <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <span className="block text-[11px] font-bold text-gray-600 truncate">সমাধান হয়েছে</span>
+              <span className="block text-xl font-black text-gray-900 font-sans">{toBn(stats.resolved)}</span>
+            </div>
+          </button>
+        )}
+
+        {canViewAll && (
+          <button
+            type="button"
+            onClick={() => setStatusFilter('cancelled')}
+            className={`text-left rounded-2xl p-3.5 border transition-all cursor-pointer flex items-center gap-3 bg-rose-50/70 hover:shadow-sm ${
+              !urgentOnlyFilter && statusFilter === 'cancelled' ? 'border-rose-400 ring-2 ring-rose-200 shadow-xs' : 'border-rose-100'
+            }`}
+          >
+            <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+              <XCircle className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <span className="block text-[11px] font-bold text-gray-600 truncate">বাতিল</span>
+              <span className="block text-xl font-black text-gray-900 font-sans">{toBn(stats.cancelled)}</span>
+            </div>
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => {
+            setUrgentOnlyFilter(!urgentOnlyFilter);
+            setCurrentPage(1);
+          }}
+          className={`text-left rounded-2xl p-3.5 border transition-all cursor-pointer flex items-center gap-3 bg-red-50/80 hover:shadow-sm ${
+            urgentOnlyFilter ? 'border-red-500 ring-2 ring-red-200 shadow-xs' : 'border-red-100'
+          }`}
+        >
+          <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <span className="block text-[11px] font-bold text-gray-600 truncate">জরুরি অভিযোগ</span>
+            <span className="block text-xl font-black text-red-700 font-sans">{toBn(stats.urgent)}</span>
+          </div>
+        </button>
+      </div>
+
+      {/* 3. Search & Multi-Filter Toolbar */}
+      <div className="bg-white p-3.5 rounded-2xl border border-gray-200 shadow-xs space-y-2.5">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center">
+          <div className="md:col-span-5 relative">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="গ্রাহকের মোবাইল নম্বর, নাম বা কম্পেলেইন/অর্ডার আইডি দিয়ে সার্চ করুন..."
+              placeholder="অভিযোগ নং / ব্যবহারকারীর নাম / মোবাইল / বিষয়..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-24 py-2.5 bg-gray-50/70 border border-gray-200 rounded-xl text-xs md:text-sm font-semibold text-gray-800 placeholder-gray-400 focus:outline-hidden focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all"
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-9 pr-14 py-2 bg-gray-50/80 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 placeholder-gray-400 focus:outline-hidden focus:bg-white focus:border-teal-600"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-extrabold text-gray-500 hover:text-red-600 bg-gray-200 hover:bg-red-50 px-2 py-1 rounded-lg cursor-pointer"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-500 hover:text-red-600 px-1.5 py-0.5 rounded bg-gray-200 cursor-pointer"
               >
-                মুছুন ✕
+                ✕
               </button>
             )}
           </div>
 
-          {/* Quick Filters */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center bg-gray-100 p-1 rounded-xl text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setStatusFilter('all')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${statusFilter === 'all' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'}`}
-              >
-                সব ({toBn(complaints.length)})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter('pending')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${statusFilter === 'pending' ? 'bg-white text-amber-700 shadow-xs font-black' : 'text-gray-500 hover:text-gray-900'}`}
-              >
-                নতুন ({toBn(stats.pending)})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter('in_progress')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${statusFilter === 'in_progress' ? 'bg-white text-sky-700 shadow-xs font-black' : 'text-gray-500 hover:text-gray-900'}`}
-              >
-                চলমান ({toBn(stats.inProgress)})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter('resolved')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${statusFilter === 'resolved' ? 'bg-white text-emerald-700 shadow-xs font-black' : 'text-gray-500 hover:text-gray-900'}`}
-              >
-                সমাধানকৃত ({toBn(stats.resolved)})
-              </button>
-            </div>
-
-            {/* Category Dropdown */}
+          <div className="md:col-span-3">
             <select
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="border border-gray-200 bg-white rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:outline-hidden cursor-pointer"
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full border border-gray-200 bg-white rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:outline-hidden focus:border-teal-600 cursor-pointer"
             >
-              <option value="all">সব ধরনের সমস্যা</option>
+              <option value="all">সব ক্যাটাগরি</option>
               {ISSUE_CATEGORIES.map(c => (
                 <option key={c.id} value={c.id}>{c.label}</option>
               ))}
             </select>
           </div>
+
+          <div className="md:col-span-2">
+            <select
+              value={urgentOnlyFilter ? 'all' : statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="w-full border border-gray-200 bg-white rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:outline-hidden focus:border-teal-600 cursor-pointer"
+            >
+              {canViewStatus('all') && <option value="all">সব স্ট্যাটাস</option>}
+              {canViewStatus('pending') && <option value="pending">নতুন (অপেক্ষমাণ)</option>}
+              {canViewStatus('in_progress') && <option value="in_progress">চলমান</option>}
+              {canViewStatus('resolved') && <option value="resolved">সমাধান হয়েছে</option>}
+              {canViewAll && <option value="cancelled">বাতিল</option>}
+            </select>
+          </div>
+
+          <div className="md:col-span-2 flex items-center gap-1.5">
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => {
+                setDateFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full border border-gray-200 bg-white rounded-xl px-2.5 py-1.5 text-xs font-semibold text-gray-700 focus:outline-hidden focus:border-teal-600"
+              title="তারিখ নির্বাচন"
+            />
+            {(searchQuery || categoryFilter !== 'all' || statusFilter !== 'all' || urgentOnlyFilter || dateFilter) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setCategoryFilter('all');
+                  setDateFilter('');
+                  setStatusFilter('all');
+                }}
+                className="px-3 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold shrink-0 cursor-pointer"
+                title="রিসেট ফিল্টার"
+              >
+                রিসেট
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* If customer phone search matches orders, show instant quick banner */}
+        {/* Instant customer match banner when searching phone */}
         {searchQuery.trim().length >= 4 && (() => {
-          const matchedOrders = orders.filter(o => 
-            o.customerPhone && o.customerPhone.includes(searchQuery.trim())
-          );
+          const matchedOrders = orders.filter(o => o.customerPhone && o.customerPhone.includes(searchQuery.trim()));
           if (matchedOrders.length === 0) return null;
           const first = matchedOrders[0];
           return (
-            <div className="bg-orange-50/70 border border-orange-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+            <div className="bg-teal-50/70 border border-teal-200 rounded-xl p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-black">
-                  <UserIcon className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-full bg-teal-100 flex items-center justify-center text-teal-700">
+                  <UserIcon className="w-3.5 h-3.5" />
                 </div>
-                <div>
-                  <p className="font-extrabold text-gray-900">
-                    গ্রাহক: {first.customerName} | মোবাইল: <span className="font-sans font-bold text-orange-700">{first.customerPhone}</span>
-                  </p>
-                  <p className="text-[11px] text-gray-500">
-                    এই গ্রাহকের মোট <strong className="text-gray-800 font-sans">{toBn(matchedOrders.length)}</strong> টি অর্ডার রয়েছে।
-                  </p>
-                </div>
+                <span className="font-bold text-gray-800">
+                  গ্রাহক: <strong>{first.customerName}</strong> ({first.customerPhone}) — মোট {toBn(matchedOrders.length)}টি অর্ডার
+                </span>
               </div>
-
               <div className="flex items-center gap-2">
                 <a
                   href={`tel:${first.customerPhone}`}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-xs"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1"
                 >
-                  <PhoneCall className="w-3.5 h-3.5" />
-                  <span>কল করুন</span>
+                  <PhoneCall className="w-3 h-3" />
+                  <span>কল</span>
                 </a>
                 <button
                   type="button"
@@ -450,10 +958,10 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
                     handlePhoneLookup(first.customerPhone);
                     setShowCreateModal(true);
                   }}
-                  className="bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                  className="bg-teal-700 hover:bg-teal-800 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>কম্পেলেইন তুলুন</span>
+                  <Plus className="w-3 h-3" />
+                  <span>অভিযোগ তুলুন</span>
                 </button>
               </div>
             </div>
@@ -461,294 +969,638 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
         })()}
       </div>
 
-      {/* 3. Complaints Cards List */}
-      {filteredComplaints.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-gray-200 space-y-3 shadow-xs">
-          <div className="w-16 h-16 bg-gray-100 text-gray-400 rounded-2xl flex items-center justify-center mx-auto">
-            <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-          </div>
-          <h3 className="font-black text-gray-800 text-lg">কোনো কম্পেলেইন বা অভিযোগ পাওয়া যায়নি</h3>
-          <p className="text-xs text-gray-400 max-w-sm mx-auto">
-            {searchQuery ? 'আপনার সার্চকৃত তথ্যের সাথে কোনো অভিযোগ মেলেনি।' : 'আলহামদুলিল্লাহ! বর্তমানে কোনো সমাধানহীন অভিযোগ নেই।'}
-          </p>
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="text-xs text-orange-600 font-bold hover:underline"
-            >
-              সকল অভিযোগ দেখুন
-            </button>
+      {/* 4. Master-Detail Split Workspace (Table Left + Floating Sticky Detail & Resolution Card Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        {/* LEFT PANE: Complaints Table */}
+        <div className={`${selectedComplaint ? 'lg:col-span-7' : 'lg:col-span-12'} bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden`}>
+          {filteredComplaints.length === 0 ? (
+            <div className="p-10 text-center space-y-3">
+              <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-7 h-7" />
+              </div>
+              <h3 className="font-black text-gray-800 text-base">কোনো অভিযোগ পাওয়া যায়নি</h3>
+              <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                {searchQuery || statusFilter !== 'all' || categoryFilter !== 'all' || urgentOnlyFilter
+                  ? 'আপনার সার্চ বা ফিল্টারের সাথে কোনো অভিযোগ মেলেনি।'
+                  : 'এখনো কোনো অভিযোগ নথিভুক্ত নেই। "+ নতুন অভিযোগ যোগ করুন" বাটনে ক্লিক করে নতুন অভিযোগ যুক্ত করতে পারেন।'}
+              </p>
+              <div className="flex items-center justify-center gap-2 pt-1">
+                {(searchQuery || statusFilter !== 'all' || categoryFilter !== 'all' || urgentOnlyFilter) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setCategoryFilter('all');
+                      setDateFilter('');
+                      setStatusFilter('all');
+                    }}
+                    className="px-3.5 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                  >
+                    সকল অভিযোগ দেখুন
+                  </button>
+                )}
+                {canCreate && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(true)}
+                    className="px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-extrabold cursor-pointer"
+                  >
+                    + নতুন অভিযোগ যোগ করুন
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-gray-200 text-[11px] font-black text-gray-600">
+                      <th className="py-3 px-3">#</th>
+                      <th className="py-3 px-3">অভিযোগ নং</th>
+                      <th className="py-3 px-3">বিষয় ও বিবরণ</th>
+                      <th className="py-3 px-3">অভিযোগকারী</th>
+                      <th className="py-3 px-3">ক্যাটাগরি</th>
+                      <th className="py-3 px-3">অগ্রাধিকার</th>
+                      <th className="py-3 px-3">স্ট্যাটাস</th>
+                      <th className="py-3 px-3">তারিখ</th>
+                      <th className="py-3 px-3 text-center">অ্যাকশন</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {paginatedComplaints.map((c, idx) => {
+                      const isSelected = selectedComplaint?.id === c.id;
+                      const catObj = ISSUE_CATEGORIES.find(cat => cat.id === c.issueCategory);
+                      const rowNum = (safePage - 1) * pageSize + idx + 1;
+
+                      return (
+                        <tr
+                          key={c.id}
+                          onClick={() => {
+                            setSelectedComplaint(c);
+                            setIsDetailDismissed(false);
+                            setActiveActionMode(null);
+                          }}
+                          className={`cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-emerald-50/70 border-l-4 border-l-teal-600'
+                              : 'hover:bg-gray-50/80'
+                          }`}
+                        >
+                          <td className="py-3 px-3 font-bold text-gray-500">{toBn(rowNum)}</td>
+                          <td className="py-3 px-3 font-mono font-bold text-gray-900 whitespace-nowrap">#{c.id}</td>
+                          <td className="py-3 px-3 max-w-[180px]">
+                            <p className="font-bold text-gray-900 truncate" title={c.description}>
+                              {c.description}
+                            </p>
+                            {c.orderId && (
+                              <span className="text-[10px] text-teal-700 font-bold">অর্ডার #{c.orderId}</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <UserIcon className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <div>
+                                <p className="font-bold text-gray-900 leading-tight">{c.customerName}</p>
+                                <p className="text-[10px] text-gray-500 font-sans">{c.customerPhone}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full border ${catObj ? catObj.color : 'bg-gray-50 text-gray-700 border-gray-200'}`}>
+                              {c.issueCategoryLabel || catObj?.label || 'অন্যান্য'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 whitespace-nowrap">{renderPriorityBadge(c.priority)}</td>
+                          <td className="py-3 px-3 whitespace-nowrap">{renderStatusPill(c.status)}</td>
+                          <td className="py-3 px-3 text-[11px] text-gray-500 whitespace-nowrap">{c.createdAt}</td>
+                          <td className="py-3 px-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                            <div className="inline-flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedComplaint(c);
+                                  setIsDetailDismissed(false);
+                                  setActiveActionMode(null);
+                                }}
+                                className="p-1.5 rounded-lg text-gray-500 hover:text-teal-700 hover:bg-teal-50 cursor-pointer"
+                                title="বিস্তারিত দেখুন"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedComplaint(c);
+                                  setIsDetailDismissed(false);
+                                  setActiveActionMode('reply');
+                                }}
+                                className="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
+                                title="উত্তর / কল লগ দিন"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              {canDelete && (
+                                <button
+                                  type="button"
+                                  onClick={() => setComplaintToDelete(c)}
+                                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 cursor-pointer"
+                                  title="মুছে ফেলুন"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Footer */}
+              <div className="px-4 py-3 border-t border-gray-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-600">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold">প্রতি পৃষ্ঠায়:</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="border border-gray-200 bg-white rounded-lg px-2 py-1 font-bold text-gray-700 cursor-pointer"
+                    >
+                      <option value={10}>{toBn(10)}</option>
+                      <option value={20}>{toBn(20)}</option>
+                      <option value={50}>{toBn(50)}</option>
+                    </select>
+                  </div>
+                  <span className="font-bold">মোট: {toBn(filteredComplaints.length)}টি অভিযোগ</span>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={safePage <= 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 cursor-pointer"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).slice(Math.max(0, safePage - 3), safePage + 2).map(page => (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`min-w-7 h-7 px-2 rounded-lg text-xs font-bold cursor-pointer ${
+                        safePage === page
+                          ? 'bg-teal-700 text-white shadow-xs'
+                          : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {toBn(page)}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={safePage >= totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    className="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 cursor-pointer"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredComplaints.map((c) => {
-            const catObj = ISSUE_CATEGORIES.find(cat => cat.id === c.issueCategory);
-            const callCount = c.callLogs?.length || 0;
-            const linkedOrder = c.orderId ? orders.find(o => o.id === c.orderId) : null;
 
-            return (
-              <div
-                key={c.id}
-                className={`bg-white rounded-2xl border p-5 transition-all duration-200 space-y-4 hover:shadow-md ${
-                  c.status === 'resolved' 
-                    ? 'border-emerald-200 bg-emerald-50/10' 
-                    : c.status === 'in_progress' 
-                    ? 'border-sky-200 bg-sky-50/10' 
-                    : 'border-orange-200 bg-white'
-                }`}
-              >
-                {/* Top Badge & ID Row */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-black font-sans px-2.5 py-0.5 rounded-md bg-gray-100 text-gray-800">
-                        #{c.id}
-                      </span>
-                      
-                      {/* Status Badge */}
-                      <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${
-                        c.status === 'resolved' ? 'bg-emerald-100 text-emerald-800' :
-                        c.status === 'in_progress' ? 'bg-sky-100 text-sky-800' :
-                        'bg-amber-100 text-amber-800'
-                      }`}>
-                        {c.status === 'resolved' ? '✓ সমাধান সম্পন্ন' :
-                         c.status === 'in_progress' ? '● আলোচনা চলছে' :
-                         '⏳ অপেক্ষমাণ'}
-                      </span>
+        {/* RIGHT PANE: Floating Sticky Detail & Resolution Panel ("সব চোখের সামনে দেখা ও সমাধান করা যাবে") */}
+        {selectedComplaint && (() => {
+          const c = selectedComplaint;
+          const catObj = ISSUE_CATEGORIES.find(cat => cat.id === c.issueCategory);
+          const linkedOrder = c.orderId ? orders.find(o => o.id === c.orderId) : null;
+          const callCount = c.callLogs?.length || 0;
 
-                      {/* Priority */}
-                      {c.priority === 'urgent' && (
-                        <span className="text-[10px] font-black px-2 py-0.5 rounded bg-red-100 text-red-700 animate-pulse">
-                          অতি জরুরি
-                        </span>
-                      )}
-                    </div>
-
-                    <p className="text-[11px] text-gray-400">
-                      তারিখ: <span className="font-semibold text-gray-600">{c.createdAt}</span> | এন্ট্রি: <span className="font-semibold text-gray-700">{c.createdBy}</span>
-                    </p>
-                  </div>
-
-                  {/* Category Pill */}
-                  <span className={`text-[11px] font-bold px-2.5 py-1 rounded-xl border ${catObj ? catObj.color : 'bg-gray-50 text-gray-700 border-gray-200'}`}>
-                    {c.issueCategoryLabel || catObj?.label || 'অভিযোগ'}
-                  </span>
-                </div>
-
-                {/* Customer Details Block */}
-                <div className="bg-gray-50/70 p-3.5 rounded-xl border border-gray-100 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-black text-gray-900 text-sm">
-                        {c.customerName}
-                      </p>
-                      <p className="text-xs text-orange-600 font-bold font-sans flex items-center gap-1 mt-0.5">
-                        <Phone className="w-3 h-3" />
-                        {c.customerPhone}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <a
-                        href={`tel:${c.customerPhone}`}
-                        className="p-2 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white rounded-xl transition-all shadow-3xs cursor-pointer"
-                        title="সরাসরি কল দিন"
-                      >
-                        <PhoneCall className="w-4 h-4" />
-                      </a>
-                      <a
-                        href={`https://wa.me/88${c.customerPhone.replace(/^(\+88|0)/, '')}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-2 bg-green-50 hover:bg-green-600 text-green-700 hover:text-white rounded-xl transition-all shadow-3xs cursor-pointer"
-                        title="WhatsApp মেসেজ"
-                      >
-                        <MessageSquare className="w-4 h-4" />
-                      </a>
-                    </div>
-                  </div>
-
-                  {c.customerAddress && (
-                    <p className="text-[11px] text-gray-500 line-clamp-1 border-t border-gray-200/60 pt-1.5">
-                      ঠিকানা: <span className="text-gray-700 font-medium">{c.customerAddress}</span>
-                    </p>
+          return (
+            <div className="lg:col-span-5 lg:sticky lg:top-20 bg-white rounded-2xl border border-gray-200 shadow-md overflow-hidden">
+              {/* Detail Header */}
+              <div className="px-5 py-3.5 border-b border-gray-100 bg-slate-50/70 flex items-center justify-between">
+                <h3 className="font-black text-gray-900 text-sm md:text-base flex items-center gap-2">
+                  <FileText className="w-4.5 h-4.5 text-teal-700" />
+                  <span>অভিযোগের বিস্তারিত</span>
+                </h3>
+                <div className="flex items-center gap-1">
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => setComplaintToDelete(c)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 cursor-pointer"
+                      title="অভিযোগ ডিলিট করুন"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedComplaint(null);
+                      setIsDetailDismissed(true);
+                      setActiveActionMode(null);
+                    }}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-200/70 cursor-pointer"
+                    title="বন্ধ করুন"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
 
-                  {/* Linked Order */}
-                  {c.orderId && (
-                    <div className="flex items-center justify-between pt-1 border-t border-gray-200/60 text-[11px]">
-                      <span className="text-gray-500">
-                        সংযুক্ত অর্ডার: <strong className="text-gray-900 font-sans font-bold">#{c.orderId}</strong>
-                        {linkedOrder && (
-                          <span className="ml-1 text-emerald-700 font-sans font-bold">
-                            (৳{linkedOrder.totalAmount})
-                          </span>
-                        )}
-                      </span>
-                      {linkedOrder && onViewOrderDetails && (
-                        <button
-                          type="button"
-                          onClick={() => onViewOrderDetails(linkedOrder)}
-                          className="text-orange-600 hover:text-orange-700 font-bold flex items-center gap-0.5 cursor-pointer"
+              <div className="p-5 space-y-4 text-xs max-h-[calc(100vh-14rem)] overflow-y-auto">
+                {/* Structured Key-Value Metadata */}
+                <div className="space-y-2.5">
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <span className="col-span-4 text-gray-500 font-bold">অভিযোগ নং</span>
+                    <span className="col-span-8 font-mono font-black text-gray-900">: #{c.id}</span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <span className="col-span-4 text-gray-500 font-bold">বিষয় / ধরন</span>
+                    <span className="col-span-8 font-extrabold text-gray-900">: {c.issueCategoryLabel || catObj?.label || 'অভিযোগ'}</span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <span className="col-span-4 text-gray-500 font-bold">অভিযোগকারী</span>
+                    <span className="col-span-8 font-bold text-gray-900 flex items-center gap-1.5">
+                      <span>:</span>
+                      <UserIcon className="w-3.5 h-3.5 text-gray-400" />
+                      <span>{c.customerName}</span>
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <span className="col-span-4 text-gray-500 font-bold">মোবাইল</span>
+                    <div className="col-span-8 flex items-center justify-between gap-2">
+                      <span className="font-bold font-sans text-gray-900">: {c.customerPhone}</span>
+                      <div className="flex items-center gap-1">
+                        <a
+                          href={`tel:${c.customerPhone}`}
+                          className="p-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white rounded-lg transition-colors"
+                          title="সরাসরি কল করুন"
                         >
-                          <span>অর্ডার দেখুন</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
-                      )}
+                          <PhoneCall className="w-3.5 h-3.5" />
+                        </a>
+                        <a
+                          href={`https://wa.me/88${c.customerPhone.replace(/^(\+88|0)/, '')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1.5 bg-green-50 hover:bg-green-600 text-green-700 hover:text-white rounded-lg transition-colors"
+                          title="WhatsApp"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                  {c.customerAddress && (
+                    <div className="grid grid-cols-12 gap-2 items-start">
+                      <span className="col-span-4 text-gray-500 font-bold">ঠিকানা</span>
+                      <span className="col-span-8 text-gray-700 font-medium">: {c.customerAddress}</span>
                     </div>
                   )}
+                  {c.orderId && (
+                    <div className="grid grid-cols-12 gap-2 items-center">
+                      <span className="col-span-4 text-gray-500 font-bold">অর্ডার আইডি</span>
+                      <div className="col-span-8 flex items-center justify-between gap-2">
+                        <span className="font-mono font-bold text-gray-900">
+                          : #{c.orderId} {linkedOrder ? `(৳${linkedOrder.totalAmount})` : ''}
+                        </span>
+                        {linkedOrder && onViewOrderDetails && (
+                          <button
+                            type="button"
+                            onClick={() => onViewOrderDetails(linkedOrder)}
+                            className="text-teal-700 hover:underline font-extrabold flex items-center gap-0.5 cursor-pointer"
+                          >
+                            <span>অর্ডার দেখুন</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <span className="col-span-4 text-gray-500 font-bold">ক্যাটাগরি</span>
+                    <div className="col-span-8">
+                      <span className={`inline-block text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${catObj ? catObj.color : 'bg-gray-50 text-gray-700 border-gray-200'}`}>
+                        {c.issueCategoryLabel || catObj?.label || 'অন্যান্য'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <span className="col-span-4 text-gray-500 font-bold">অগ্রাধিকার</span>
+                    <div className="col-span-8">: {renderPriorityBadge(c.priority)}</div>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <span className="col-span-4 text-gray-500 font-bold">স্ট্যাটাস</span>
+                    <div className="col-span-8">: {renderStatusPill(c.status)}</div>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <span className="col-span-4 text-gray-500 font-bold">দায়িত্বপ্রাপ্ত</span>
+                    <span className="col-span-8 font-bold text-teal-800">: {c.assignedTo || c.createdBy || 'অ্যাডমিন'}</span>
+                  </div>
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <span className="col-span-4 text-gray-500 font-bold">তারিখ</span>
+                    <span className="col-span-8 text-gray-600 font-medium">: {c.createdAt}</span>
+                  </div>
                 </div>
 
-                {/* Complaint Problem Description */}
-                <div className="space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    অভিযোগের বিবরণ / সমস্যা:
-                  </span>
-                  <div className="bg-orange-50/30 p-3 rounded-xl border border-orange-100/60 text-xs text-gray-800 leading-relaxed font-medium">
+                {/* বিবরণ Box */}
+                <div className="space-y-1.5 pt-2 border-t border-gray-100">
+                  <span className="font-black text-gray-800 block">বিবরণ :</span>
+                  <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-gray-800 leading-relaxed font-medium">
                     {c.description}
                   </div>
                 </div>
 
-                {/* Call History Mini Bar ("কাস্টমারের সাথে কয়বার কথা হয়েছে কোন প্রতিনিধি কথা বলেছে") */}
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-extrabold text-slate-800 flex items-center gap-1.5">
-                      <PhoneCall className="w-3.5 h-3.5 text-orange-600" />
-                      <span>কথোপকথন ও কল হিস্ট্রি</span>
+                {/* কথোপকথন ও কল হিস্ট্রি */}
+                <div className="space-y-2 pt-2 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <span className="font-black text-gray-800 flex items-center gap-1.5">
+                      <PhoneCall className="w-3.5 h-3.5 text-teal-700" />
+                      <span>উত্তর ও কল হিস্ট্রি</span>
                     </span>
-                    <span className="font-bold text-orange-600 bg-orange-100/70 px-2 py-0.5 rounded-full text-[11px]">
-                      {callCount > 0 ? `মোট ${toBn(callCount)} বার কথা হয়েছে` : 'কোনো কল হয়নি'}
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
+                      {callCount > 0 ? `মোট ${toBn(callCount)}টি আপডেট` : 'কোনো কল/উত্তর নেই'}
                     </span>
                   </div>
 
-                  {callCount > 0 ? (
-                    <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
+                  {callCount > 0 && (
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                       {c.callLogs.map((log) => (
-                        <div key={log.id} className="text-[11px] bg-white p-2 rounded-lg border border-gray-100 space-y-1">
-                          <div className="flex items-center justify-between text-gray-500">
+                        <div key={log.id} className="bg-slate-50 border border-gray-100 rounded-xl p-2.5 space-y-1">
+                          <div className="flex items-center justify-between text-[11px]">
                             <span className="font-extrabold text-gray-800">
-                              {toBn(log.callNumber)}ম কল - <strong className="text-orange-600">{log.representativeName}</strong>
+                              {toBn(log.callNumber)}নং — <span className="text-teal-700">{log.representativeName}</span>
                             </span>
                             <span className="text-[10px] text-gray-400">{log.callDate}</span>
                           </div>
-                          <p className="text-gray-700 font-medium leading-tight">
-                            {log.notes}
-                          </p>
+                          <p className="text-gray-700 font-medium leading-snug">{log.notes}</p>
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <p className="text-[11px] text-gray-400 italic">
-                      এখনো কোনো কল রেকর্ড যুক্ত করা হয়নি।
-                    </p>
                   )}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedComplaint(c);
-                      setShowLogCallModal(true);
-                    }}
-                    className="w-full bg-white hover:bg-orange-50 text-orange-700 border border-orange-200 hover:border-orange-300 font-extrabold text-xs py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-3xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ কল রেকর্ড ও আলোচনা যুক্ত করুন</span>
-                  </button>
                 </div>
 
-                {/* Resolution Block (if resolved) */}
+                {/* সমাধান বিবরণী (if resolved) */}
                 {c.resolution && (
-                  <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5 space-y-1.5 text-xs">
+                  <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="font-black text-emerald-800 flex items-center gap-1">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                        <span>সমাধান বিবরণী:</span>
+                        <span>সমাধান বিবরণী</span>
                       </span>
-                      <span className="text-[10px] text-emerald-600 font-bold">
-                        {c.resolution.resolvedAt}
-                      </span>
+                      <span className="text-[10px] font-bold text-emerald-700">{c.resolution.resolvedAt}</span>
                     </div>
                     <p className="text-gray-800 font-medium">
-                      <strong className="text-emerald-700">{c.resolution.actionTakenLabel}:</strong> {c.resolution.resolutionNotes}
+                      <strong className="text-emerald-800">{c.resolution.actionTakenLabel}:</strong> {c.resolution.resolutionNotes}
                     </p>
-                    <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1 border-t border-emerald-100">
-                      <span>সমাধানকারী: <strong className="text-gray-800">{c.resolution.resolvedBy}</strong></span>
+                    <div className="flex items-center justify-between text-[11px] text-gray-600 pt-1 border-t border-emerald-200/60">
+                      <span>সমাধানকারী: <strong>{c.resolution.resolvedBy}</strong></span>
                       {c.resolution.refundAmount !== undefined && (
-                        <span>রিফান্ড: <strong className="text-red-600 font-sans">৳{c.resolution.refundAmount}</strong></span>
+                        <span>রিফান্ড: <strong className="text-red-600">৳{c.resolution.refundAmount}</strong></span>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* Bottom Action Buttons */}
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    {c.status !== 'resolved' ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedComplaint(c);
-                          setShowResolveModal(true);
-                        }}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1 shadow-3xs"
-                      >
-                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                        <span>সমাধান সম্পন্ন করুন</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleQuickStatusChange(c, 'in_progress')}
-                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-2.5 py-1.5 rounded-xl transition-all cursor-pointer text-[11px]"
-                      >
-                        পুনরায় তদন্তে নিন
-                      </button>
-                    )}
+                {/* INLINE INTERACTIVE ACTION FORMS RIGHT INSIDE THE DETAIL PANEL */}
+                {activeActionMode === 'assign' && (
+                  <form onSubmit={handleSaveAssign} className="p-3.5 rounded-xl bg-teal-50/70 border border-teal-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-teal-900">দায়িত্ব প্রদান ও অগ্রাধিকার নির্ধারণ</span>
+                      <button type="button" onClick={() => setActiveActionMode(null)} className="text-gray-400 hover:text-gray-700 cursor-pointer"><X className="w-4 h-4" /></button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">প্রতিনিধির নাম</label>
+                        <input
+                          type="text"
+                          required
+                          value={assignName}
+                          onChange={(e) => setAssignName(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-teal-200 bg-white font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">অগ্রাধিকার</label>
+                        <select
+                          value={assignPriority}
+                          onChange={(e) => setAssignPriority(e.target.value as any)}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-teal-200 bg-white font-bold cursor-pointer"
+                        >
+                          <option value="normal">সাধারণ</option>
+                          <option value="high">উচ্চ</option>
+                          <option value="urgent">অতি জরুরি</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button type="button" onClick={() => setActiveActionMode(null)} className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white font-bold text-gray-600 cursor-pointer">বাতিল</button>
+                      <button type="submit" className="px-4 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-extrabold cursor-pointer">সংরক্ষণ করুন</button>
+                    </div>
+                  </form>
+                )}
 
-                    {c.status === 'pending' && (
-                      <button
-                        type="button"
-                        onClick={() => handleQuickStatusChange(c, 'in_progress')}
-                        className="bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 font-bold px-2.5 py-1.5 rounded-xl transition-all cursor-pointer text-[11px]"
-                      >
-                        তদন্ত শুরু
-                      </button>
-                    )}
-                  </div>
+                {activeActionMode === 'reply' && (
+                  <form onSubmit={handleSaveCallLog} className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-blue-900">গ্রাহককে উত্তর / কল রেকর্ড যুক্ত করুন</span>
+                      <button type="button" onClick={() => setActiveActionMode(null)} className="text-gray-400 hover:text-gray-700 cursor-pointer"><X className="w-4 h-4" /></button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">প্রতিনিধি</label>
+                        <input
+                          type="text"
+                          required
+                          value={callLogRepresentative}
+                          onChange={(e) => setCallLogRepresentative(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-blue-200 bg-white font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">গ্রাহকের প্রতিক্রিয়া</label>
+                        <select
+                          value={callLogResponse}
+                          onChange={(e) => setCallLogResponse(e.target.value as any)}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-blue-200 bg-white font-bold cursor-pointer"
+                        >
+                          <option value="satisfied">সন্তুষ্ট (Satisfied)</option>
+                          <option value="neutral">স্বাভাবিক (Neutral)</option>
+                          <option value="followup_needed">ফলো-আপ প্রয়োজন</option>
+                          <option value="unhappy">অসন্তুষ্ট (Unhappy)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">আলোচনা / উত্তর *</label>
+                      <textarea
+                        required
+                        rows={3}
+                        placeholder="গ্রাহকের সাথে কি কথা হলো বা কী উত্তর দেওয়া হলো..."
+                        value={callLogNotes}
+                        onChange={(e) => setCallLogNotes(e.target.value)}
+                        className="w-full p-2.5 rounded-lg border border-blue-200 bg-white font-medium"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button type="button" onClick={() => setActiveActionMode(null)} className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white font-bold text-gray-600 cursor-pointer">বাতিল</button>
+                      <button type="submit" className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-extrabold cursor-pointer">উত্তর সংরক্ষণ করুন</button>
+                    </div>
+                  </form>
+                )}
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedComplaint(c)}
-                      className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
-                      title="বিস্তারিত ও হিস্ট্রি"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (confirm(`আপনি কি নিশ্চিত যে #${c.id} কম্পেলেইনটি মুছে ফেলতে চান?`)) {
-                          await onDeleteComplaint(c.id);
-                          notify('কম্পেলেইন মুছে ফেলা হয়েছে', 'info');
-                        }
-                      }}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                      title="ডিলিট করুন"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                {activeActionMode === 'status' && (
+                  <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-emerald-900">স্ট্যাটাস পরিবর্তন করুন</span>
+                      <button type="button" onClick={() => setActiveActionMode(null)} className="text-gray-400 hover:text-gray-700 cursor-pointer"><X className="w-4 h-4" /></button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => handleQuickStatusChange(c, 'pending')} className="py-2 px-3 rounded-lg bg-sky-100 hover:bg-sky-200 text-sky-900 font-extrabold cursor-pointer">নতুন (অপেক্ষমাণ)</button>
+                      <button type="button" onClick={() => handleQuickStatusChange(c, 'in_progress')} className="py-2 px-3 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 font-extrabold cursor-pointer">চলমান</button>
+                      <button type="button" onClick={() => handleQuickStatusChange(c, 'resolved')} className="py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold cursor-pointer">সমাধান হয়েছে</button>
+                      <button type="button" onClick={() => handleQuickStatusChange(c, 'cancelled')} className="py-2 px-3 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 font-extrabold cursor-pointer">বাতিল</button>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {activeActionMode === 'resolve' && (
+                  <form onSubmit={handleSaveResolution} className="p-3.5 rounded-xl bg-red-50/60 border border-red-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-red-900 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>অভিযোগ সমাধান ও ক্লোজিং</span>
+                      </span>
+                      <button type="button" onClick={() => setActiveActionMode(null)} className="text-gray-400 hover:text-gray-700 cursor-pointer"><X className="w-4 h-4" /></button>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">কী পদক্ষেপ নেওয়া হলো?</label>
+                      <select
+                        value={resolveAction}
+                        onChange={(e) => setResolveAction(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white font-bold cursor-pointer"
+                      >
+                        {ACTION_OPTIONS.map(a => (
+                          <option key={a.id} value={a.id}>{a.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {(resolveAction === 'refund' || resolveAction === 'partial_refund') && (
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">রিফান্ড পরিমাণ (৳)</label>
+                        <input
+                          type="number"
+                          placeholder="টাকার পরিমাণ"
+                          value={resolveRefundAmount}
+                          onChange={(e) => setResolveRefundAmount(e.target.value ? Number(e.target.value) : '')}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white font-bold"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">সমাধানের নোট *</label>
+                      <textarea
+                        required
+                        rows={3}
+                        placeholder="কীভাবে সমাধান করা হলো লিখুন..."
+                        value={resolveNotes}
+                        onChange={(e) => setResolveNotes(e.target.value)}
+                        className="w-full p-2.5 rounded-lg border border-gray-200 bg-white font-medium"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">সমাধানকারী</label>
+                        <input
+                          type="text"
+                          required
+                          value={resolveRepresentative}
+                          onChange={(e) => setResolveRepresentative(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">গ্রাহকের সন্তুষ্টি</label>
+                        <select
+                          value={resolveIsSatisfied ? 'yes' : 'no'}
+                          onChange={(e) => setResolveIsSatisfied(e.target.value === 'yes')}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white font-bold cursor-pointer"
+                        >
+                          <option value="yes">✓ সন্তুষ্ট</option>
+                          <option value="no">✕ অসন্তুষ্ট</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button type="button" onClick={() => setActiveActionMode(null)} className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white font-bold text-gray-600 cursor-pointer">বাতিল</button>
+                      <button type="submit" className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold cursor-pointer">সমাধান নিশ্চিত করুন</button>
+                    </div>
+                  </form>
+                )}
               </div>
-            );
-          })}
-        </div>
-      )}
 
-      {/* 4. MODAL: Create New Complaint */}
+              {/* 4-Button Bottom Action Dock (Always Visible) */}
+              <div className="p-3.5 border-t border-gray-100 bg-slate-50/70 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveActionMode(activeActionMode === 'assign' ? null : 'assign')}
+                  className="bg-teal-700 hover:bg-teal-800 text-white font-extrabold text-[11px] py-2.5 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer shadow-xs"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  <span>দায়িত্ব প্রদান</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveActionMode(activeActionMode === 'reply' ? null : 'reply')}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[11px] py-2.5 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer shadow-xs"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>উত্তর দিন</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveActionMode(activeActionMode === 'status' ? null : 'status')}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] py-2.5 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer shadow-xs"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>স্ট্যাটাস পরিবর্তন</span>
+                </button>
+                {c.status !== 'resolved' ? (
+                  <button
+                    type="button"
+                    onClick={() => setActiveActionMode(activeActionMode === 'resolve' ? null : 'resolve')}
+                    className="bg-red-600 hover:bg-red-700 text-white font-extrabold text-[11px] py-2.5 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer shadow-xs"
+                  >
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    <span>সমাধান করুন</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleQuickStatusChange(c, 'in_progress')}
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[11px] py-2.5 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer shadow-xs"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span>পুনরায় খুলুন</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* 5. Quick Add Complaint Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative space-y-4 my-8 max-h-[90vh] overflow-y-auto">
@@ -762,8 +1614,8 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
 
             <div className="space-y-1 border-b border-gray-100 pb-3">
               <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
-                <ShieldAlert className="w-5 h-5 text-orange-600" />
-                <span>নতুন গ্রাহক অভিযোগ / কম্পেলেইন এন্ট্রি</span>
+                <ShieldAlert className="w-5 h-5 text-teal-700" />
+                <span>নতুন অভিযোগ যোগ করুন</span>
               </h3>
               <p className="text-xs text-gray-400">
                 গ্রাহকের মোবাইল নম্বর দিয়ে সার্চ করুন বা তথ্য দিয়ে অভিযোগ সিস্টেমে জমা দিন।
@@ -771,7 +1623,6 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
             </div>
 
             <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs">
-              {/* Phone & Lookup */}
               <div>
                 <label className="block font-bold text-gray-700 mb-1">
                   গ্রাহকের মোবাইল নম্বর <span className="text-red-500">*</span>
@@ -784,19 +1635,15 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
                     placeholder="017XXXXXXXX"
                     value={newCustPhone}
                     onChange={(e) => handlePhoneLookup(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl font-bold font-sans text-sm focus:outline-hidden focus:border-orange-500"
+                    className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl font-bold font-sans text-sm focus:outline-hidden focus:border-teal-600"
                   />
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1">
-                  নম্বর লিখলে পূর্বের অর্ডারের নাম ও ঠিকানা স্বয়ংক্রিয়ভাবে পাওয়া যাবে।
-                </p>
                 {matchedPhoneOrders.length > 0 && (
-                  <div className="mt-2.5 p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1.5">
-                    <div className="flex items-center justify-between text-[11px] text-amber-900 font-extrabold">
-                      <span>সিস্টেমে এই নম্বরে {toBn(matchedPhoneOrders.length)}টি অর্ডার পাওয়া গেছে:</span>
-                      <span className="text-[10px] text-amber-700">ক্লিক করে সিলেক্ট করুন</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pt-1">
+                  <div className="mt-2 p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1.5">
+                    <span className="text-[11px] text-amber-900 font-extrabold block">
+                      সিস্টেমে {toBn(matchedPhoneOrders.length)}টি অর্ডার পাওয়া গেছে (সিলেক্ট করুন):
+                    </span>
+                    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
                       {matchedPhoneOrders.map((ord) => {
                         const isSelected = newOrderId === ord.id;
                         return (
@@ -804,15 +1651,12 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
                             key={ord.id}
                             type="button"
                             onClick={() => handleSelectCustomerOrder(ord)}
-                            className={`text-left px-2.5 py-1.5 rounded-lg border text-[11px] transition-all cursor-pointer flex items-center gap-1.5 ${
-                              isSelected
-                                ? 'bg-orange-600 text-white border-orange-600 font-black shadow-xs'
-                                : 'bg-white text-gray-700 border-gray-200 hover:border-orange-300'
+                            className={`px-2.5 py-1 rounded-lg border text-[11px] cursor-pointer flex items-center gap-1 ${
+                              isSelected ? 'bg-teal-700 text-white border-teal-700 font-black' : 'bg-white text-gray-700 border-gray-200'
                             }`}
                           >
                             <span className="font-mono font-bold">#{ord.id}</span>
-                            <span className="text-[10px] opacity-80">(৳{ord.totalAmount})</span>
-                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                            <span>(৳{ord.totalAmount})</span>
                           </button>
                         );
                       })}
@@ -821,7 +1665,6 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
                 )}
               </div>
 
-              {/* Name & Address */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-gray-700 mb-1">গ্রাহকের নাম</label>
@@ -830,7 +1673,7 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
                     placeholder="নাম লিখুন"
                     value={newCustName}
                     onChange={(e) => setNewCustName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl font-semibold focus:outline-hidden focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl font-semibold focus:outline-hidden focus:border-teal-600"
                   />
                 </div>
                 <div>
@@ -840,7 +1683,7 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
                     placeholder="e.g. ML-102934"
                     value={newOrderId}
                     onChange={(e) => setNewOrderId(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl font-mono font-bold focus:outline-hidden focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl font-mono font-bold focus:outline-hidden focus:border-teal-600"
                   />
                 </div>
               </div>
@@ -852,18 +1695,17 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
                   placeholder="ঠিকানা ও জেলা"
                   value={newCustAddress}
                   onChange={(e) => setNewCustAddress(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-semibold focus:outline-hidden focus:border-orange-500"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-semibold focus:outline-hidden focus:border-teal-600"
                 />
               </div>
 
-              {/* Issue Category & Priority */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-gray-700 mb-1">সমস্যার ক্যাটাগরি</label>
                   <select
                     value={newIssueCategory}
                     onChange={(e) => setNewIssueCategory(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold bg-white focus:outline-hidden focus:border-orange-500 cursor-pointer"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold bg-white focus:outline-hidden cursor-pointer"
                   >
                     {ISSUE_CATEGORIES.map(c => (
                       <option key={c.id} value={c.id}>{c.label}</option>
@@ -871,42 +1713,30 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">অগ্রাধিকার (Priority)</label>
+                  <label className="block font-bold text-gray-700 mb-1">অগ্রাধিকার</label>
                   <select
                     value={newPriority}
                     onChange={(e) => setNewPriority(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold bg-white focus:outline-hidden focus:border-orange-500 cursor-pointer"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold bg-white focus:outline-hidden cursor-pointer"
                   >
-                    <option value="normal">সাধারণ (Normal)</option>
-                    <option value="high">জরুরি (High)</option>
-                    <option value="urgent">অতি জরুরি (Urgent)</option>
+                    <option value="normal">সাধারণ</option>
+                    <option value="high">উচ্চ</option>
+                    <option value="urgent">অতি জরুরি</option>
                   </select>
                 </div>
               </div>
 
-              {/* Description */}
               <div>
                 <label className="block font-bold text-gray-700 mb-1">
-                  অভিযোগের বিস্তারিত বিবরণ ও কি সমস্যা হয়েছে <span className="text-red-500">*</span>
+                  অভিযোগের বিস্তারিত বিবরণ <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   required
                   rows={4}
-                  placeholder="গ্রাহকের সাথে কী কথা হয়েছে, কি সমস্যা ঘটেছে (যেমন: বোতল ভেঙে গেছে, পণ্য কম পাওয়া গেছে ইত্যাদি)..."
+                  placeholder="কি সমস্যা ঘটেছে বিস্তারিত লিখুন..."
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
-                  className="w-full p-3 border border-gray-200 rounded-xl font-medium focus:outline-hidden focus:border-orange-500 leading-relaxed"
-                />
-              </div>
-
-              {/* Logging Agent Name */}
-              <div>
-                <label className="block font-bold text-gray-700 mb-1">যে প্রতিনিধি এন্ট্রি করছেন</label>
-                <input
-                  type="text"
-                  value={newRepresentative}
-                  onChange={(e) => setNewRepresentative(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold text-gray-800"
+                  className="w-full p-3 border border-gray-200 rounded-xl font-medium focus:outline-hidden focus:border-teal-600"
                 />
               </div>
 
@@ -921,9 +1751,9 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold px-5 py-2 rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
+                  className="bg-teal-700 hover:bg-teal-800 text-white font-extrabold px-5 py-2 rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmitting ? 'জমা হচ্ছে...' : 'কম্পেলেইন জমা দিন'}
+                  {isSubmitting ? 'জমা হচ্ছে...' : 'অভিযোগ জমা দিন'}
                 </button>
               </div>
             </form>
@@ -931,194 +1761,34 @@ export const ComplaintsTab: React.FC<ComplaintsTabProps> = ({
         </div>
       )}
 
-      {/* 5. MODAL: Log Call with Customer */}
-      {showLogCallModal && selectedComplaint && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl relative space-y-4">
-            <button
-              type="button"
-              onClick={() => setShowLogCallModal(false)}
-              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="space-y-1 border-b border-gray-100 pb-3">
-              <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
-                <PhoneCall className="w-4.5 h-4.5 text-orange-600" />
-                <span>গ্রাহকের সাথে কথা বলার রেকর্ড (কল নং: {toBn((selectedComplaint.callLogs?.length || 0) + 1)})</span>
-              </h3>
-              <p className="text-xs text-gray-400">
-                গ্রাহক: {selectedComplaint.customerName} ({selectedComplaint.customerPhone})
-              </p>
-            </div>
-
-            <form onSubmit={handleSaveCallLog} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-gray-700 mb-1">কোন প্রতিনিধি কথা বলেছেন?</label>
-                <input
-                  type="text"
-                  required
-                  value={callLogRepresentative}
-                  onChange={(e) => setCallLogRepresentative(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-gray-700 mb-1">
-                  আলোচনার সারসংক্ষেপ ও কাস্টমারের বক্তব্য <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  required
-                  rows={4}
-                  placeholder="গ্রাহকের সাথে কি কথা হলো, কি সিদ্ধান্ত হলো..."
-                  value={callLogNotes}
-                  onChange={(e) => setCallLogNotes(e.target.value)}
-                  className="w-full p-3 border border-gray-200 rounded-xl font-medium focus:outline-hidden focus:border-orange-500"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-gray-700 mb-1">গ্রাহকের প্রতিক্রিয়া / মনোভাব</label>
-                <select
-                  value={callLogResponse}
-                  onChange={(e) => setCallLogResponse(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold bg-white focus:outline-hidden cursor-pointer"
-                >
-                  <option value="satisfied">সন্তুষ্ট ও আশ্বস্ত (Satisfied)</option>
-                  <option value="neutral">স্বাভাবিক / নিরপেক্ষ (Neutral)</option>
-                  <option value="followup_needed">পুনরায় যোগাযোগের প্রয়োজন (Follow-up needed)</option>
-                  <option value="unhappy">ক্ষুব্ধ / অসন্তুষ্ট (Unhappy)</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setShowLogCallModal(false)}
-                  className="px-4 py-2 border border-gray-200 rounded-xl text-gray-600 font-bold hover:bg-gray-50 cursor-pointer"
-                >
-                  বাতিল
-                </button>
-                <button
-                  type="submit"
-                  className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold px-5 py-2 rounded-xl transition-all shadow-md cursor-pointer"
-                >
-                  কল রেকর্ড সংরক্ষণ করুন
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 6. MODAL: Resolve Complaint */}
-      {showResolveModal && selectedComplaint && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative space-y-4">
-            <button
-              type="button"
-              onClick={() => setShowResolveModal(false)}
-              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="space-y-1 border-b border-gray-100 pb-3">
-              <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                <span>অভিযোগ সমাধান ও ক্লোজিং ফরম</span>
-              </h3>
-              <p className="text-xs text-gray-400">
-                গ্রাহক: {selectedComplaint.customerName} | সমস্যা: {selectedComplaint.issueCategoryLabel}
-              </p>
-            </div>
-
-            <form onSubmit={handleSaveResolution} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-gray-700 mb-1">কী পদক্ষেপ গ্রহণ করা হলো?</label>
-                <select
-                  value={resolveAction}
-                  onChange={(e) => setResolveAction(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold bg-white focus:outline-hidden focus:border-emerald-500 cursor-pointer"
-                >
-                  {ACTION_OPTIONS.map(a => (
-                    <option key={a.id} value={a.id}>{a.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {(resolveAction === 'refund' || resolveAction === 'partial_refund') && (
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">রিফান্ডের টাকার পরিমাণ (৳)</label>
-                  <input
-                    type="number"
-                    placeholder="টাকার অংক লিখুন"
-                    value={resolveRefundAmount}
-                    onChange={(e) => setResolveRefundAmount(e.target.value ? Number(e.target.value) : '')}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold font-sans"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block font-bold text-gray-700 mb-1">
-                  কীভাবে সমাধান সম্পন্ন হলো তার নোট <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  required
-                  rows={4}
-                  placeholder="গ্রাহকের সাথে কথা বলে সমাধান করা হলো (যেমন: নতুন পণ্য কুরিয়ার করা হয়েছে / টাকা ফেরত দেওয়া হয়েছে ইত্যাদি)..."
-                  value={resolveNotes}
-                  onChange={(e) => setResolveNotes(e.target.value)}
-                  className="w-full p-3 border border-gray-200 rounded-xl font-medium focus:outline-hidden focus:border-emerald-500 leading-relaxed"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">সমাধানকারী প্রতিনিধি</label>
-                  <input
-                    type="text"
-                    required
-                    value={resolveRepresentative}
-                    onChange={(e) => setResolveRepresentative(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">গ্রাহকের চূড়ান্ত সন্তুষ্টি</label>
-                  <select
-                    value={resolveIsSatisfied ? 'yes' : 'no'}
-                    onChange={(e) => setResolveIsSatisfied(e.target.value === 'yes')}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl font-bold bg-white focus:outline-hidden cursor-pointer"
-                  >
-                    <option value="yes">✓ গ্রাহক সন্তুষ্ট হয়েছেন</option>
-                    <option value="no">✕ গ্রাহক এখনো পুরোপুরি সন্তুষ্ট নন</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setShowResolveModal(false)}
-                  className="px-4 py-2 border border-gray-200 rounded-xl text-gray-600 font-bold hover:bg-gray-50 cursor-pointer"
-                >
-                  বাতিল
-                </button>
-                <button
-                  type="submit"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-5 py-2 rounded-xl transition-all shadow-md cursor-pointer"
-                >
-                  সমাধান নিশ্চিত করুন
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmModal
+        isOpen={Boolean(complaintToDelete)}
+        title="অভিযোগ ডিলিট করুন?"
+        description={
+          complaintToDelete ? (
+            <>
+              আপনি কি নিশ্চিতভাবে{' '}
+              <strong className="text-gray-800 font-bold">
+                "{complaintToDelete.customerName}" (#{complaintToDelete.id})
+              </strong>
+              -এর অভিযোগটি স্থায়ীভাবে মুছে ফেলতে চান?
+            </>
+          ) : null
+        }
+        onCancel={() => setComplaintToDelete(null)}
+        onConfirm={async () => {
+          if (!complaintToDelete) return;
+          const targetId = complaintToDelete.id;
+          const ok = await onDeleteComplaint(targetId);
+          setComplaintToDelete(null);
+          if (ok) {
+            if (selectedComplaint?.id === targetId) setSelectedComplaint(null);
+            notify('অভিযোগ মুছে ফেলা হয়েছে', 'info');
+          } else {
+            notify('অভিযোগ মুছে ফেলতে সমস্যা হয়েছে', 'error');
+          }
+        }}
+      />
     </div>
   );
 };

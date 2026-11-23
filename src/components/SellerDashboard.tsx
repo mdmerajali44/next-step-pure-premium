@@ -13,6 +13,8 @@ import {
   Link, ImageIcon, Truck, HelpCircle, Info, Printer, FileText, Bell, CheckCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { getValidImageSrc, handleImageError, DEFAULT_PRODUCT_PLACEHOLDER } from '../utils/imageUtils';
+import DeleteConfirmModal from './admin/DeleteConfirmModal';
 
 const PRESET_IMAGES = [
   { name: 'আখের জুস পাউডার', path: '/src/assets/images/juice_powder_1782456192648.jpg' },
@@ -28,7 +30,7 @@ const PRESET_IMAGES = [
   { name: 'সুন্দরবনের মধু বোতল', path: '/src/assets/images/sundarban_honey_jar_1782453470122.jpg' },
   { name: 'আম্রপালি আম', path: '/src/assets/images/green_mangoes_1_1782466276525.jpg' },
   { name: 'আমবাগান চাষী', path: '/src/assets/images/mango_farmer_orchard_1782453455911.jpg' },
-  { name: 'ম্যাংগো লাভার লোগো', path: '/src/assets/images/mango_lover_logo_1782453485561.jpg' },
+  { name: 'সাতক্ষীরা প্রিমিয়াম লোগো', path: '/src/assets/images/mango_lover_logo_1782453485561.jpg' },
 ];
 
 interface SellerDashboardProps {
@@ -307,6 +309,7 @@ export default function SellerDashboard({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   // Image Selector Modal State
   const [imageSelectorTarget, setImageSelectorTarget] = useState<string | null>(null);
@@ -385,7 +388,7 @@ export default function SellerDashboard({
     setProdPurchasePrice('');
     setProdBadge('none');
     setProdDescriptionBullets('');
-    setProdManufacturer('ম্যাংগো লাভার (MangoLover)');
+    setProdManufacturer('সাতক্ষীরা প্রিমিয়াম (Satkhira Premium)');
     setProdSourceArea('রাজশাহী, বাংলাদেশ');
     setProdShelfLife('১২ মাস (শুকনো ও ঠাণ্ডা জায়গায় সংরক্ষণ করুন)');
     setProdOrganicCertificate('১০০% প্রাকৃতিক ও কেমিক্যালমুক্ত পরীক্ষিত');
@@ -460,7 +463,7 @@ export default function SellerDashboard({
     }
 
     const finalImages = prodImages.filter(Boolean);
-    const primaryImg = finalImages[0] || 'https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&w=600&q=80';
+    const primaryImg = finalImages[0] || DEFAULT_PRODUCT_PLACEHOLDER;
 
     if (isEdit && editingProduct) {
       const updated: Product = {
@@ -836,7 +839,12 @@ export default function SellerDashboard({
                       <div className="space-y-3">
                         {sellerProducts.slice(0, 4).map(p => (
                           <div key={p.id} className="flex items-center gap-3 p-2 hover:bg-stone-50 rounded-xl transition-all border border-stone-100">
-                            <img src={p.image} alt={p.name} className="w-10 h-10 rounded-lg object-cover border" />
+                            <img 
+                              src={getValidImageSrc(p.image)} 
+                              alt={p.name} 
+                              className="w-10 h-10 rounded-lg object-contain border bg-white p-0.5" 
+                              onError={handleImageError}
+                            />
                             <div className="min-w-0 flex-1">
                               <h4 className="text-xs font-bold text-slate-800 truncate">{p.name}</h4>
                               <span className="text-[10px] text-slate-400 font-semibold">{p.category} • {p.price}৳ / {p.unit}</span>
@@ -894,7 +902,12 @@ export default function SellerDashboard({
                             {sellerProducts.map(p => (
                               <tr key={p.id} className="hover:bg-stone-50/50 transition-colors">
                                 <td className="p-3 flex items-center gap-3">
-                                  <img src={p.image} alt={p.name} className="w-10 h-10 rounded-lg object-cover border shrink-0" />
+                                  <img 
+                                    src={getValidImageSrc(p.image)} 
+                                    alt={p.name} 
+                                    className="w-10 h-10 rounded-lg object-contain border shrink-0 bg-white p-0.5" 
+                                    onError={handleImageError}
+                                  />
                                   <div className="min-w-0">
                                     <span className="block text-slate-800 font-black truncate">{p.name}</span>
                                     <span className="block text-[9px] text-slate-400 font-bold">ID: {p.id}</span>
@@ -928,12 +941,8 @@ export default function SellerDashboard({
                                       <Edit className="w-4 h-4" />
                                     </button>
                                     <button
-                                      onClick={() => {
-                                        if (confirm('আপনি কি এই পণ্যটি মুছে ফেলতে চান?')) {
-                                          onDeleteProduct(p.id);
-                                          onNotify('পণ্যটি সফলভাবে ডিলিট করা হয়েছে!', 'success');
-                                        }
-                                      }}
+                                      type="button"
+                                      onClick={() => setProductToDelete(p)}
                                       className="p-1.5 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                                       title="মুছে ফেলুন"
                                     >
@@ -1699,7 +1708,7 @@ export default function SellerDashboard({
                       className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 focus:outline-hidden font-medium bg-white text-gray-600 focus:border-emerald-600"
                     >
                       <option value="none">কোনোটিই নয় (None)</option>
-                      <option value="new">নতুন (New)</option>
+                      <option value="new">New</option>
                       <option value="restocked">স্টক এসেছে (Restocked)</option>
                     </select>
                   </div>
@@ -2277,6 +2286,27 @@ export default function SellerDashboard({
           }
         }
       `}</style>
+
+      <DeleteConfirmModal
+        isOpen={Boolean(productToDelete)}
+        title="পণ্য ডিলিট করুন?"
+        description={
+          productToDelete ? (
+            <>
+              আপনি কি নিশ্চিতভাবে{' '}
+              <strong className="text-gray-800 font-bold">"{productToDelete.name}"</strong>{' '}
+              পণ্যটি মুছে ফেলতে চান?
+            </>
+          ) : null
+        }
+        onCancel={() => setProductToDelete(null)}
+        onConfirm={() => {
+          if (!productToDelete) return;
+          onDeleteProduct(productToDelete.id);
+          setProductToDelete(null);
+          onNotify('পণ্যটি সফলভাবে ডিলিট করা হয়েছে!', 'success');
+        }}
+      />
     </div>
   );
 }

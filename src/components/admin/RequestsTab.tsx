@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RefreshCw, MessageSquare, Check, Trash2, X, Eye, AlertTriangle } from 'lucide-react';
 import { ProductRequest, SiteConfig } from '../../types';
 
@@ -9,6 +9,10 @@ interface RequestsTabProps {
   onDeleteProductRequest: (id: string) => void;
   notify: (msg: string, type?: 'success' | 'info' | 'error') => void;
   handlePrint: (elementId: string, title: string) => void;
+  externalStatusFilter?: 'all' | 'pending' | 'contacted' | 'completed';
+  onStatusFilterChange?: (val: 'all' | 'pending' | 'contacted' | 'completed') => void;
+  allowedStatuses?: ('all' | 'pending' | 'contacted' | 'completed')[];
+  canDelete?: boolean;
 }
 
 export default function RequestsTab({
@@ -18,27 +22,74 @@ export default function RequestsTab({
   onDeleteProductRequest,
   notify,
   handlePrint,
+  externalStatusFilter,
+  onStatusFilterChange,
+  allowedStatuses,
+  canDelete = true,
 }: RequestsTabProps) {
   const [selectedRequestDetails, setSelectedRequestDetails] = useState<ProductRequest | null>(null);
   const [requestToDelete, setRequestToDelete] = useState<ProductRequest | null>(null);
+  const [statusFilter, setStatusFilterState] = useState<'all' | 'pending' | 'contacted' | 'completed'>(() => {
+    if (externalStatusFilter && (!allowedStatuses || allowedStatuses.includes(externalStatusFilter))) {
+      return externalStatusFilter;
+    }
+    return allowedStatuses?.[0] || 'all';
+  });
+
+  const setStatusFilter = (val: 'all' | 'pending' | 'contacted' | 'completed') => {
+    setStatusFilterState(val);
+    onStatusFilterChange?.(val);
+  };
+
+  useEffect(() => {
+    if (externalStatusFilter) {
+      setStatusFilterState(externalStatusFilter);
+    }
+  }, [externalStatusFilter]);
+
+  const isFocusedStatus = Boolean(externalStatusFilter && externalStatusFilter !== 'all');
+  const filteredRequests = productRequests.filter(r => statusFilter === 'all' || r.status === statusFilter);
+  const headerTitle =
+    statusFilter === 'pending'
+      ? 'অপেক্ষমাণ প্রোডাক্ট রিকুয়েস্ট'
+      : statusFilter === 'completed'
+      ? 'সম্পন্ন প্রোডাক্ট রিকুয়েস্ট'
+      : statusFilter === 'contacted'
+      ? 'যোগাযোগকৃত প্রোডাক্ট রিকুয়েস্ট'
+      : 'গ্রাহক প্রোডাক্ট রিকুয়েস্ট সমূহ';
+  const headerDesc =
+    statusFilter === 'pending'
+      ? 'শুধুমাত্র অপেক্ষমাণ থাকা স্টক-আউট পণ্যের কাস্টমার রিকুয়েস্টসমূহ।'
+      : statusFilter === 'completed'
+      ? 'সফলভাবে সম্পন্ন হওয়া গ্রাহক রিকুয়েস্টের তালিকা।'
+      : 'স্টক আউট পণ্যের জন্য কাস্টমারদের পাঠানো রিকুয়েস্টের তালিকা এবং তাদের সাথে যোগাযোগের স্ট্যাটাস।';
 
   return (
     <div className="space-y-6">
-      {/* Header block with search */}
+      {/* Header block */}
       <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="font-extrabold text-slate-900 text-lg md:text-xl">
-            🛍️ গ্রাহক প্রোডাক্ট রিকুয়েস্ট সমূহ
+            {headerTitle}
           </h2>
           <p className="text-xs text-gray-400 font-medium mt-0.5">
-            স্টক আউট পণ্যের জন্য কাস্টমারদের পাঠানো রিকুয়েস্টের তালিকা এবং তাদের সাথে যোগাযোগের স্ট্যাটাস।
+            {headerDesc}
           </p>
         </div>
+        {isFocusedStatus && (
+          <div className="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-extrabold text-slate-700 tabular-nums shrink-0">
+            মোট: {filteredRequests.length} টি
+          </div>
+        )}
       </div>
 
-      {/* Stats overview row */}
+      {/* Stats overview row (only shown in All Requests view) */}
+      {!isFocusedStatus && (
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-3">
+        <div
+          onClick={() => setStatusFilter('pending')}
+          className={`bg-white p-4 rounded-2xl border shadow-xs flex items-center gap-3 cursor-pointer transition-all ${statusFilter === 'pending' ? 'border-rose-400 ring-2 ring-rose-100' : 'border-gray-200 hover:border-rose-200'}`}
+        >
           <div className="bg-rose-100 text-rose-600 p-2.5 rounded-xl">
             <RefreshCw className="w-5 h-5 text-rose-600" />
           </div>
@@ -50,7 +101,10 @@ export default function RequestsTab({
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-3">
+        <div
+          onClick={() => setStatusFilter('contacted')}
+          className={`bg-white p-4 rounded-2xl border shadow-xs flex items-center gap-3 cursor-pointer transition-all ${statusFilter === 'contacted' ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200 hover:border-blue-200'}`}
+        >
           <div className="bg-blue-100 text-blue-600 p-2.5 rounded-xl">
             <MessageSquare className="w-5 h-5" />
           </div>
@@ -62,7 +116,10 @@ export default function RequestsTab({
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-3">
+        <div
+          onClick={() => setStatusFilter('completed')}
+          className={`bg-white p-4 rounded-2xl border shadow-xs flex items-center gap-3 cursor-pointer transition-all ${statusFilter === 'completed' ? 'border-emerald-400 ring-2 ring-emerald-100' : 'border-gray-200 hover:border-emerald-200'}`}
+        >
           <div className="bg-emerald-100 text-emerald-600 p-2.5 rounded-xl">
             <Check className="w-5 h-5" />
           </div>
@@ -74,13 +131,37 @@ export default function RequestsTab({
           </div>
         </div>
       </div>
+      )}
 
       {/* Main table view */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-gray-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <span className="text-xs font-black text-gray-400 uppercase tracking-wider">
-            সর্বমোট {productRequests.length} টি রিকুয়েস্ট পাওয়া গেছে
+            মোট {filteredRequests.length} টি রিকুয়েস্ট প্রদর্শিত হচ্ছে
           </span>
+          {!isFocusedStatus && (
+          <div className="flex flex-wrap gap-1.5">
+            {([
+              { id: 'all', label: 'সকল' },
+              { id: 'pending', label: 'পেন্ডিং' },
+              { id: 'contacted', label: 'যোগাযোগ করা হয়েছে' },
+              { id: 'completed', label: 'সম্পন্ন' },
+            ] as const).map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setStatusFilter(tab.id)}
+                className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                  statusFilter === tab.id
+                    ? 'bg-orange-500 text-white shadow-xs'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          )}
         </div>
 
         <div className="overflow-x-auto">
@@ -95,14 +176,14 @@ export default function RequestsTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-xs font-medium text-gray-600">
-              {productRequests.length === 0 ? (
+              {filteredRequests.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-gray-400 font-bold">
                     কোন প্রোডাক্ট রিকুয়েস্ট পাওয়া যায়নি।
                   </td>
                 </tr>
               ) : (
-                productRequests.map((req) => (
+                filteredRequests.map((req) => (
                   <tr key={req.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
@@ -203,16 +284,18 @@ export default function RequestsTab({
                             সম্পন্ন করুন
                           </button>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRequestToDelete(req);
-                          }}
-                          className="bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-400 p-1.5 rounded-lg transition-colors cursor-pointer border-0"
-                          title="মুছে ফেলুন"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRequestToDelete(req);
+                            }}
+                            className="bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-400 p-1.5 rounded-lg transition-colors cursor-pointer border-0"
+                            title="মুছে ফেলুন"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -342,16 +425,18 @@ export default function RequestsTab({
                     </button>
                   )}
                   
-                  <button
-                    onClick={() => {
-                      setRequestToDelete(selectedRequestDetails);
-                      setSelectedRequestDetails(null);
-                    }}
-                    className="bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-bold px-3 py-2 rounded-xl transition-all cursor-pointer ml-auto flex items-center gap-1 border border-rose-200"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span>রিকুয়েস্টটি মুছে দিন</span>
-                  </button>
+                  {canDelete && (
+                    <button
+                      onClick={() => {
+                        setRequestToDelete(selectedRequestDetails);
+                        setSelectedRequestDetails(null);
+                      }}
+                      className="bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-bold px-3 py-2 rounded-xl transition-all cursor-pointer ml-auto flex items-center gap-1 border border-rose-200"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>রিকুয়েস্টটি মুছে দিন</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

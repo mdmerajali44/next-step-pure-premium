@@ -35,8 +35,12 @@ export const CategoryProductCarousel: React.FC<CategoryProductCarouselProps> = (
   const [cardsPerView, setCardsPerView] = useState(cardsPerViewDesktop);
   const containerRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const touchStartX = useRef<number | null>(null);
 
-  // Responsive cards per view
+  const totalProducts = products.length;
+  const isSliderNeeded = totalProducts > cardsPerView;
+
+  // Responsive cards per view (must be called unconditionally)
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
@@ -56,26 +60,92 @@ export const CategoryProductCarousel: React.FC<CategoryProductCarouselProps> = (
     return () => window.removeEventListener('resize', handleResize);
   }, [cardsPerViewDesktop]);
 
-  const totalProducts = products.length;
-
-  // Reset index when products or view changes
+  // Reset index when products or view changes (must be called unconditionally)
   useEffect(() => {
     setCurrentIndex(0);
     setIsTransitionEnabled(true);
   }, [totalProducts, cardsPerView]);
 
+  // Advance slide by 1 card from right to left (unconditional)
+  const advanceSlide = useCallback(() => {
+    setIsTransitionEnabled(true);
+    setCurrentIndex((prev) => prev + 1);
+  }, []);
+
+  // Previous slide (unconditional)
+  const prevSlide = useCallback(() => {
+    if (currentIndex === 0) {
+      setIsTransitionEnabled(false);
+      setCurrentIndex(totalProducts);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsTransitionEnabled(true);
+          setCurrentIndex(Math.max(0, totalProducts - 1));
+        });
+      });
+    } else {
+      setIsTransitionEnabled(true);
+      setCurrentIndex((prev) => Math.max(0, prev - 1));
+    }
+  }, [currentIndex, totalProducts]);
+
+  // Seamless jump back to 0 when reaching totalProducts (unconditional)
+  useEffect(() => {
+    if (isSliderNeeded && totalProducts > 0 && currentIndex >= totalProducts) {
+      const timeout = setTimeout(() => {
+        setIsTransitionEnabled(false);
+        setCurrentIndex(0);
+      }, 720); // slightly after 700ms transition finishes
+      return () => clearTimeout(timeout);
+    }
+  }, [currentIndex, totalProducts, isSliderNeeded]);
+
+  // 5-second automatic sliding (pauses on hover or if slider is not needed)
+  useEffect(() => {
+    if (!isSliderNeeded || totalProducts === 0 || isHovered) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
+
+    timerRef.current = setInterval(() => {
+      advanceSlide();
+    }, intervalSeconds * 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isHovered, isSliderNeeded, totalProducts, advanceSlide, intervalSeconds]);
+
+  // Touch swipe handlers (unconditional)
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    setIsHovered(true);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current !== null) {
+      const touchEndX = e.changedTouches[0].clientX;
+      const diff = touchStartX.current - touchEndX;
+      if (diff > 40) {
+        advanceSlide();
+      } else if (diff < -40) {
+        prevSlide();
+      }
+    }
+    touchStartX.current = null;
+    setIsHovered(false);
+  };
+
   // If there are no products, render nothing
   if (totalProducts === 0) return null;
 
   // If the product count is less than or equal to visible slots,
-  // do NOT duplicate, do NOT slide, just display them statically as they are!
-  const isSliderNeeded = totalProducts > cardsPerView;
-
+  // do NOT duplicate, do NOT slide, just display them statically as a clean grid!
   if (!isSliderNeeded) {
     const gridColsClass =
       cardsPerViewDesktop === 4
-        ? 'grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4'
-        : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5';
+        ? 'grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4'
+        : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3.5';
 
     return (
       <div className={`${gridColsClass} items-stretch`}>
@@ -104,77 +174,6 @@ export const CategoryProductCarousel: React.FC<CategoryProductCarouselProps> = (
 
   // When sliding is needed, clone only cardsPerView items at the end for seamless looping
   const displayItems = [...products, ...products.slice(0, cardsPerView)];
-
-  // Advance slide by 1 card from right to left
-  const advanceSlide = useCallback(() => {
-    setIsTransitionEnabled(true);
-    setCurrentIndex((prev) => prev + 1);
-  }, []);
-
-  const prevSlide = useCallback(() => {
-    if (currentIndex === 0) {
-      // Jump seamlessly to totalProducts then animate backwards to totalProducts - 1
-      setIsTransitionEnabled(false);
-      setCurrentIndex(totalProducts);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setIsTransitionEnabled(true);
-          setCurrentIndex(totalProducts - 1);
-        });
-      });
-    } else {
-      setIsTransitionEnabled(true);
-      setCurrentIndex((prev) => prev - 1);
-    }
-  }, [currentIndex, totalProducts]);
-
-  // Seamless jump back to 0 when reaching totalProducts
-  useEffect(() => {
-    if (currentIndex >= totalProducts) {
-      const timeout = setTimeout(() => {
-        setIsTransitionEnabled(false);
-        setCurrentIndex(0);
-      }, 720); // slightly after 700ms transition finishes
-      return () => clearTimeout(timeout);
-    }
-  }, [currentIndex, totalProducts]);
-
-  // 5-second automatic sliding (pauses on hover)
-  useEffect(() => {
-    if (isHovered) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      return;
-    }
-
-    timerRef.current = setInterval(() => {
-      advanceSlide();
-    }, intervalSeconds * 1000);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isHovered, advanceSlide, intervalSeconds]);
-
-  // Touch swipe support for mobile
-  const touchStartX = useRef<number | null>(null);
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    setIsHovered(true);
-  };
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current !== null) {
-      const touchEndX = e.changedTouches[0].clientX;
-      const diff = touchStartX.current - touchEndX;
-      if (diff > 40) {
-        advanceSlide();
-      } else if (diff < -40) {
-        prevSlide();
-      }
-    }
-    touchStartX.current = null;
-    setIsHovered(false);
-  };
-
   const itemWidthPercent = 100 / cardsPerView;
   const translateXPercent = currentIndex * itemWidthPercent;
 
@@ -187,7 +186,7 @@ export const CategoryProductCarousel: React.FC<CategoryProductCarouselProps> = (
       onTouchEnd={handleTouchEnd}
     >
       {/* Carousel Track Container */}
-      <div ref={containerRef} className="overflow-hidden py-1 -mx-1.5 px-1.5">
+      <div ref={containerRef} className="overflow-hidden py-1 -mx-1 px-1">
         <div
           className="flex"
           style={{
@@ -200,7 +199,7 @@ export const CategoryProductCarousel: React.FC<CategoryProductCarouselProps> = (
           {displayItems.map((product, idx) => (
             <div
               key={`${product.id}-${idx}`}
-              className="shrink-0 px-2 box-border flex flex-col"
+              className="shrink-0 px-1.5 box-border flex flex-col"
               style={{ width: `${itemWidthPercent}%` }}
             >
               <ProductCard
@@ -224,7 +223,7 @@ export const CategoryProductCarousel: React.FC<CategoryProductCarouselProps> = (
         </div>
       </div>
 
-      {/* Floating subtle previous/next buttons (no text whatsoever) */}
+      {/* Floating subtle previous/next buttons */}
       <button
         type="button"
         onClick={prevSlide}

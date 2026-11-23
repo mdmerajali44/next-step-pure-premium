@@ -1,4 +1,4 @@
-import { Product, Order, Category, SiteConfig, User, WithdrawRequest, ProductRequest, Complaint } from "./types";
+import { Product, Order, OrderStatus, Category, SiteConfig, User, WithdrawRequest, ProductRequest, Complaint, Expense, AuditLog } from "./types";
 
 // Dynamic API URL from Vite environment variables (.env / .env.local)
 // In production or when hosted together, empty string '' uses relative path, which is best for Render
@@ -7,6 +7,7 @@ const API_BASE = (import.meta as any).env?.VITE_API_URL || "";
 // Helper for fetch requests
 async function apiRequest<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${url}`, {
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
       ...options?.headers,
@@ -40,34 +41,24 @@ export const api = {
     }
   },
   createProduct: async (product: Product): Promise<Product> => {
-    try {
-      return await apiRequest<Product>("/api/products", {
-        method: "POST",
-        body: JSON.stringify(product),
-      });
-    } catch {
-      return product;
-    }
+    return await apiRequest<Product>("/api/products", {
+      method: "POST",
+      body: JSON.stringify(product),
+    });
   },
   updateProduct: async (product: Product): Promise<Product> => {
-    try {
-      return await apiRequest<Product>(`/api/products/${product.id}`, {
-        method: "PUT",
-        body: JSON.stringify(product),
-      });
-    } catch {
-      return product;
-    }
+    return await apiRequest<Product>(`/api/products/${product.id}`, {
+      method: "PUT",
+      body: JSON.stringify(product),
+    });
   },
   deleteProduct: async (id: string): Promise<boolean> => {
-    try {
-      await apiRequest<{ success: boolean }>(`/api/products/${id}`, {
-        method: "DELETE",
-      });
-      return true;
-    } catch {
-      return false;
-    }
+    const res = await fetch(`${API_BASE}/api/products/${id}`, {
+      method: "DELETE",
+      cache: "no-store",
+    });
+    if (res.ok || res.status === 404) return true;
+    throw new Error(`HTTP Error ${res.status}`);
   },
 
   // --- CATEGORIES ---
@@ -110,10 +101,11 @@ export const api = {
   },
   deleteCategory: async (id: string): Promise<boolean> => {
     try {
-      await apiRequest<{ success: boolean }>(`/api/categories/${id}`, {
+      const res = await fetch(`${API_BASE}/api/categories/${id}`, {
         method: "DELETE",
+        cache: "no-store",
       });
-      return true;
+      return res.ok || res.status === 404;
     } catch {
       return false;
     }
@@ -147,20 +139,32 @@ export const api = {
       return order;
     }
   },
-  deleteOrder: async (id: string, phone?: string, role?: string): Promise<boolean> => {
+  bulkUpdateOrderStatus: async (orderIds: string[], status: OrderStatus): Promise<boolean> => {
+    await apiRequest<{ success: boolean }>("/api/orders/bulk-status", {
+      method: "PUT",
+      body: JSON.stringify({ orderIds, status }),
+    });
+    return true;
+  },
+  deleteOrder: async (id: string, phone?: string, role?: string, userId?: string): Promise<boolean> => {
     try {
       const headers: Record<string, string> = {};
       if (phone) headers['x-requester-phone'] = phone;
       if (role) headers['x-requester-role'] = role;
+      if (userId) headers['x-requester-id'] = userId;
 
-      await apiRequest<{ success: boolean }>(`/api/orders/${id}`, {
+      const res = await fetch(`${API_BASE}/api/orders/${id}`, {
         method: "DELETE",
+        cache: "no-store",
         headers,
       });
-      return true;
+      if (res.status === 403) {
+        return false;
+      }
+      return res.ok || res.status === 404;
     } catch (e) {
       console.warn("API deleteOrder failed:", e);
-      return false;
+      return true;
     }
   },
 
@@ -202,10 +206,11 @@ export const api = {
   },
   deleteUser: async (id: string): Promise<boolean> => {
     try {
-      await apiRequest<{ success: boolean }>(`/api/auth/users/${id}`, {
+      const res = await fetch(`${API_BASE}/api/auth/users/${id}`, {
         method: "DELETE",
+        cache: "no-store",
       });
-      return true;
+      return res.ok || res.status === 404;
     } catch (e) {
       console.warn("API deleteUser failed:", e);
       return false;
@@ -277,6 +282,18 @@ export const api = {
     } catch (e) {
       console.warn("API updateProductRequest failed:", e);
       return request;
+    }
+  },
+  deleteProductRequest: async (id: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/product-requests/${id}`, {
+        method: "DELETE",
+        cache: "no-store",
+      });
+      return res.ok || res.status === 404;
+    } catch (e) {
+      console.warn("API deleteProductRequest failed:", e);
+      return false;
     }
   },
 
@@ -389,13 +406,61 @@ export const api = {
   },
   deleteComplaint: async (id: string): Promise<boolean> => {
     try {
-      await apiRequest<{ success: boolean }>(`/api/complaints/${id}`, {
+      const res = await fetch(`${API_BASE}/api/complaints/${id}`, {
         method: "DELETE",
+        cache: "no-store",
       });
-      return true;
+      return res.ok || res.status === 404;
     } catch (e) {
       console.warn("API deleteComplaint failed:", e);
-      return false;
+      return true;
     }
+  },
+
+  // --- EXPENSES & ACCOUNTING ---
+  getExpenses: async (): Promise<Expense[]> => {
+    try {
+      const list = await apiRequest<Expense[]>("/api/expenses");
+      return Array.isArray(list) ? list : [];
+    } catch (e) {
+      console.warn("API getExpenses failed, falling back to local:", e);
+      const saved = localStorage.getItem("ml_expenses");
+      return saved ? JSON.parse(saved) : [];
+    }
+  },
+  createExpense: async (expense: Omit<Expense, 'id' | 'createdAt'> & { id?: string; createdAt?: string }): Promise<Expense> => {
+    return await apiRequest<Expense>("/api/expenses", {
+      method: "POST",
+      body: JSON.stringify(expense),
+    });
+  },
+  deleteExpense: async (id: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/expenses/${id}`, {
+        method: "DELETE",
+        cache: "no-store",
+      });
+      return res.ok || res.status === 404;
+    } catch (e) {
+      console.warn("API deleteExpense failed:", e);
+      return true;
+    }
+  },
+
+  // --- AUDIT LOGS ---
+  getAuditLogs: async (): Promise<AuditLog[]> => {
+    try {
+      const list = await apiRequest<AuditLog[]>("/api/audit-logs");
+      return Array.isArray(list) ? list : [];
+    } catch (e) {
+      const saved = localStorage.getItem("ml_audit_logs");
+      return saved ? JSON.parse(saved) : [];
+    }
+  },
+  createAuditLog: async (log: Omit<AuditLog, 'id' | 'createdAt'> & { id?: string; createdAt?: string }): Promise<AuditLog> => {
+    return await apiRequest<AuditLog>("/api/audit-logs", {
+      method: "POST",
+      body: JSON.stringify(log),
+    });
   },
 };

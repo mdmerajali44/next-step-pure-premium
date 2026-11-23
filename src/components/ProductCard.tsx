@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { Product, sortProductSizes } from '../types';
 import { Star, ShoppingCart, ShoppingBag, Search } from 'lucide-react';
 import { motion } from 'motion/react';
+import { getValidImageSrc, handleImageError } from '../utils/imageUtils';
 
 interface ProductCardProps {
   key?: string;
@@ -138,13 +139,24 @@ const getCategoryLabel = (product: Product) => {
 export default function ProductCard({ product, onAddToCart, onSelect, onDirectBuy, onQuickView, onRequestProduct, onViewImage, isCompact = false, sellerName }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
-  const hasOffer = !!(product.isOffer && (product.offerPrice || (product.sizePrices && Object.values(product.sizePrices).some(sp => sp.offerPrice))));
-  const cardDisplayPrice = hasOffer && product.offerPrice && product.offerPrice > 0
-    ? product.offerPrice
+  let resolvedOfferPrice = product.offerPrice;
+  if ((!resolvedOfferPrice || resolvedOfferPrice <= 0) && product.sizePrices) {
+    const defaultSz = (product.sizes && product.sizes[0]) || Object.keys(product.sizePrices)[0];
+    if (defaultSz && product.sizePrices[defaultSz]?.offerPrice) {
+      resolvedOfferPrice = product.sizePrices[defaultSz].offerPrice;
+    } else {
+      const anyOffer = Object.values(product.sizePrices).find(sp => sp.offerPrice && sp.offerPrice > 0)?.offerPrice;
+      if (anyOffer) resolvedOfferPrice = anyOffer;
+    }
+  }
+
+  const hasOffer = !!(product.isOffer && (resolvedOfferPrice || (product.sizePrices && Object.values(product.sizePrices).some(sp => sp.offerPrice))));
+  const cardDisplayPrice = hasOffer && resolvedOfferPrice && resolvedOfferPrice > 0
+    ? resolvedOfferPrice
     : product.price;
 
-  const cardOriginalPrice = (hasOffer && product.offerPrice && product.offerPrice > 0)
-    ? (product.originalPrice && Number(product.originalPrice) > Number(product.offerPrice) ? product.originalPrice : product.price)
+  const cardOriginalPrice = (hasOffer && resolvedOfferPrice && resolvedOfferPrice > 0)
+    ? (product.originalPrice && Number(product.originalPrice) > Number(resolvedOfferPrice) ? product.originalPrice : product.price)
     : product.originalPrice;
 
   const discount = (cardOriginalPrice && Number(cardOriginalPrice) > Number(cardDisplayPrice)) 
@@ -177,7 +189,7 @@ export default function ProductCard({ product, onAddToCart, onSelect, onDirectBu
         </div>
       ) : product.badge === 'new' ? (
         <div className="absolute top-4 left-4 z-10 bg-[#00b050] text-white text-[9px] font-black px-2.5 py-1 rounded-full tracking-wider uppercase shadow-xs">
-          নতুন
+          New
         </div>
       ) : product.badge === 'restocked' ? (
         <div className="absolute top-4 left-4 z-10 bg-indigo-600 text-white text-[9px] font-black px-2.5 py-1 rounded-full tracking-wider uppercase shadow-xs">
@@ -214,31 +226,21 @@ export default function ProductCard({ product, onAddToCart, onSelect, onDirectBu
         }`}
       >
         <img 
-          src={product.image} 
+          src={getValidImageSrc(product.image)} 
           alt={product.name}
-          className={`w-full h-full object-cover mx-auto group-hover:scale-105 transition-all duration-500 ${
+          className={`w-full h-full object-contain p-2 mx-auto group-hover:scale-105 transition-all duration-500 mix-blend-multiply ${
             secondImage ? 'group-hover:opacity-0' : ''
           }`}
           referrerPolicy="no-referrer"
-          onError={(e) => {
-            const target = e.currentTarget;
-            if (!target.src.includes('unsplash.com')) {
-              target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
-            }
-          }}
+          onError={handleImageError}
         />
         {secondImage && (
           <img 
-            src={secondImage} 
+            src={getValidImageSrc(secondImage)} 
             alt={`${product.name} - View 2`}
-            className="absolute inset-0 w-full h-full object-cover mx-auto scale-100 group-hover:scale-105 opacity-0 group-hover:opacity-100 transition-all duration-500"
+            className="absolute inset-0 w-full h-full object-contain p-2 mx-auto scale-100 group-hover:scale-105 opacity-0 group-hover:opacity-100 transition-all duration-500 mix-blend-multiply"
             referrerPolicy="no-referrer"
-            onError={(e) => {
-              const target = e.currentTarget;
-              if (!target.src.includes('unsplash.com')) {
-                target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
-              }
-            }}
+            onError={handleImageError}
           />
         )}
       </div>
